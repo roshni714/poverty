@@ -3,6 +3,10 @@ import numpy as np
 
 
 def solve_fractional_knapsack_problem(xs, p_xs, convex_hulls, budget):
+    """
+    Priority queue algorithm of Svedrup et al 2023.
+    """
+
     total_gain = 0
     total_spend = 0
     pq = PriorityQueue()

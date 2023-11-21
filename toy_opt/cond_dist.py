@@ -7,6 +7,11 @@ from itertools import product
 
 
 def compare_ratio(curr_p, old_p, new_p):
+    """
+    Compares the change in objective-budget tradeoff from curr_p to old_p and from curr_p to new_p.
+    Returns True if new_p gives lower has lower slope (better tradeoff).
+    """
+
     slope1 = (new_p[1] - curr_p[1]) / (new_p[0] - curr_p[0])
     slope2 = (old_p[1] - curr_p[1]) / (old_p[0] - curr_p[0])
     return slope1 < slope2
@@ -30,12 +35,18 @@ class ConditionalDistribution:
         return lognorm.ppf(a, loc=self.x, scale=self.scale, s=self.shape)
 
     def set_mode(self):
+        """
+        Computes the mode of the distribution.
+        """
         zs = np.linspace(0.0, self.x + 10, 10000)
         fs = self.pdf(zs)
         mode = zs[np.argmax(fs)]
         self.mode = mode
 
     def set_inverses(self):
+        """
+        Computes the left (inv1) and right inverses of the pdf.
+        """
         z1s = np.linspace(0.0, self.mode, 10000)
         z2s = np.linspace(self.mode, 30 + self.mode, 10000)
         p1s = self.pdf(z1s)
@@ -45,6 +56,10 @@ class ConditionalDistribution:
         self.inv2 = interp1d(p2s, z2s)
 
     def get_z(self, alpha, c_bar):
+        """
+        Computes the set of alpha-valid transfers.
+        Returns a numpy array of alpha-valid transfers in sorted order.
+        """
         z = [0, c_bar]
         if alpha < self.pdf(self.mode):
             v2 = c_bar - self.inv2(alpha)
@@ -57,11 +72,17 @@ class ConditionalDistribution:
         return z
 
     def get_p(self, alpha, c_bar):
+        """
+        Computes the probability of that the post-transfer outcome is below  the poverty line for each of the alpha-valid transfer.
+        """
         z = self.get_z(alpha, c_bar)
         p = self.cdf(c_bar - z)
         return p
 
     def get_convex_hull(self, alpha, c_bar):
+        """
+        Computes the lower convex hull of the alpha-valid transfers.
+        """
         z = self.get_z(alpha, c_bar)
         p = self.get_p(alpha, c_bar)
         tups = list(zip(p, z))
