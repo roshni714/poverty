@@ -10,10 +10,10 @@ def solve_conditional_program(p_xs, cond_dists, budget, c_bar):
     for i, cond_dist in enumerate(cond_dists):
         if cond_dist.cdf(c_bar) > budget:
             cost.append((c_bar - cond_dist.ppf(budget)))
-            assignments[i] = [c_bar - cond_dist.ppf(budget)]
+            assignments[i] = [(c_bar - cond_dist.ppf(budget), 1.0)]
         else:
             cost.append(0.0)
-            assignments[i] = [0.0]
+            assignments[i] = [(0.0, 1.0)]
 
     total_cost = np.sum(np.array(cost) * p_xs)
     return assignments, total_cost

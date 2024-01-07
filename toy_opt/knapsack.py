@@ -74,3 +74,15 @@ def solve_fractional_knapsack_problem(xs, p_xs, convex_hulls, budget):
             pq.put((ratio, (x_idx, next_hull_idx)))
 
     return assignments, total_gain
+
+
+def poverty_gap(assignments, c_bar, p_xs):
+    total_gap = 0
+    for i in range(len(p_xs)):
+        i_gap = 0.0
+        for j in range(len(assignments[i])):
+            i_gap += np.maximum(c_bar - assignments[i][j][0], 0) * assignments[i][j][1]
+
+        total_gap += i_gap
+
+    return gap

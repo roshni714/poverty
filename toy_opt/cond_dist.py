@@ -18,27 +18,27 @@ def compare_ratio(curr_p, old_p, new_p):
 
 
 class ConditionalDistribution:
-    def __init__(self, x, scale, shape):
-        self.x = x
+    def __init__(self, loc, scale, shape):
+        self.loc = loc
         self.scale = scale
         self.shape = shape
         self.set_mode()
         self.set_inverses()
 
     def pdf(self, z):
-        return lognorm.pdf(z, loc=self.x, scale=self.scale, s=self.shape)
+        return lognorm.pdf(z, loc=self.loc, scale=self.scale, s=self.shape)
 
     def cdf(self, z):
-        return lognorm.cdf(z, loc=self.x, scale=self.scale, s=self.shape)
+        return lognorm.cdf(z, loc=self.loc, scale=self.scale, s=self.shape)
 
     def ppf(self, a):
-        return lognorm.ppf(a, loc=self.x, scale=self.scale, s=self.shape)
+        return lognorm.ppf(a, loc=self.loc, scale=self.scale, s=self.shape)
 
     def set_mode(self):
         """
         Computes the mode of the distribution.
         """
-        zs = np.linspace(0.0, self.x + 10, 10000)
+        zs = np.linspace(0.0, self.loc + 10, 10000)
         fs = self.pdf(zs)
         mode = zs[np.argmax(fs)]
         self.mode = mode
@@ -47,8 +47,8 @@ class ConditionalDistribution:
         """
         Computes the left (inv1) and right inverses of the pdf.
         """
-        z1s = np.linspace(0.0, self.mode, 10000)
-        z2s = np.linspace(self.mode, 30 + self.mode, 10000)
+        z1s = np.linspace(1e-10, self.mode, 10000)
+        z2s = np.linspace(self.mode, 30 * self.scale + self.mode, 10000)
         p1s = self.pdf(z1s)
         p2s = self.pdf(z2s)
 
