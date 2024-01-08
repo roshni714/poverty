@@ -22,8 +22,15 @@ class ConditionalDistribution:
         self.loc = loc
         self.scale = scale
         self.shape = shape
-        self.set_mode()
-        self.set_inverses()
+        self.mode = np.exp(np.log(self.scale) - (self.shape) ** 2) + self.loc
+        self.inv1 = None
+        self.inv2 = None
+
+    #         zs = np.linspace(0.0, self.loc + 10, 10000)
+    #         fs = self.pdf(zs)
+    #         mode = zs[np.argmax(fs)]
+    #         print(mode, self.mode)
+    #        self.mode = mode
 
     def pdf(self, z):
         return lognorm.pdf(z, loc=self.loc, scale=self.scale, s=self.shape)
@@ -33,15 +40,6 @@ class ConditionalDistribution:
 
     def ppf(self, a):
         return lognorm.ppf(a, loc=self.loc, scale=self.scale, s=self.shape)
-
-    def set_mode(self):
-        """
-        Computes the mode of the distribution.
-        """
-        zs = np.linspace(0.0, self.loc + 10, 10000)
-        fs = self.pdf(zs)
-        mode = zs[np.argmax(fs)]
-        self.mode = mode
 
     def set_inverses(self):
         """
@@ -60,6 +58,8 @@ class ConditionalDistribution:
         Computes the set of alpha-valid transfers.
         Returns a numpy array of alpha-valid transfers in sorted order.
         """
+        if self.inv1 is None:
+            self.set_inverses()
         z = [0, c_bar]
         if alpha < self.pdf(self.mode):
             v2 = c_bar - self.inv2(alpha)

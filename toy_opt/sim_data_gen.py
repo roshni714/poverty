@@ -4,10 +4,9 @@ from scipy.stats import lognorm
 
 from cond_dist import ConditionalDistribution
 
-np.random.seed(12345)
-
 
 def generate_homoscedastic_data(n, d):
+    np.random.seed(12345)
     X = torch.Tensor(np.random.uniform(0.0, 1.0, n * d)).reshape(n, 1, d)
 
     gamma = torch.Tensor(np.random.uniform(2, 5, d).reshape(d, 1))
@@ -32,13 +31,14 @@ def generate_homoscedastic_data(n, d):
 
 
 def generate_heteroscedastic_data(n, d):
+    np.random.seed(12345)
     X = torch.Tensor(np.random.uniform(0.0, 1.0, n * d)).reshape(n, 1, d)
 
-    gamma = torch.Tensor(np.random.uniform(2, 5, d).reshape(d, 1))
-    gamma0 = np.random.uniform(2, 5, 1)
+    gamma = torch.Tensor(np.random.uniform(0.1, 5, d).reshape(d, 1))
+    gamma0 = np.random.uniform(0.1, 5, 1)
 
-    psi = torch.Tensor(np.random.uniform(0.5, 1.5, d).reshape(d, 1))
-    psi0 = np.random.uniform(0.5, 1.5, 1)
+    psi = torch.Tensor(np.random.uniform(0.0, 1.0, d).reshape(d, 1)) / d
+    psi0 = np.random.uniform(0.1, 1.0, 1) / d
 
     scales = torch.matmul(X, gamma).reshape(n, 1) + gamma0
     shapes = torch.matmul(X, psi).reshape(n, 1) + psi0
