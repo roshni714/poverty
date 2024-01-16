@@ -7,25 +7,21 @@ from utils import make_plot
 import numpy as np
 
 
-def main(n, d):
-    X, y, true_cond_densities, gamma, gamma0, psi, psi0 = generate_heteroscedastic_data(
-        n, d
-    )
+def main(X, y, true_cond_densities, budget, c_bar, d):
+    n = len(X)
     title = "heteroscedastic_n={}_d={}".format(n, d)
-    budget = 0.1
-    c_bar = 8.0
     p_xs = np.ones(n) / n
+
     (
         opt_policy_conditional_program,
         total_cost,
     ) = solve_conditional_program_quantile_regression(
-        X, y, budget, c_bar, title=title, true_cond_densities=true_cond_densities
+        X[:, :d], y, budget, c_bar, title=title, true_cond_densities=true_cond_densities
     )
 
-    estimated_cond_densities = get_estimated_cond_densities(X, y)
+    estimated_cond_densities = get_estimated_cond_densities(X[:, :d], y)
 
-    make_plot(true_cond_densities, estimated_cond_densities, title)
-
+    #    make_plot(true_cond_densities, estimated_cond_densities, title)
     opt_policies, total_transfers, alphas = compute_alpha_opt_policies(
         estimated_cond_densities,
         p_xs,
@@ -35,19 +31,25 @@ def main(n, d):
         title="{}_estimated".format(title),
         true_cond_densities=true_cond_densities,
     )
-    opt_policies, total_transfers, alphas = compute_alpha_opt_policies(
-        true_cond_densities,
-        p_xs,
-        budget,
-        c_bar,
-        n_alpha=200,
-        title="{}_true".format(title),
-    )
 
 
 n = 5000
-ds = [2, 3, 5, 8]
+max_d = 10
+X, y, true_cond_densities = generate_heteroscedastic_data(n, max_d)
+title = "heteroscedastic_n={}_d={}".format(n, max_d)
+budget = 0.1
+c_bar = np.mean([density.ppf(budget / 2) for density in true_cond_densities])
+print("c_bar:{}".format(c_bar))
+p_xs = np.ones(n) / n
 
-for d in ds:
-    print("running d = {}".format(d))
-    main(n, d)
+opt_policies, total_transfers, alphas = compute_alpha_opt_policies(
+    true_cond_densities,
+    p_xs,
+    budget,
+    c_bar,
+    n_alpha=200,
+    title="{}_true".format(title),
+)
+
+for d in [2, 3, 5, 8]:
+    main(X, y, true_cond_densities, budget, c_bar, d)
