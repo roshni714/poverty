@@ -1,15 +1,12 @@
 import numpy as np
-from sklearn.linear_model import QuantileRegressor
+import xgboost as xg
 
-from utils import standardize
-from knapsack import policy_cost, prob_below_line
+from data_loaders.data_utils import standardize
 from reporting import write_result
+from evaluate import post_transfer_metrics, empirical_post_transfer_metrics
 
 
 def solve_conditional_program(p_xs, cond_dists, budget, c_bar):
-    """
-    Solves conditional program.
-    """
     cost = []
     assignments = {x_idx: [] for x_idx in range(len(p_xs))}
     for i, cond_dist in enumerate(cond_dists):
@@ -25,30 +22,42 @@ def solve_conditional_program(p_xs, cond_dists, budget, c_bar):
 
 
 def solve_conditional_program_quantile_regression(
-    X, y, budget, c_bar, title="sim", true_cond_densities=None
+    train_dataset, budget, c_bar, title="sim"
 ):
+    X = train_dataset.X
+    y = train_dataset.y
+    r = train_dataset.r
+
     X, X_mean, X_std = standardize(X)
     y, y_mean, y_std = standardize(y)
 
-    q_hat = QuantileRegressor(quantile=budget, alpha=0, solver="highs").fit(X, y)
-    quantile = q_hat.predict(X) * y_std + y_mean
-    transfer = np.maximum(c_bar - quantile, 0)
+    q_hat = xg.XGBRegressor(
+        objective="reg:quantileerror",
+        max_depth=3,
+        n_estimators=10,
+        quantile_alpha=budget,
+    ).fit(X, y, sample_weight=r)
 
-    optimal_policy = {}
-    for i in range(len(X)):
-        optimal_policy[i] = [(transfer[i], 1.0)]
+    def t(X_test):
+        X_test = (X_test - X.mean()) / X.std()
+        quantile = q_hat.predict(X_test) * y_std + y_mean
+        transfer = np.maximum(c_bar - quantile, 0)
+        return transfer
 
-    total_cost = policy_cost(optimal_policy, np.ones(len(X)) / len(X))
+    return t
 
-    if true_cond_densities is not None:
-        prob = prob_below_line(
-            optimal_policy, c_bar, np.ones(len(X)) / len(X), true_cond_densities
-        )
-    else:
-        prob = budget
 
-    results_file = "results/{}_conditional_program.csv".format(title)
+#
+#    assignments = {x_idx: [] for x_idx in range(len(test_dataset))}
+#    for i in range(len(X_test))
+#        assignments[i].append((transfer[i], 1.))
 
-    result = {"total_transfer": total_cost, "prob_below_line": prob}
-    write_result(results_file, result)
-    return optimal_policy, total_cost
+#    if true_cond_densities is not None:
+#        result = post_transfer_metrics(true_cond_densities, r, optimal_policy, c_bar)
+#    elif test_dataset is not None:
+#        result = empirical_post_transfer_metrics(test_dataset, optimal_policy, c_bar)
+
+#    results_file = "results/{}_conditional_program.csv".format(title)
+
+#    write_result(results_file, result)
+#    return optimal_policy, total_cost

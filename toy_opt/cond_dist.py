@@ -41,6 +41,9 @@ class ConditionalDistribution:
     def ppf(self, a):
         return lognorm.ppf(a, loc=self.loc, scale=self.scale, s=self.shape)
 
+    def expect(self, f):
+        return lognorm.expect(f, loc=self.loc, scale=self.scale, s=self.shape)
+
     def set_inverses(self):
         """
         Computes the left (inv1) and right inverses of the pdf.
@@ -58,6 +61,7 @@ class ConditionalDistribution:
         Computes the set of alpha-valid transfers.
         Returns a numpy array of alpha-valid transfers in sorted order.
         """
+        assert alpha > 0
         if self.inv1 is None:
             self.set_inverses()
         z = [0, c_bar]
@@ -75,6 +79,7 @@ class ConditionalDistribution:
         """
         Computes the probability of that the post-transfer outcome is below  the poverty line for each of the alpha-valid transfer.
         """
+        assert alpha > 0
         z = self.get_z(alpha, c_bar)
         p = self.cdf(c_bar - z)
         return p
@@ -83,6 +88,7 @@ class ConditionalDistribution:
         """
         Computes the lower convex hull of the alpha-valid transfers.
         """
+        assert alpha > 0
         z = self.get_z(alpha, c_bar)
         p = self.get_p(alpha, c_bar)
         tups = list(zip(p, z))

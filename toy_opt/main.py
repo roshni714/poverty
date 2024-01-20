@@ -2,12 +2,14 @@ from sim_data_gen import generate_homoscedastic_data, generate_heteroscedastic_d
 from mle import get_estimated_cond_densities
 from knapsack import compute_alpha_opt_policies
 from conditional_program import solve_conditional_program_quantile_regression
-from utils import make_plot
+from utils import make_density_plot
+from metrics import poverty_gap, post_transfer_poverty_gap
 
 import numpy as np
+import argh
 
 
-def main(X, y, true_cond_densities, budget, c_bar, d):
+def run_alg(X, y, true_cond_densities, budget, c_bar, d):
     n = len(X)
     title = "heteroscedastic_n={}_d={}".format(n, d)
     p_xs = np.ones(n) / n
@@ -21,7 +23,7 @@ def main(X, y, true_cond_densities, budget, c_bar, d):
 
     estimated_cond_densities = get_estimated_cond_densities(X[:, :d], y)
 
-    #    make_plot(true_cond_densities, estimated_cond_densities, title)
+    make_density_plot(true_cond_densities, estimated_cond_densities, title)
     opt_policies, total_transfers, alphas = compute_alpha_opt_policies(
         estimated_cond_densities,
         p_xs,
@@ -33,23 +35,32 @@ def main(X, y, true_cond_densities, budget, c_bar, d):
     )
 
 
-n = 5000
-max_d = 10
-X, y, true_cond_densities = generate_heteroscedastic_data(n, max_d)
-title = "heteroscedastic_n={}_d={}".format(n, max_d)
-budget = 0.1
-c_bar = np.mean([density.ppf(budget / 2) for density in true_cond_densities])
-print("c_bar:{}".format(c_bar))
-p_xs = np.ones(n) / n
+@argh.arg("--d", default=2)
+def main(d=2):
+    n = 5000
+    max_d = 20
+    X, y, true_cond_densities = generate_heteroscedastic_data(n, max_d)
 
-opt_policies, total_transfers, alphas = compute_alpha_opt_policies(
-    true_cond_densities,
-    p_xs,
-    budget,
-    c_bar,
-    n_alpha=200,
-    title="{}_true".format(title),
-)
+    X_train, y_train, X_test, y_test = split_data(X, y)
+    title = "heteroscedastic_n={}_d={}".format(n, max_d)
+    budget = 0.1
+    c_bar = np.mean([density.ppf(budget * 2) for density in true_cond_densities])
+    print("c_bar:{}".format(c_bar))
+    p_xs = np.ones(n) / n
 
-for d in [2, 3, 5, 8]:
-    main(X, y, true_cond_densities, budget, c_bar, d)
+    opt_policies, total_transfers, alphas = compute_alpha_opt_policies(
+        true_cond_densities,
+        p_xs,
+        budget,
+        c_bar,
+        n_alpha=200,
+        title="{}_true".format(title),
+    )
+
+    run_alg(X, y, true_cond_densities, budget, c_bar, d)
+
+
+if __name__ == "__main__":
+    _parser = argh.ArghParser()
+    _parser.add_commands([main])
+    _parser.dispatch()

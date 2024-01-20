@@ -1,8 +1,10 @@
 from queue import PriorityQueue
 import numpy as np
 from tqdm import tqdm
+import os
 
 from reporting import write_result
+from evaluate import post_transfer_metrics, empirical_post_transfer_metrics
 
 
 def solve_fractional_knapsack_problem(p_xs, convex_hulls, budget):
@@ -27,6 +29,8 @@ def solve_fractional_knapsack_problem(p_xs, convex_hulls, budget):
             pq.put((ratio, (i, 1)))
         assignments[i] = [(init_point[1], 1)]
 
+    eta = -float("inf")
+    lamb = 0.0
     while total_spend < budget and pq.qsize() > 0:
         ratio, (x_idx, hull_idx) = pq.get()
         # Remove previous assignment
@@ -43,6 +47,7 @@ def solve_fractional_knapsack_problem(p_xs, convex_hulls, budget):
         total_spend += curr_spend
         assignments[x_idx] = [(convex_hulls[x_idx][hull_idx][1], 1)]
 
+        eta = ratio
         if total_spend > budget:
             # Fractional allocation
             total_spend -= curr_spend
@@ -60,6 +65,7 @@ def solve_fractional_knapsack_problem(p_xs, convex_hulls, budget):
                 (remainder / p_xs[x_idx] - curr_spend) / (prev_spend - curr_spend), 1.0
             )
 
+            lamb = c
             assignments[x_idx] = [
                 (convex_hulls[x_idx][hull_idx - 1][1], c),
                 (convex_hulls[x_idx][hull_idx][1], 1 - c),
@@ -76,61 +82,61 @@ def solve_fractional_knapsack_problem(p_xs, convex_hulls, budget):
             ratio = (next_point[1] - curr_point[1]) / (next_point[0] - curr_point[0])
             pq.put((ratio, (x_idx, next_hull_idx)))
 
-    return assignments, total_gain
+    return assignments, total_gain, eta, lamb
+
+
+def get_transfer_function(alpha, c_bar, eta, lamb):
+    def t(cond_density):
+        ratios = []
+        cvx_hull = cond_density.get_convex_hull(alpha, c_bar)
+        for i in range(len(convex_hull) - 1):
+            p1, p2 = convex_hull[i], convex_hull[i + 1]
+            ratios.append((p2[1] - p1[1]) / (p2[0] - p1[0]))
+        idx = bisect.bisect_right(ratios, eta) - 1
+        if ratios[idx] < eta and eta < ratios[idx + 1]:
+            return [(cvx_hull[idx][0], 1.0)]
+        elif ratios[idx] == eta:
+            return [(cvx_hull[idx][0], lamb), (cvx_hull[idx + 1][0], 1 - lamb)]
+
+    return t
 
 
 def compute_alpha_opt_policies(
-    cond_dists, p_xs, budget, c_bar, n_alpha=1000, title="sim", true_cond_densities=None
+    cond_dists,
+    p_xs,
+    budget,
+    c_bar,
+    n_alpha=1000,
+    title="sim",
+    true_cond_densities=None,
+    test_dataset=None,
 ):
     total_transfers = []
     opt_policies = []
-    alphas = np.linspace(
-        1e-3, max([dist.pdf(dist.mode) for dist in cond_dists]) - 1e-3, n_alpha
-    )
-
+    max_alpha = max([dist.pdf(dist.mode) for dist in cond_dists])
+    min_alpha = max([dist.pdf(dist.mode) for dist in cond_dists]) / 100
+    alphas = np.linspace(min_alpha, max_alpha, n_alpha)
+    print("Alpha range: {}, {}".format(min_alpha, max_alpha))
     results_file = "results/{}.csv".format(title)
+    if os.path.exists(results_file):
+        os.remove(results_file)
     for alpha in tqdm(alphas):
         cvx_hulls = [c_dist.get_convex_hull(alpha, c_bar) for c_dist in cond_dists]
-        opt_policy, total_transfer = solve_fractional_knapsack_problem(
+        opt_policy, total_transfer, eta, lamb = solve_fractional_knapsack_problem(
             p_xs, cvx_hulls, budget
         )
+        transfer_function = get_transfer_function(alpha, c_bar, eta, lamb)
 
         if true_cond_densities is not None:
-            prob = prob_below_line(opt_policy, c_bar, p_xs, true_cond_densities)
-        else:
-            prob = budget
-        result = {
-            "alpha": alpha,
-            "total_transfer": total_transfer,
-            "prob_below_line": prob,
-        }
+            result = post_transfer_metrics(true_cond_densities, p_xs, opt_policy, c_bar)
+            result["alpha"] = alpha
+        elif test_dataset is not None:
+            result = empirical_post_transfer_metrics(
+                cond_densities, p_xs, opt_policy, c_bar
+            )
+            results["alpha"] = alpha
+
         total_transfers.append(total_transfer)
         opt_policies.append(opt_policy)
         write_result(results_file, result)
     return opt_policies, total_transfers, alphas
-
-
-def prob_below_line(assignments, c_bar, p_xs, true_cond_densities):
-    total_prob = 0.0
-    for i in range(len(p_xs)):
-        prob_below_poverty_line = 0.0
-        for j in range(len(assignments[i])):
-            prob_below_poverty_line += (
-                true_cond_densities[i].cdf(c_bar - np.maximum(assignments[i][j][0], 0))
-                * assignments[i][j][1]
-            )
-        total_prob += prob_below_poverty_line * p_xs[i]
-
-    return total_prob
-
-
-def policy_cost(assignments, p_xs):
-    total_gap = 0
-    for i in range(len(p_xs)):
-        i_gap = 0.0
-        for j in range(len(assignments[i])):
-            i_gap += assignments[i][j][0] * assignments[i][j][1]
-
-        total_gap += i_gap * p_xs[i]
-
-    return total_gap

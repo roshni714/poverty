@@ -1,24 +1,31 @@
 import numpy as np
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.linear_model import LinearRegression
+import xgboost as xg
 from cond_dist import ConditionalDistribution
-from sim_data_gen import generate_homoscedastic_data
-from utils import standardize
+from data_loaders.data_utils import standardize
 
 
-def fit_mle(X, z):
+def fit_mle(X, z, r):
     X, X_mean, X_std = standardize(X)
     z, z_mean, z_std = standardize(z)
-    f_hat = RandomForestRegressor(max_depth=2 * X.shape[1]).fit(X, z)
+
+    bst = xg.XGBRegressor(objective="reg:squarederror", max_depth=3, n_estimators=10)
+
+    f_hat = bst.fit(X, z, sample_weight=r)
     r_sq = (z - f_hat.predict(X)) ** 2
-    g_hat = LinearRegression().fit(X, r_sq)
+
+    bst2 = xg.XGBRegressor(objective="reg:squarederror", max_depth=3, n_estimators=10)
+    g_hat = bst2.fit(X, r_sq, sample_weight=r)
 
     return f_hat, g_hat, X_mean, X_std, z_mean, z_std
 
 
-def get_estimated_cond_densities(X, y):
-    z = np.log(y)
-    cond_mean, cond_var, X_mean, X_std, z_mean, z_std = fit_mle(X, z)
+def get_estimated_cond_densities(X, y, r=None):
+    if r is None:
+        r = np.ones(y.shape) / len(y)
+
+    min_y = np.min(y) - np.min(y) / 10
+    z = np.log(y - min_y)
+    cond_mean, cond_var, X_mean, X_std, z_mean, z_std = fit_mle(X, z, r)
 
     X = (X - X_mean) / X_std
     z_hat = cond_mean.predict(X) * z_std + z_mean
@@ -29,6 +36,21 @@ def get_estimated_cond_densities(X, y):
     estimated_densities = []
     for i in range(len(gamma)):
         estimated_densities.append(
-            ConditionalDistribution(loc=0.0, shape=sigma[i], scale=gamma[i])
+            ConditionalDistribution(loc=min_y, shape=sigma[i], scale=gamma[i])
         )
-    return estimated_densities
+
+    def helper(X_test):
+        X_test = (X_test - X_mean) / X_std
+        z_hat = cond_mean.predict(x) * z_std + z_mean
+        gamma = np.exp(z_hat)
+        sigma_sq_hat = np.maximum(cond_var.predict(X_test), 0.01) * (z_std**2)
+        sigma = np.sqrt(sigma_sq_hat)
+
+        estimated_test_densities = []
+        for i in range(len(gamma)):
+            estimated_test_densities.append(
+                ConditionalDistribution(loc=min_y, shape=sigma[i], scale=gamma[i])
+            )
+        return estimated_test_densities
+
+    return estimated_densities, helper
