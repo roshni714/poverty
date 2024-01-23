@@ -18,8 +18,39 @@ def poverty_gap(cond_densities, p_xs, c_bar):
     return np.sum(ev * p_xs)
 
 
-def empirical_post_transfer_metrics(test_dataset, assignments, c_bar):
-    pass
+def post_transfer_metrics_empirical(test_dataset, policy, budget, c_bar):
+    dic = {
+        "initial_poverty_gap": 0.0,
+        "post_transfer_poverty_gap": 0.0,
+        "prob_below_line": 0.0,
+        "policy_cost": 0.0,
+    }
+
+    X_test = test_dataset.X
+    y_test = test_dataset.y
+    r_test = test_dataset.r
+    assignments = policy(X_test, r_test)
+
+    dic["initial_poverty_gap"] = np.sum(np.maximum(c_bar - y_test, 0) * r_test).item()
+
+    for i in range(len(test_dataset.X)):
+        pov_gap = 0.0
+        prob = 0.0
+        cost = 0.0
+        for j in range(len(assignments[i])):
+            pov_gap += assignments[i][j][1] * np.maximum(
+                c_bar - y_test[i] - assignments[i][j][0], 0
+            )
+            prob += assignments[i][j][1] * (
+                assignments[i][j][0] + y_test[i] <= c_bar
+            ).astype(float)
+            cost += assignments[i][j][1] * assignments[i][j][0]
+
+        dic["post_transfer_poverty_gap"] += pov_gap * r_test[i]
+        dic["prob_below_line"] += prob * r_test[i]
+        dic["policy_cost"] += cost * r_test[i]
+
+    return dic
 
 
 def post_transfer_metrics(cond_densities, p_xs, assignments, c_bar):

@@ -15,7 +15,7 @@ class Dataset:
         if r is None:
             self.r = np.ones(y.shape) / len(y)
         else:
-            self.r = r
+            self.r = r / r.sum()
 
     def __len__(self):
         return self.X.shape[0]

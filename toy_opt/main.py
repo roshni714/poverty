@@ -14,16 +14,16 @@ def run_alg(X, y, true_cond_densities, budget, c_bar, d):
     title = "heteroscedastic_n={}_d={}".format(n, d)
     p_xs = np.ones(n) / n
 
-    (
-        opt_policy_conditional_program,
-        total_cost,
-    ) = solve_conditional_program_quantile_regression(
-        X[:, :d], y, budget, c_bar, title=title, true_cond_densities=true_cond_densities
+    t_cond_program = X[:, :d], y, budget, c_bar, title = (
+        title,
+        true_cond_densities,
+    ) = true_cond_densities
+
+    cond_density_estimator = get_cond_density_estimator(X[:, :d], y)
+
+    make_density_plot(
+        train_dataset.X[:10], cond_density_estimator, true_cond_densities[:10], title
     )
-
-    estimated_cond_densities = get_estimated_cond_densities(X[:, :d], y)
-
-    make_density_plot(true_cond_densities, estimated_cond_densities, title)
     opt_policies, total_transfers, alphas = compute_alpha_opt_policies(
         estimated_cond_densities,
         p_xs,

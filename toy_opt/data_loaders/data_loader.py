@@ -58,7 +58,6 @@ def _load_uganda_merged():
     one_hot_marital = pd.get_dummies(df[["maritalstat_head"]])
     X = X.join(one_hot_marital)
     X = X.fillna(X.mean())
-    r /= r.sum()
     return X.to_numpy(), y.to_numpy(), r.to_numpy(), features
 
 
