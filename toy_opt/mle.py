@@ -41,6 +41,6 @@ def get_cond_density_estimator(train_dataset):
             estimated_test_densities.append(
                 ConditionalDistribution(loc=min_y, shape=sigma[i], scale=gamma[i])
             )
-        return estimated_test_densities
+        return np.array(estimated_test_densities)
 
     return helper

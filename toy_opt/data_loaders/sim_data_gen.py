@@ -32,11 +32,16 @@ def generate_homoscedastic_data(n, d):
 
 def generate_heteroscedastic_data(n, d):
     np.random.seed(12345)
-    X_cont = torch.Tensor(np.random.uniform(0.0, 1.0, n * int(d / 2))).reshape(
-        n, 1, int(d / 2)
-    )
-    X_discrete = torch.Tensor(np.random.binomial(1, 0.5, n * int(d / 2))).reshape(
-        n, 1, int(d / 2)
+
+    if d % 2 == 1:
+        d_cont = int(d / 2) + 1
+        d_discrete = int(d / 2)
+    else:
+        d_cont = int(d / 2)
+        d_discrete = int(d / 2)
+    X_cont = torch.Tensor(np.random.uniform(0.0, 1.0, n * d_cont)).reshape(n, 1, d_cont)
+    X_discrete = torch.Tensor(np.random.binomial(1, 0.5, n * d_discrete)).reshape(
+        n, 1, d_discrete
     )
     X = torch.cat((X_cont, X_discrete), axis=2)
 
@@ -63,11 +68,17 @@ def generate_heteroscedastic_data(n, d):
         n,
     )
 
-    true_cond_densities = []
-    for i in range(n):
-        true_cond_densities.append(
-            ConditionalDistribution(
-                loc=0.0, scale=scales[i].item(), shape=shapes[i].item()
+    def get_cond_densities(X_test):
+        n = len(X_test)
+        scales = np.exp(torch.matmul(torch.Tensor(X_test), mu).reshape(n, 1) + mu0)
+        shapes = np.exp(torch.matmul(torch.Tensor(X_test), psi).reshape(n, 1) + psi0)
+        true_cond_densities = []
+        for i in range(n):
+            true_cond_densities.append(
+                ConditionalDistribution(
+                    loc=0.0, scale=scales[i].item(), shape=shapes[i].item()
+                )
             )
-        )
-    return X, y, true_cond_densities
+        return np.array(true_cond_densities)
+
+    return X, y, get_cond_densities

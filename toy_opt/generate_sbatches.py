@@ -51,4 +51,4 @@ def generate_uganda_runs():
 
 
 generate_sim_runs()
-generate_uganda_runs()
+# generate_uganda_runs()

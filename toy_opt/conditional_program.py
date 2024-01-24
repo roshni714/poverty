@@ -4,26 +4,11 @@ import xgboost as xg
 from data_loaders.data_utils import standardize
 
 
-def solve_conditional_program_true_densities(true_cond_densities, budget, c_bar):
-    def t(cond_densities, r_test=None):
-        assignments = {x_idx: [] for x_idx in range(len(p_xs))}
-        for i, cond_dist in enumerate(cond_dists):
-            if cond_dist.cdf(c_bar) > budget:
-                assignments[i] = [(c_bar - cond_dist.ppf(budget), 1.0)]
-            else:
-                assignments[i] = [(0.0, 1.0)]
-        return assignments
-
-    return t
-
-
-def solve_conditional_program_estimated_densities(
-    cond_density_estimator, budget, c_bar
-):
+def solve_conditional_program(compute_cond_density, budget, c_bar):
     def t(X_test, r_test=None):
-        cond_densities = cond_density_estimator(X_test)
-        assignments = {x_idx: [] for x_idx in range(len(p_xs))}
-        for i, cond_dist in enumerate(cond_dists):
+        cond_densities = compute_cond_density(X_test)
+        assignments = {x_idx: [] for x_idx in range(len(r_test))}
+        for i, cond_dist in enumerate(cond_densities):
             if cond_dist.cdf(c_bar) > budget:
                 assignments[i] = [(c_bar - cond_dist.ppf(budget), 1.0)]
             else:
@@ -58,13 +43,3 @@ def solve_conditional_program_quantile_regression(train_dataset, budget, c_bar):
         return assignments
 
     return t
-
-
-#
-#    if true_cond_densities is not None:
-#        result = post_transfer_metrics(true_cond_densities, r, optimal_policy, c_bar)
-#    elif test_dataset is not None:
-#        result = empirical_post_transfer_metrics(test_dataset, optimal_policy, c_bar)
-
-
-#    return optimal_policy, total_cost

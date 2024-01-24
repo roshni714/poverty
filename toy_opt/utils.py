@@ -2,12 +2,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def make_density_plot(X_train, cond_density_estimator, true_cond_densities, title):
-    estimated_cond_densities = cond_density_estimator(X_train)
+def make_density_plot(train_dataset, cond_density_estimator, cond_density_true, title):
+    estimated_cond_densities = cond_density_estimator(train_dataset.X[:10, :])
+    true_cond_densities = cond_density_true(train_dataset.full_X[:10, :])
     fig, ax = plt.subplots(1, 2, figsize=(12, 5))
-    subset_cond = true_cond_densities + estimated_cond_densities
+    subset_cond = list(true_cond_densities) + list(estimated_cond_densities)
     a = np.linspace(0.0, max([1.5 * dist.mode for dist in subset_cond]), 1000)
-    for i in range(len(true_cond_densities)):
+    for i in range(10):
         ax[0].plot(a, true_cond_densities[i].pdf(a))
         ax[1].plot(a, estimated_cond_densities[i].pdf(a))
 
@@ -21,13 +22,13 @@ def make_density_plot(X_train, cond_density_estimator, true_cond_densities, titl
     plt.show()
 
 
-def make_estimated_density_plot(X_train, cond_density_estimator, title):
-    estimated_cond_densities = cond_density_estimator(X_train)
+def make_estimated_density_plot(train_dataset, cond_density_estimator, title):
+    estimated_cond_densities = cond_density_estimator(train_dataset.X[:10, :])
     fig, ax = plt.subplots(1, 1, figsize=(6, 5))
     a = np.linspace(
         0.0, max([1.5 * dist.mode for dist in estimated_cond_densities]), 1000
     )
-    for i in range(len(estimated_cond_densities)):
+    for i in range(10):
         ax.plot(a, estimated_cond_densities[i].pdf(a))
 
     ax.set_title("Estimated Conditional Densities")
