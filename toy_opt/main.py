@@ -38,7 +38,7 @@ def run_alg(train_dataset, cond_density_estimator, budget, c_bar):
         cond_density_estimator,
         budget,
         c_bar,
-        n_alpha=10,
+        n_alpha=100,
         title="{}_estimated_train".format(title),
     )
 
@@ -68,7 +68,7 @@ def run_ground_truth(train_dataset, cond_density_true, budget, c_bar):
         cond_density_true,
         budget,
         c_bar,
-        n_alpha=10,
+        n_alpha=100,
         title="{}_true_train".format(title),
         full_X=True,
     )
@@ -85,18 +85,22 @@ def evaluate(test_dataset, policy, c_bar, title, full_X, metadata):
 
 
 @argh.arg("--d", default=2)
-def main(d=2):
+@argh.arg("--density_est_method", default="log_normal")
+def main(d=2, density_est_method="log_normal"):
     n = 20000
     max_d = 10
     X, y, cond_density_true = generate_heteroscedastic_data(n, max_d)
     print("d", d)
-    train_dataset, test_dataset = split_data(X, y, r=None, d=d, p=0.25)
+    train_dataset, test_dataset = split_data(X, y, r=None, d=d, p=0.5)
 
     budget = 0.1
-    c_bar = np.quantile(y, budget * 2)
+    true_densities = cond_density_true(train_dataset.full_X)
+    c_bar = np.mean([density.ppf(budget * 2) for density in true_densities])
     print("c_bar:{}".format(c_bar))
-    cond_density_estimator = get_cond_density_estimator(train_dataset)
-    title = "heteroscedastic_n={}".format(len(train_dataset))
+    cond_density_estimator = get_cond_density_estimator(
+        train_dataset, density_est_method
+    )
+    title = "heteroscedastic_n={}_d={}".format(len(train_dataset), d)
 
     make_density_plot(
         train_dataset,
@@ -105,6 +109,7 @@ def main(d=2):
         title,
     )
 
+    title = "heteroscedastic_n={}".format(len(train_dataset))
     """
     t_cond_program_true, t_joint_program_true = run_ground_truth(
         train_dataset, cond_density_true, budget, c_bar

@@ -1,6 +1,6 @@
 import numpy as np
 import xgboost as xg
-from cond_dist import ConditionalDistribution
+from cond_dist import LogNormalConditionalDistribution
 from data_loaders.data_utils import standardize
 
 
@@ -19,7 +19,7 @@ def fit_mle(X, z):
     return f_hat, g_hat, X_mean, X_std, z_mean, z_std
 
 
-def get_cond_density_estimator(train_dataset):
+def get_lognormal_fit_helper(train_dataset):
     X = train_dataset.X
     y = train_dataset.y
 
@@ -39,8 +39,20 @@ def get_cond_density_estimator(train_dataset):
         estimated_test_densities = []
         for i in range(len(gamma)):
             estimated_test_densities.append(
-                ConditionalDistribution(loc=min_y, shape=sigma[i], scale=gamma[i])
+                LogNormalConditionalDistribution(
+                    loc=min_y, shape=sigma[i], scale=gamma[i]
+                )
             )
         return np.array(estimated_test_densities)
 
     return helper
+
+
+def get_cond_density_estimator(train_dataset, method):
+    if method == "log_normal":
+        cond_density_estimator = get_lognormal_fit_helper(train_dataset)
+
+    elif method == "glm_spline":
+        cond_density_estimator = get_glm_spline_fit_helper(train_dataset)
+
+    return cond_density_estimator

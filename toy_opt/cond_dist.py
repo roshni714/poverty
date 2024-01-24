@@ -18,31 +18,21 @@ def compare_ratio(curr_p, old_p, new_p):
 
 
 class ConditionalDistribution:
-    def __init__(self, loc, scale, shape):
-        self.loc = loc
-        self.scale = scale
-        self.shape = shape
-        self.mode = np.exp(np.log(self.scale) - (self.shape) ** 2) + self.loc
+    def __init__(self):
         self.inv1 = None
         self.inv2 = None
 
-    #         zs = np.linspace(0.0, self.loc + 10, 10000)
-    #         fs = self.pdf(zs)
-    #         mode = zs[np.argmax(fs)]
-    #         print(mode, self.mode)
-    #        self.mode = mode
-
     def pdf(self, z):
-        return lognorm.pdf(z, loc=self.loc, scale=self.scale, s=self.shape)
+        raise NotImplementedError("pdf function not implemented")
 
     def cdf(self, z):
-        return lognorm.cdf(z, loc=self.loc, scale=self.scale, s=self.shape)
+        raise NotImplementedError("cdf function not implemented")
 
     def ppf(self, a):
-        return lognorm.ppf(a, loc=self.loc, scale=self.scale, s=self.shape)
+        raise NotImplementedError("ppf function not implemented")
 
     def expect(self, f):
-        return lognorm.expect(f, loc=self.loc, scale=self.scale, s=self.shape)
+        raise NotImplementedError("expect function not implemented")
 
     def set_inverses(self):
         """
@@ -113,3 +103,31 @@ class ConditionalDistribution:
                 lower.pop()
             lower.append(p)
         return np.array(lower)
+
+
+class LogNormalConditionalDistribution(ConditionalDistribution):
+    def __init__(self, loc, scale, shape):
+        super().__init__()
+        self.loc = loc
+        self.scale = scale
+        self.shape = shape
+        self.mode = np.exp(np.log(self.scale) - (self.shape) ** 2) + self.loc
+
+    def pdf(self, z):
+        return lognorm.pdf(z, loc=self.loc, scale=self.scale, s=self.shape)
+
+    def cdf(self, z):
+        return lognorm.cdf(z, loc=self.loc, scale=self.scale, s=self.shape)
+
+    def ppf(self, a):
+        return lognorm.ppf(a, loc=self.loc, scale=self.scale, s=self.shape)
+
+    def expect(self, f):
+        return lognorm.expect(f, loc=self.loc, scale=self.scale, s=self.shape)
+
+
+"""
+class GLMSplineConditionalDistribution(ConditionalDistribution):
+    def __init__(self):
+        pass
+"""
