@@ -23,7 +23,7 @@ class Dataset:
         return self.X.shape[0]
 
     def __getitem__(self, i):
-        return self.X[i, : self.d], self.y[i], self.r[i]
+        return self.X[i, :], self.y[i], self.r[i]
 
 
 def split_data(X, y, d, p, r=None):

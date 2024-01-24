@@ -77,26 +77,26 @@ def run_ground_truth(train_dataset, cond_density_true, budget, c_bar):
     return t_cond_program_true, t_joint_program_true
 
 
-def evaluate(test_dataset, policy, c_bar, title, full_X):
+def evaluate(test_dataset, policy, c_bar, title, full_X, metadata):
     result = post_transfer_metrics(test_dataset, policy, c_bar, full_X=full_X)
+    metadata.update(result)
     results_file = "results/{}.csv".format(title)
-    write_result(results_file, result)
+    write_result(results_file, metadata)
 
 
 @argh.arg("--d", default=2)
 def main(d=2):
     n = 20000
-    max_d = 20
+    max_d = 10
     X, y, cond_density_true = generate_heteroscedastic_data(n, max_d)
+    print("d", d)
     train_dataset, test_dataset = split_data(X, y, r=None, d=d, p=0.25)
 
     budget = 0.1
     c_bar = np.quantile(y, budget * 2)
     print("c_bar:{}".format(c_bar))
     cond_density_estimator = get_cond_density_estimator(train_dataset)
-    title = "heteroscedastic_n={}_d={}".format(
-        len(train_dataset), train_dataset.X.shape[1]
-    )
+    title = "heteroscedastic_n={}".format(len(train_dataset))
 
     make_density_plot(
         train_dataset,
@@ -105,48 +105,57 @@ def main(d=2):
         title,
     )
 
+    """
     t_cond_program_true, t_joint_program_true = run_ground_truth(
         train_dataset, cond_density_true, budget, c_bar
     )
+    
+    """
     t_cond_program_qr, t_cond_program_est, t_joint_program_est = run_alg(
         train_dataset, cond_density_estimator, budget, c_bar
     )
 
+    """
     evaluate(
         test_dataset,
         t_cond_program_true,
         c_bar,
-        title="heteroscedastic_n={}_d={}_cond_program_true".format(n, max_d),
+        title=title,
         full_X=True,
+        metadata={"method":"cond_program_true", "d":max_d}
     )
     evaluate(
         test_dataset,
         t_joint_program_true,
         c_bar,
-        title="heteroscedastic_n={}_d={}_joint_program_true".format(n, max_d),
+        title=title,
         full_X=True,
+        metadata={"method":"joint_program_true","d":max_d} 
     )
-
+    """
     evaluate(
         test_dataset,
         t_cond_program_qr,
         c_bar,
-        title="heteroscedastic_n={}_d={}_cond_program_qr".format(n, d),
+        title=title,
         full_X=False,
+        metadata={"method": "cond_program_qr", "d": d},
     )
     evaluate(
         test_dataset,
         t_cond_program_est,
         c_bar,
-        title="heteroscedastic_n={}_d={}_cond_program_est".format(n, d),
+        title=title,
         full_X=False,
+        metadata={"method": "cond_program_est", "d": d},
     )
     evaluate(
         test_dataset,
         t_joint_program_est,
         c_bar,
-        title="heteroscedastic_n={}_d={}_joint_program_est".format(n, d),
+        title=title,
         full_X=False,
+        metadata={"method": "joint_program_est", "d": d},
     )
 
 

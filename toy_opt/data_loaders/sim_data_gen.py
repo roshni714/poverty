@@ -70,8 +70,13 @@ def generate_heteroscedastic_data(n, d):
 
     def get_cond_densities(X_test):
         n = len(X_test)
-        scales = np.exp(torch.matmul(torch.Tensor(X_test), mu).reshape(n, 1) + mu0)
-        shapes = np.exp(torch.matmul(torch.Tensor(X_test), psi).reshape(n, 1) + psi0)
+        scales = np.exp(
+            torch.matmul(torch.Tensor(X_test).reshape(n, 1, d), mu).reshape(n, 1) + mu0
+        )
+        shapes = np.exp(
+            torch.matmul(torch.Tensor(X_test).reshape(n, 1, d), psi).reshape(n, 1)
+            + psi0
+        )
         true_cond_densities = []
         for i in range(n):
             true_cond_densities.append(

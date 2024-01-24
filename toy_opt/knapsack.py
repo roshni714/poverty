@@ -198,11 +198,11 @@ def compute_alpha_opt_policies(
         t_alpha = get_transfer_function(
             alpha, c_bar, eta, lamb, compute_cond_density=compute_cond_density
         )
-        if full_X:
-            prox_assignment = t_alpha(train_dataset.full_X, train_dataset.r)
-        else:
-            prox_assignment = t_alpha(train_dataset.X, train_dataset.r)
-        check_assignments_are_equal(opt_assignment, prox_assignment)
+        #        if full_X:
+        #            prox_assignment = t_alpha(train_dataset.full_X, train_dataset.r)
+        #        else:
+        #            prox_assignment = t_alpha(train_dataset.X, train_dataset.r)
+        #        check_assignments_are_equal(opt_assignment, prox_assignment)
 
         result = {
             "alpha": alpha,

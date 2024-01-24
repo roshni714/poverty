@@ -21,7 +21,6 @@ def solve_conditional_program(compute_cond_density, budget, c_bar):
 def solve_conditional_program_quantile_regression(train_dataset, budget, c_bar):
     X = train_dataset.X
     y = train_dataset.y
-    r = train_dataset.r
 
     X, X_mean, X_std = standardize(X)
     y, y_mean, y_std = standardize(y)
@@ -31,7 +30,7 @@ def solve_conditional_program_quantile_regression(train_dataset, budget, c_bar):
         max_depth=3,
         n_estimators=10,
         quantile_alpha=budget,
-    ).fit(X, y, sample_weight=r)
+    ).fit(X, y)
 
     def t(X_test, r_test=None):
         X_test = (X_test - X.mean()) / X.std()
