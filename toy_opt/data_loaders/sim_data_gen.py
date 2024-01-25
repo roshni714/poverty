@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from scipy.stats import lognorm
 
-from cond_dist import ConditionalDistribution
+from cond_dist import LogNormalConditionalDistribution
 
 
 def generate_homoscedastic_data(n, d):
@@ -80,7 +80,7 @@ def generate_heteroscedastic_data(n, d):
         true_cond_densities = []
         for i in range(n):
             true_cond_densities.append(
-                ConditionalDistribution(
+                LogNormalConditionalDistribution(
                     loc=0.0, scale=scales[i].item(), shape=shapes[i].item()
                 )
             )

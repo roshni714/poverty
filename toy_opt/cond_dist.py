@@ -4,6 +4,8 @@ from scipy.interpolate import interp1d
 import itertools
 from scipy.spatial import ConvexHull
 from itertools import product
+from scipy.integrate import quad
+import torch
 
 
 def compare_ratio(curr_p, old_p, new_p):
@@ -122,12 +124,42 @@ class LogNormalConditionalDistribution(ConditionalDistribution):
     def ppf(self, a):
         return lognorm.ppf(a, loc=self.loc, scale=self.scale, s=self.shape)
 
-    def expect(self, f):
-        return lognorm.expect(f, loc=self.loc, scale=self.scale, s=self.shape)
 
-
-"""
 class GLMSplineConditionalDistribution(ConditionalDistribution):
-    def __init__(self):
+    def __init__(
+        self, nat_param, spline_basis, carrier_function, norm_constant, y_range
+    ):
+        super().__init__()
+        self.nat_param = nat_param
+        self.spline_basis = spline_basis
+        self.carrier_function = carrier_function
+        self.norm_constant = norm_constant
+        self.y_range = y_range
+
+    def pdf(self, z):
+        suff_stat = self.spline_basis(z)  # len(z) x k
+        carrier = self.carrier_function(z)  # len(z)
+        pdf = (
+            carrier
+            * torch.exp(
+                torch.matmul(
+                    torch.Tensor(suff_stat).squeeze(), self.nat_param
+                ).squeeze()
+                - self.norm_constant
+            ).numpy()
+        )  # z
+        return pdf
+
+    def cdf(self, z):
+        # z must be an int
+        if z <= self.y_range[0]:
+            return 0.0
+        elif z >= self.y_range[1]:
+            return 1.0
+        else:
+            n_bins = np.linspace(self.y_range[0], z, 200)
+            result = integrate.quad(lambda x: self.pdf(x), self.y_range[0], z)
+            return result[0]
+
+    def ppf(self, a):
         pass
-"""

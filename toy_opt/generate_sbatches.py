@@ -20,7 +20,7 @@ SAVE_PATH = "/home/users/rsahoo/poverty/toy_opt/"
 
 
 def generate_sim_runs():
-    ds = [2, 5]
+    ds = [2, 5, 8, 10]
 
     for d in ds:
         exp_id = "sim_d={}".format(d)
