@@ -1,11 +1,10 @@
 from data_loaders.sim_data_gen import generate_heteroscedastic_data
-from mle import get_cond_density_estimator
 from knapsack import compute_alpha_opt_policies
 from conditional_program import (
     solve_conditional_program_quantile_regression,
     solve_conditional_program,
 )
-from utils import make_density_plot
+from utils import make_density_plot, get_cond_density_estimator, log_likelihood
 from reporting import write_result
 from evaluate import post_transfer_metrics
 from data_loaders.data_utils import split_data
@@ -38,7 +37,7 @@ def run_alg(train_dataset, cond_density_estimator, budget, c_bar):
         cond_density_estimator,
         budget,
         c_bar,
-        n_alpha=100,
+        n_alpha=10,
         title="{}_estimated_train".format(title),
     )
 
@@ -68,7 +67,7 @@ def run_ground_truth(train_dataset, cond_density_true, budget, c_bar):
         cond_density_true,
         budget,
         c_bar,
-        n_alpha=100,
+        n_alpha=10,
         title="{}_true_train".format(title),
         full_X=True,
     )
@@ -90,44 +89,62 @@ def main(d=2, density_est_method="log_normal"):
     n = 20000
     max_d = 10
     X, y, cond_density_true = generate_heteroscedastic_data(n, max_d)
-    print("d", d)
-    train_dataset, test_dataset = split_data(X, y, r=None, d=d, p=0.5)
+    print("d", d, "density_est_method", density_est_method)
+    outcome_range = (0.0, np.quantile(y, 0.98))
+    train_dataset, test_dataset = split_data(
+        X, y, r=None, d=d, p=0.5, outcome_range=outcome_range
+    )
 
     budget = 0.1
     true_densities = cond_density_true(train_dataset.full_X)
     c_bar = np.mean([density.ppf(budget * 2) for density in true_densities])
     print("c_bar:{}".format(c_bar))
     cond_density_estimator = get_cond_density_estimator(
-        train_dataset, density_est_method
+        train_dataset, density_est_method, outcome_range
     )
-    title = "heteroscedastic_n={}_d={}".format(len(train_dataset), d)
+    title = "heteroscedastic_n={}_d={}_{}".format(
+        len(train_dataset), d, density_est_method
+    )
 
     make_density_plot(
         train_dataset,
         cond_density_estimator,
         cond_density_true,
+        outcome_range,
         title,
     )
 
+    est_avg_log_likelihood = log_likelihood(
+        test_dataset, cond_density_estimator, outcome_range
+    )
+    print("Average LL: {}".format(est_avg_log_likelihood))
+    true_avg_log_likelihood = log_likelihood(
+        test_dataset, cond_density_true, outcome_range
+    )
+    print("True Average LL: {}".format(true_avg_log_likelihood))
+
     title = "heteroscedastic_n={}".format(len(train_dataset))
-    """
+
     t_cond_program_true, t_joint_program_true = run_ground_truth(
         train_dataset, cond_density_true, budget, c_bar
     )
-    
-    """
+
     t_cond_program_qr, t_cond_program_est, t_joint_program_est = run_alg(
         train_dataset, cond_density_estimator, budget, c_bar
     )
 
-    """
     evaluate(
         test_dataset,
         t_cond_program_true,
         c_bar,
         title=title,
         full_X=True,
-        metadata={"method":"cond_program_true", "d":max_d}
+        metadata={
+            "density_est_method": "true",
+            "d": max_d,
+            "avg_log_likelihood_density": true_avg_log_likelihood,
+            "method": "cond_program_exact",
+        },
     )
     evaluate(
         test_dataset,
@@ -135,33 +152,33 @@ def main(d=2, density_est_method="log_normal"):
         c_bar,
         title=title,
         full_X=True,
-        metadata={"method":"joint_program_true","d":max_d} 
+        metadata={
+            "density_est_method": "true",
+            "d": max_d,
+            "avg_log_likelihood_density": true_avg_log_likelihood,
+            "method": "joint_program",
+        },
     )
-    """
-    evaluate(
-        test_dataset,
-        t_cond_program_qr,
-        c_bar,
-        title=title,
-        full_X=False,
-        metadata={"method": "cond_program_qr", "d": d},
-    )
-    evaluate(
-        test_dataset,
-        t_cond_program_est,
-        c_bar,
-        title=title,
-        full_X=False,
-        metadata={"method": "cond_program_est", "d": d},
-    )
-    evaluate(
-        test_dataset,
-        t_joint_program_est,
-        c_bar,
-        title=title,
-        full_X=False,
-        metadata={"method": "joint_program_est", "d": d},
-    )
+
+    metadata = {
+        "density_est_method": density_est_method,
+        "d": d,
+        "avg_log_likelihood_density": est_avg_log_likelihood,
+    }
+
+    policies = [t_cond_program_qr, t_cond_program_est, t_joint_program_est]
+    names = ["cond_program_qr", "cond_program_exact", "joint_program"]
+
+    for i in range(len(policies)):
+        metadata["method"] = names[i]
+        evaluate(
+            test_dataset,
+            policies[i],
+            c_bar,
+            title=title,
+            full_X=False,
+            metadata=metadata,
+        )
 
 
 if __name__ == "__main__":

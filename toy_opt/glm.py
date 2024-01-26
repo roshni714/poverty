@@ -3,15 +3,25 @@ from data_loaders.data_utils import standardize
 from data_loaders.sim_data_gen import generate_heteroscedastic_data
 import torch
 from statsmodels.gam.smooth_basis import BSplines
+import statsmodels.api as sm
 from data_loaders.data_utils import Dataset
 from cond_dist import GLMSplineConditionalDistribution
 from scipy.stats import gaussian_kde
 import tqdm
+from scipy.interpolate import interp1d
 
 
 def fit_carrier_function(y):
-    kde = gaussian_kde(y)
-    return kde
+    kde = sm.nonparametric.KDEUnivariate(y)
+    kde.fit()
+    carrier_function = interp1d(
+        kde.support,
+        kde.density,
+        bounds_error=False,
+        fill_value=(kde.density[0], kde.density[-1]),
+    )
+    #    kde.set_bandwidth(bw_method=.4)
+    return carrier_function
 
 
 def get_basis_matrix(y, num_basis_elements):
@@ -19,7 +29,7 @@ def get_basis_matrix(y, num_basis_elements):
     return spline_matrix.basis.reshape(len(y), 1, num_basis_elements)
 
 
-def fit_glm_spline_density(train_dataset, num_basis_elements=5):
+def get_glm_spline_fit_helper(train_dataset, outcome_range, num_basis_elements=5):
     X = train_dataset.X
     y = train_dataset.y
 
@@ -37,31 +47,28 @@ def fit_glm_spline_density(train_dataset, num_basis_elements=5):
     )
     basis_matrix = torch.Tensor(get_basis_matrix(y, k))  # n x 1 x k
     n_bins = 500
-    y_range = np.array([min(y), max(y)])
-    bins = np.linspace(min(y), max(y), n_bins)
-    bin_basis_elements = torch.Tensor(
-        get_basis_matrix(bins, num_basis_elements)
-    )  # 500 x 1 x K
+    scaled_outcome_range = (np.array(outcome_range) - y_mean) / y_std
+    bins = np.linspace(scaled_outcome_range[0], scaled_outcome_range[1], n_bins)
+    bin_basis_elements = torch.Tensor(get_basis_matrix(bins, k))  # 500 x 1 x K
     front = torch.Tensor(carrier_function(bins))
+    bin_width = bins[1] - bins[0]
 
     def glm_nll(theta, idx):
         sub_n = len(idx)
         params = torch.matmul(theta, X[idx, :]).reshape(sub_n, k, 1)  # n x k x 1
-        res = torch.matmul(basis_matrix[idx, :], params)  # n x 1 x 1
-        first_part = -torch.mean(res)
-
+        res = torch.matmul(basis_matrix[idx, :], params).squeeze()  # n x 1 x 1
         # normalization constant
         norm_res = torch.exp(
             torch.matmul(params.squeeze(), bin_basis_elements.squeeze().T)
         )  # n x J
         final_matrix = front * norm_res
-        norm_constant = torch.mean(final_matrix)
+        log_norm_constant = torch.log(torch.sum(final_matrix, axis=1) * bin_width)
 
-        nll = first_part + norm_constant
-        return nll
+        nll = -res + log_norm_constant
+        return nll.mean()
 
-    n_epochs = 200
-    optimizer = torch.optim.Adam([theta], lr=1e-1)
+    n_epochs = 500
+    optimizer = torch.optim.Adam([theta], lr=1e-2)
     batch_size = int(len(X) / 5)
     print("Fitting conditional densities vs glm spline method...")
     pbar = tqdm.tqdm(list(range(n_epochs)))
@@ -86,36 +93,65 @@ def fit_glm_spline_density(train_dataset, num_basis_elements=5):
             torch.matmul(nat_param.squeeze(), bin_basis_elements.squeeze().T)
         )
         final_matrix = front * norm_res
-        norm_constant = torch.mean(final_matrix, axis=1)
+        log_norm_constant = torch.log(torch.sum(final_matrix, axis=1) * bin_width)
 
         def spline_basis(y_test):
             y_test = (y_test - y_mean) / y_std
             return get_basis_matrix(y_test, k)
 
-        def carrier(y_test):
-            y_test = (y_test - y_mean) / y_std
-            return carrier_function(y_test)
+        # Compute modes
+        pdf_matrix = front * torch.exp(
+            torch.matmul(nat_param.squeeze(), bin_basis_elements.squeeze().T)
+            - log_norm_constant.reshape(len(X_test), 1)
+        )
+        best_idx = np.argmax(pdf_matrix, axis=1)
+        mode = bins[best_idx] * y_std + y_mean
+        cdf_matrix = torch.cumulative_trapezoid(pdf_matrix, torch.Tensor(bins), dim=1)
 
         cond_dists = []
-        y_range_new = y_range * y_std + y_mean
+        new_bins = (
+            np.array([(bins[i] + bins[i + 1]) / 2 for i in range(len(bins) - 1)])
+            * y_std
+            + y_mean
+        )
         for i in range(len(X_test)):
+            cdf_function = interp1d(
+                new_bins,
+                cdf_matrix[i].flatten(),
+                bounds_error=False,
+                fill_value=(0.0, 1.0),
+            )
+            pdf_function = interp1d(
+                bins * y_std + y_mean,
+                pdf_matrix[i].flatten(),
+                bounds_error=False,
+                fill_value=1e-5,
+            )
+            ppf_function = interp1d(
+                cdf_matrix[i].flatten(),
+                new_bins,
+                bounds_error=False,
+                fill_value=outcome_range,
+            )
             cond_dists.append(
                 GLMSplineConditionalDistribution(
-                    nat_param[i],
-                    spline_basis,
-                    carrier,
-                    norm_constant[i].item(),
-                    y_range_new,
+                    pdf_function,
+                    cdf_function,
+                    ppf_function,
+                    outcome_range,
+                    mode[i].item(),
                 )
             )
+
         return np.array(cond_dists)
 
     return helper
 
 
-X, y, cond_density_true = generate_heteroscedastic_data(10000, 2)
+"""
+X, y, _ = generate_heteroscedastic_data(n=1000, d=2)
 train_dataset = Dataset(X, y, d=2)
-helper = fit_glm_spline_density(train_dataset)
-
-cond_densities = helper(X[:100])
-print(cond_densities[0].pdf(np.linspace(min(y), max(y), 100)))
+estimator = get_glm_spline_fit_helper(train_dataset, 5)
+cond_dists = estimator(X)
+cond_dists[0].pdf(np.linspace(min(y), max(y)))
+"""

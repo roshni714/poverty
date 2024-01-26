@@ -30,7 +30,9 @@ def generate_sim_runs():
                 SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id),
                 file=f,
             )
-            base_cmd = "python main.py main --d {}".format(d)
+            base_cmd = (
+                "python main.py main --d {} --density_est_method glm_spline".format(d)
+            )
             print(base_cmd, file=f)
             print("sleep 1", file=f)
 
@@ -45,7 +47,9 @@ def generate_uganda_runs():
                 SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id),
                 file=f,
             )
-            base_cmd = "python main_real.py main --d {}".format(d)
+            base_cmd = "python main_real.py main --d {} --density_est_method glm_spline".format(
+                d
+            )
             print(base_cmd, file=f)
             print("sleep 1", file=f)
 

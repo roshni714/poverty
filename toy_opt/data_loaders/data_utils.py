@@ -9,7 +9,7 @@ def standardize(z):
 
 
 class Dataset:
-    def __init__(self, X, y, d, r=None):
+    def __init__(self, X, y, d, r=None, outcome_range=None):
         self.X = X[:, :d]
         self.y = y
         self.d = d
@@ -18,6 +18,8 @@ class Dataset:
             self.r = np.ones(y.shape) / len(y)
         else:
             self.r = r / r.sum()
+        if outcome_range is not None:
+            self.y = np.clip(self.y, a_min=outcome_range[0], a_max=outcome_range[1])
 
     def __len__(self):
         return self.X.shape[0]
@@ -26,7 +28,7 @@ class Dataset:
         return self.X[i, :], self.y[i], self.r[i]
 
 
-def split_data(X, y, d, p, r=None):
+def split_data(X, y, d, p, r=None, outcome_range=None):
     rng = np.random.RandomState(123456)
     permutation = rng.permutation(X.shape[0])
     index_train = permutation[: int(p * X.shape[0])]
@@ -42,6 +44,6 @@ def split_data(X, y, d, p, r=None):
         r_train = None
         r_test = None
 
-    return Dataset(X_train, y_train, d=d, r=r_train), Dataset(
-        X_test, y_test, d=d, r=r_test
-    )
+    return Dataset(
+        X_train, y_train, d=d, r=r_train, outcome_range=outcome_range
+    ), Dataset(X_test, y_test, d=d, r=r_test, outcome_range=outcome_range)

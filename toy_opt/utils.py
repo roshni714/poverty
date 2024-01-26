@@ -1,19 +1,46 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from glm import get_glm_spline_fit_helper
+from mle import get_lognormal_fit_helper
 
 
-def make_density_plot(train_dataset, cond_density_estimator, cond_density_true, title):
+def log_likelihood(test_dataset, cond_density_estimator, outcome_range):
+    y_test = test_dataset.y
+
+    assert np.sum(y_test >= outcome_range[0]).item() == len(y_test)
+    assert np.sum(y_test <= outcome_range[1]).item() == len(y_test)
+
+    X_test = test_dataset.X
+
+    log_likelihood = 0.0
+    cond_dists = cond_density_estimator(X_test)
+    log_likelihoods = [
+        np.log(cond_dists[i].pdf(y_test[[i]])) for i in range(len(y_test))
+    ]
+    return np.mean(log_likelihoods)
+
+
+def get_cond_density_estimator(train_dataset, method, outcome_range=None):
+    if method == "log_normal":
+        cond_density_estimator = get_lognormal_fit_helper(train_dataset)
+
+    elif method == "glm_spline":
+        cond_density_estimator = get_glm_spline_fit_helper(train_dataset, outcome_range)
+
+    return cond_density_estimator
+
+
+def make_density_plot(
+    train_dataset, cond_density_estimator, cond_density_true, y_range, title
+):
     estimated_cond_densities = cond_density_estimator(train_dataset.X[:10, :])
     true_cond_densities = cond_density_true(train_dataset.full_X[:10, :])
     fig, ax = plt.subplots(1, 2, figsize=(12, 5))
     subset_cond = list(true_cond_densities) + list(estimated_cond_densities)
-    a = np.linspace(0.0, max([1.5 * dist.mode for dist in subset_cond]), 1000)
+    a = np.linspace(y_range[0], y_range[1], 1000)
     for i in range(10):
         ax[0].plot(a, true_cond_densities[i].pdf(a))
         ax[1].plot(a, estimated_cond_densities[i].pdf(a))
-
-    for i in range(2):
-        ax[i].set_ylim(0, max([dist.pdf(dist.mode) for dist in subset_cond]) + 0.05)
 
     ax[0].set_title("True Conditional Densities")
     ax[1].set_title("Estimated Conditional Densities")
@@ -22,12 +49,10 @@ def make_density_plot(train_dataset, cond_density_estimator, cond_density_true, 
     plt.show()
 
 
-def make_estimated_density_plot(train_dataset, cond_density_estimator, title):
+def make_estimated_density_plot(train_dataset, cond_density_estimator, y_range, title):
     estimated_cond_densities = cond_density_estimator(train_dataset.X[:10, :])
     fig, ax = plt.subplots(1, 1, figsize=(6, 5))
-    a = np.linspace(
-        0.0, max([1.5 * dist.mode for dist in estimated_cond_densities]), 1000
-    )
+    a = np.linspace(y_range[0], y_range[1], 1000)
     for i in range(10):
         ax.plot(a, estimated_cond_densities[i].pdf(a))
 

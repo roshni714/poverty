@@ -1,11 +1,10 @@
-from mle import get_cond_density_estimator
 from knapsack import compute_alpha_opt_policies
 from conditional_program import (
     solve_conditional_program_quantile_regression,
     solve_conditional_program,
 )
 from evaluate import post_transfer_metrics
-from utils import make_estimated_density_plot
+from utils import make_estimated_density_plot, get_cond_density_estimator
 from data_loaders.data_utils import split_data
 from data_loaders.data_loader import load_uganda
 from reporting import write_result

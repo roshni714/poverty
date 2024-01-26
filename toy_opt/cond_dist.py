@@ -37,16 +37,7 @@ class ConditionalDistribution:
         raise NotImplementedError("expect function not implemented")
 
     def set_inverses(self):
-        """
-        Computes the left (inv1) and right inverses of the pdf.
-        """
-        z1s = np.linspace(1e-10, self.mode, 10000)
-        z2s = np.linspace(self.mode, 30 * self.scale + self.mode, 10000)
-        p1s = self.pdf(z1s)
-        p2s = self.pdf(z2s)
-
-        self.inv1 = interp1d(p1s, z1s)
-        self.inv2 = interp1d(p2s, z2s)
+        raise NotImplementedError("set_inverses function not implemented")
 
     def get_z(self, alpha, c_bar):
         """
@@ -124,42 +115,60 @@ class LogNormalConditionalDistribution(ConditionalDistribution):
     def ppf(self, a):
         return lognorm.ppf(a, loc=self.loc, scale=self.scale, s=self.shape)
 
+    def set_inverses(self):
+        """
+        Computes the left (inv1) and right inverses of the pdf.
+        """
+        z1s = np.linspace(1e-10, self.mode, 10000)
+        z2s = np.linspace(self.mode, 30 * self.scale + self.mode, 10000)
+        p1s = self.pdf(z1s)
+        p2s = self.pdf(z2s)
+
+        self.inv1 = interp1d(p1s, z1s, fill_value=(z1s[0], z1s[-1]), bounds_error=False)
+        self.inv2 = interp1d(p2s, z2s, fill_value=(z2s[0], z2s[-1]), bounds_error=False)
+
 
 class GLMSplineConditionalDistribution(ConditionalDistribution):
-    def __init__(
-        self, nat_param, spline_basis, carrier_function, norm_constant, y_range
-    ):
+    def __init__(self, pdf_function, cdf_function, ppf_function, y_range, mode):
         super().__init__()
-        self.nat_param = nat_param
-        self.spline_basis = spline_basis
-        self.carrier_function = carrier_function
-        self.norm_constant = norm_constant
         self.y_range = y_range
+        self.mode = mode
+        self.cdf_function = cdf_function
+        self.pdf_function = pdf_function
+        self.ppf_function = ppf_function
 
     def pdf(self, z):
-        suff_stat = self.spline_basis(z)  # len(z) x k
-        carrier = self.carrier_function(z)  # len(z)
-        pdf = (
-            carrier
-            * torch.exp(
-                torch.matmul(
-                    torch.Tensor(suff_stat).squeeze(), self.nat_param
-                ).squeeze()
-                - self.norm_constant
-            ).numpy()
-        )  # z
-        return pdf
+        return self.pdf_function(z)
+
+    #        if isinstance(z, np.ndarray):
+    #            suff_stat = self.spline_basis(z)  # len(z) x k
+    #        elif isinstance(z, float):
+    #            suff_stat = self.spline_basis(np.array([[z]]))
+    #        carrier = self.carrier_function(z)  # len(z)
+    #        pdf = (
+    #            carrier
+    #            * torch.exp(
+    #                torch.matmul(
+    #                    torch.Tensor(suff_stat).squeeze(), self.nat_param
+    #                ).squeeze()
+    #                - self.norm_constant
+    #            ).numpy()
+    #        )  # z
 
     def cdf(self, z):
-        # z must be an int
-        if z <= self.y_range[0]:
-            return 0.0
-        elif z >= self.y_range[1]:
-            return 1.0
-        else:
-            n_bins = np.linspace(self.y_range[0], z, 200)
-            result = integrate.quad(lambda x: self.pdf(x), self.y_range[0], z)
-            return result[0]
+        return np.clip(self.cdf_function(z), a_min=0.0, a_max=1.0)
 
     def ppf(self, a):
-        pass
+        return self.ppf_function(a)
+
+    def set_inverses(self):
+        """
+        Computes the left (inv1) and right inverses of the pdf.
+        """
+        z1s = np.linspace(self.y_range[0], self.mode, 10000)
+        z2s = np.linspace(self.mode, self.y_range[1], 10000)
+        p1s = self.pdf(z1s)
+        p2s = self.pdf(z2s)
+
+        self.inv1 = interp1d(p1s, z1s, fill_value=(z1s[0], z1s[-1]), bounds_error=False)
+        self.inv2 = interp1d(p2s, z2s, fill_value=(z2s[0], z2s[-1]), bounds_error=False)

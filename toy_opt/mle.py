@@ -46,13 +46,3 @@ def get_lognormal_fit_helper(train_dataset):
         return np.array(estimated_test_densities)
 
     return helper
-
-
-def get_cond_density_estimator(train_dataset, method):
-    if method == "log_normal":
-        cond_density_estimator = get_lognormal_fit_helper(train_dataset)
-
-    elif method == "glm_spline":
-        cond_density_estimator = get_glm_spline_fit_helper(train_dataset)
-
-    return cond_density_estimator
