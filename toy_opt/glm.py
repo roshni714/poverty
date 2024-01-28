@@ -10,7 +10,7 @@ from scipy.stats import gaussian_kde
 import tqdm
 from scipy.interpolate import interp1d
 
-torch.manual_seed(0)
+import dill as pickle
 
 
 def fit_carrier_function(y):
@@ -42,6 +42,8 @@ def get_glm_spline_fit_helper(train_dataset, outcome_range, num_basis_elements=6
     carrier_function = fit_carrier_function(y)
     n = X.shape[0]
     d = X.shape[1]
+    torch.manual_seed(123456)
+    np.random.seed(123456)
 
     X = torch.Tensor(X).reshape(n, d, 1)
     r = torch.Tensor(r)

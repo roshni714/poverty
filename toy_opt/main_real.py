@@ -16,6 +16,7 @@ from reporting import write_result
 
 import numpy as np
 import argh
+import dill as pickle
 
 COUNTRIES = {"uganda": load_uganda}
 POVERTY_LINE_COUNTRY = {"uganda": 8204}
@@ -41,7 +42,7 @@ def run_alg(train_dataset, cond_density_estimator, budget, c_bar):
         cond_density_estimator,
         budget,
         c_bar,
-        n_alpha=10,
+        n_alpha=100,
         title="{}_estimated_train".format(title),
     )
 
@@ -76,6 +77,12 @@ def main(country="uganda", d=2, density_est_method="log_normal"):
     cond_density_estimator = get_cond_density_estimator(
         train_dataset, density_est_method, outcome_range
     )
+
+    pickle.dump(
+        cond_density_estimator,
+        open("{}_cond_density_estimator_d={}.pickle".format(country, d), "wb"),
+    )
+
     make_estimated_density_plot(
         train_dataset,
         cond_density_estimator,

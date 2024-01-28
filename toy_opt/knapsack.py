@@ -98,7 +98,6 @@ def solve_fractional_knapsack_problem(p_xs, convex_hulls, budget):
             )
 
             c = np.minimum((remainder - curr_spend) / (prev_spend - curr_spend), 1.0)
-
             lamb = c
             for x_idx, hull_idx in tups:
                 assignments[x_idx] = [
@@ -107,8 +106,7 @@ def solve_fractional_knapsack_problem(p_xs, convex_hulls, budget):
                 ]
             total_spend += c * prev_spend + (1 - c) * curr_spend
             total_gain += c * prev_gain + (1 - c) * curr_gain
-
-            assert round(total_spend, 3) == budget
+            return assignments, total_gain, total_spend, etas[-1], lamb
 
         for x_idx, hull_idx in tups:
             if hull_idx != len(convex_hulls[x_idx]) - 1:
@@ -132,13 +130,18 @@ def get_transfer_function(alpha, c_bar, eta, lamb, compute_cond_density):
             cvx_hull = cond_density.get_convex_hull(alpha, c_bar)
             ratios = np.zeros(len(cvx_hull)).astype(np.float64)
             ratios[0] = -np.inf
-
             for i in range(len(cvx_hull) - 1):
                 p1 = cvx_hull[i]
                 p2 = cvx_hull[i + 1]
                 ratios[i + 1] = (p2[1] - p1[1]) / (p2[0] - p1[0])
             idx = bisect.bisect_left(ratios, eta)
-            if idx < len(ratios) and ratios[idx - 1] < eta and ratios[idx] > eta:
+
+            if (
+                idx > 0
+                and idx < len(ratios)
+                and ratios[idx - 1] < eta
+                and ratios[idx] > eta
+            ):
                 assignments[j] = [(cvx_hull[idx - 1][1], 1.0)]
             elif idx < len(ratios) and ratios[idx] == eta:
                 assignments[j] = [
@@ -147,6 +150,7 @@ def get_transfer_function(alpha, c_bar, eta, lamb, compute_cond_density):
                 ]
             else:
                 assignments[j] = [(0.0, 1.0)]
+
         return assignments
 
     return t

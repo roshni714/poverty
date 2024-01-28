@@ -104,6 +104,7 @@ def main(d=2, density_est_method="log_normal"):
     cond_density_estimator = get_cond_density_estimator(
         train_dataset, density_est_method, outcome_range
     )
+
     title = "heteroscedastic_n={}_d={}_{}".format(
         len(train_dataset), d, density_est_method
     )

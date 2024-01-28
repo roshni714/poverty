@@ -61,7 +61,7 @@ def _load_uganda_merged():
     X = one_hot_region.join(X)
     X = X.fillna(X.mean())
 
-    return X.to_numpy(), y.to_numpy(), r.to_numpy(), features
+    return X.to_numpy(), y.to_numpy(), r.to_numpy(), list(X.columns)
 
 
 def load_uganda():
