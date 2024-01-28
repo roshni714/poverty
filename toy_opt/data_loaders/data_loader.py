@@ -16,14 +16,14 @@ def _load_uganda_merged():
     total_df = df.join(other)
 
     total_df = total_df[total_df["welfare"].notna()]
+    total_df = total_df.reset_index()
 
-    y = np.clip(total_df["welfare"], a_min=0.0, a_max=600000)
+    y = total_df["welfare"]
     r = total_df["wgt10"]
     total_df["urban"] = total_df["urban"].cat.codes
     features = [
         # entrpreneurial status
         "urban",
-        "hh_income",
         "num_kids",
         "num_adults",
         "dist_market",
@@ -38,7 +38,7 @@ def _load_uganda_merged():
         "num_appliance",
         "num_bicycle",
         "num_boat",
-        "num_building",
+        #        "num_building",
         "num_computer",
         "num_electronics",
         "num_furniture",
@@ -48,16 +48,19 @@ def _load_uganda_merged():
         "num_jewelry",
         "num_land",
         "num_mobile",
-        "num_motorcycle",
+        #        "num_motorcycle",
         "num_radio",
-        "num_solar_panel",
+        #        "num_solar_panel",
         "num_tv",
         "num_vehicle",
     ]
     X = total_df[features]
-    one_hot_marital = pd.get_dummies(df[["maritalstat_head"]])
+    one_hot_marital = pd.get_dummies(total_df[["maritalstat_head"]])
+    one_hot_region = pd.get_dummies(total_df[["region"]])
     X = X.join(one_hot_marital)
+    X = one_hot_region.join(X)
     X = X.fillna(X.mean())
+
     return X.to_numpy(), y.to_numpy(), r.to_numpy(), features
 
 

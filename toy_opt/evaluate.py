@@ -13,9 +13,9 @@ def post_transfer_metrics(test_dataset, policy, c_bar, full_X=False):
     r_test = test_dataset.r
 
     if full_X:
-        assignments = policy(test_dataset.full_X, r_test)
+        assignments = policy(test_dataset.full_X)
     else:
-        assignments = policy(test_dataset.X, r_test)
+        assignments = policy(test_dataset.X)
 
     avg = [assignments[key][0][0] for key in assignments]
     dic["initial_poverty_gap"] = np.sum(np.maximum(c_bar - y_test, 0) * r_test).item()

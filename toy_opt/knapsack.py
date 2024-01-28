@@ -124,7 +124,7 @@ def solve_fractional_knapsack_problem(p_xs, convex_hulls, budget):
 
 
 def get_transfer_function(alpha, c_bar, eta, lamb, compute_cond_density):
-    def t(X_test, r_test):
+    def t(X_test):
         cond_densities = compute_cond_density(X_test)
         assignments = {x_idx: [] for x_idx in range(len(X_test))}
 
@@ -178,7 +178,7 @@ def compute_alpha_opt_policies(
     total_transfers = []
     opt_policies = []
     max_alpha = max([dist.pdf(dist.mode) for dist in cond_dists]).item()
-    min_alpha = max([dist.pdf(dist.mode) for dist in cond_dists]).item() / 100
+    min_alpha = max([dist.pdf(dist.mode) for dist in cond_dists]).item() / 1000
     alphas = np.linspace(min_alpha, max_alpha, n_alpha)
     print("Alpha range: {}, {}".format(alphas[0], alphas[-1]))
     results_file = "results/{}.csv".format(title)
@@ -198,11 +198,11 @@ def compute_alpha_opt_policies(
         t_alpha = get_transfer_function(
             alpha, c_bar, eta, lamb, compute_cond_density=compute_cond_density
         )
-        #        if full_X:
-        #            prox_assignment = t_alpha(train_dataset.full_X, train_dataset.r)
-        #        else:
-        #            prox_assignment = t_alpha(train_dataset.X, train_dataset.r)
-        #        check_assignments_are_equal(opt_assignment, prox_assignment)
+        if full_X:
+            prox_assignment = t_alpha(train_dataset.full_X)
+        else:
+            prox_assignment = t_alpha(train_dataset.X)
+        check_assignments_are_equal(opt_assignment, prox_assignment)
 
         result = {
             "alpha": alpha,

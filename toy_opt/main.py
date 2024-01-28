@@ -12,6 +12,8 @@ from data_loaders.data_utils import split_data
 import numpy as np
 import argh
 
+np.random.seed(0)
+
 
 def run_alg(train_dataset, cond_density_estimator, budget, c_bar):
     title = "heteroscedastic_n={}_d={}".format(
@@ -90,7 +92,7 @@ def main(d=2, density_est_method="log_normal"):
     max_d = 10
     X, y, cond_density_true = generate_heteroscedastic_data(n, max_d)
     print("d", d, "density_est_method", density_est_method)
-    outcome_range = (0.0, np.quantile(y, 0.98))
+    outcome_range = (0.0, np.quantile(y, 0.99))
     train_dataset, test_dataset = split_data(
         X, y, r=None, d=d, p=0.5, outcome_range=outcome_range
     )
@@ -115,49 +117,49 @@ def main(d=2, density_est_method="log_normal"):
     )
 
     est_avg_log_likelihood = log_likelihood(
-        test_dataset, cond_density_estimator, outcome_range
+        test_dataset, cond_density_estimator, outcome_range, full_X=False
     )
     print("Average LL: {}".format(est_avg_log_likelihood))
-    true_avg_log_likelihood = log_likelihood(
-        test_dataset, cond_density_true, outcome_range
-    )
-    print("True Average LL: {}".format(true_avg_log_likelihood))
-
     title = "heteroscedastic_n={}".format(len(train_dataset))
 
-    t_cond_program_true, t_joint_program_true = run_ground_truth(
-        train_dataset, cond_density_true, budget, c_bar
-    )
+    if d == max_d:
+        true_avg_log_likelihood = log_likelihood(
+            test_dataset, cond_density_true, outcome_range, full_X=True
+        )
+        print("True Average LL: {}".format(true_avg_log_likelihood))
 
+        t_cond_program_true, t_joint_program_true = run_ground_truth(
+            train_dataset, cond_density_true, budget, c_bar
+        )
+
+        evaluate(
+            test_dataset,
+            t_cond_program_true,
+            c_bar,
+            title=title,
+            full_X=True,
+            metadata={
+                "density_est_method": "true",
+                "d": max_d,
+                "avg_log_likelihood_density": true_avg_log_likelihood,
+                "method": "cond_program_exact",
+            },
+        )
+        evaluate(
+            test_dataset,
+            t_joint_program_true,
+            c_bar,
+            title=title,
+            full_X=True,
+            metadata={
+                "density_est_method": "true",
+                "d": max_d,
+                "avg_log_likelihood_density": true_avg_log_likelihood,
+                "method": "joint_program",
+            },
+        )
     t_cond_program_qr, t_cond_program_est, t_joint_program_est = run_alg(
         train_dataset, cond_density_estimator, budget, c_bar
-    )
-
-    evaluate(
-        test_dataset,
-        t_cond_program_true,
-        c_bar,
-        title=title,
-        full_X=True,
-        metadata={
-            "density_est_method": "true",
-            "d": max_d,
-            "avg_log_likelihood_density": true_avg_log_likelihood,
-            "method": "cond_program_exact",
-        },
-    )
-    evaluate(
-        test_dataset,
-        t_joint_program_true,
-        c_bar,
-        title=title,
-        full_X=True,
-        metadata={
-            "density_est_method": "true",
-            "d": max_d,
-            "avg_log_likelihood_density": true_avg_log_likelihood,
-            "method": "joint_program",
-        },
     )
 
     metadata = {

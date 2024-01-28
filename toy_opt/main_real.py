@@ -4,7 +4,11 @@ from conditional_program import (
     solve_conditional_program,
 )
 from evaluate import post_transfer_metrics
-from utils import make_estimated_density_plot, get_cond_density_estimator
+from utils import (
+    make_estimated_density_plot,
+    get_cond_density_estimator,
+    log_likelihood,
+)
 from data_loaders.data_utils import split_data
 from data_loaders.data_loader import load_uganda
 from reporting import write_result
@@ -13,21 +17,20 @@ from reporting import write_result
 import numpy as np
 import argh
 
+COUNTRIES = {"uganda": load_uganda}
+POVERTY_LINE_COUNTRY = {"uganda": 8204}
 
-def run_alg(train_dataset, budget, c_bar):
+
+def run_alg(train_dataset, cond_density_estimator, budget, c_bar):
     title = "uganda_n={}_d={}".format(len(train_dataset), train_dataset.X.shape[1])
 
     t_cond_program_qr = solve_conditional_program_quantile_regression(
         train_dataset, budget, c_bar
     )
 
-    cond_density_estimator = get_cond_density_estimator(train_dataset)
-
     t_cond_program_est = solve_conditional_program(
         cond_density_estimator, budget, c_bar
     )
-
-    make_estimated_density_plot(train_dataset, cond_density_estimator, title)
 
     (
         t_alpha_joint_programs,
@@ -47,47 +50,72 @@ def run_alg(train_dataset, budget, c_bar):
     return t_cond_program_qr, t_cond_program_est, t_joint_program_est
 
 
-def evaluate(test_dataset, policy, c_bar, title):
+def evaluate(test_dataset, policy, c_bar, title, metadata):
     result = post_transfer_metrics(test_dataset, policy, c_bar)
+    metadata.update(result)
     results_file = "results/{}.csv".format(title)
-    write_result(results_file, result)
+    write_result(results_file, metadata)
 
 
 @argh.arg("--d", default=2)
-def main(d=2):
-    X, y, r, features = load_uganda()
+@argh.arg("--density_est_method", default="log_normal")
+@argh.arg("--country", default="uganda")
+def main(country="uganda", d=2, density_est_method="log_normal"):
+    X, y, r, features = COUNTRIES[country]()
     # dont use sample weights until we fix knapsack algorithm
-    train_dataset, test_dataset = split_data(X, y, r=None, d=d, p=0.5)
+    outcome_range = (0.0, np.quantile(y, 0.99))
+    train_dataset, test_dataset = split_data(
+        X, y, r=r, d=d, p=0.6, outcome_range=outcome_range
+    )
     max_d = X.shape[1]
     n = len(train_dataset)
-    budget = 0.1
-    c_bar = np.quantile(y, budget * 2)
+    budget = 0.01
+    c_bar = POVERTY_LINE_COUNTRY[country]
     print("c_bar:{}".format(c_bar))
 
+    cond_density_estimator = get_cond_density_estimator(
+        train_dataset, density_est_method, outcome_range
+    )
+    make_estimated_density_plot(
+        train_dataset,
+        cond_density_estimator,
+        outcome_range=outcome_range,
+        title="uganda_n={}_d={}".format(n, d),
+    )
+    train_avg_log_likelihood = log_likelihood(
+        train_dataset, cond_density_estimator, outcome_range, full_X=False
+    )
+    est_avg_log_likelihood = log_likelihood(
+        test_dataset, cond_density_estimator, outcome_range, full_X=False
+    )
+    print(
+        "Train Average LL: {}, Test Average LL: {}".format(
+            train_avg_log_likelihood, est_avg_log_likelihood
+        )
+    )
+
     t_cond_program_qr, t_cond_program_est, t_joint_program_est = run_alg(
-        train_dataset, budget, c_bar
+        train_dataset, cond_density_estimator, budget, c_bar
     )
 
-    evaluate(
-        test_dataset,
-        t_cond_program_qr,
-        c_bar,
-        title="uganda_n={}_d={}_cond_program_qr".format(n, d),
-    )
+    metadata = {
+        "density_est_method": density_est_method,
+        "d": d,
+        "avg_log_likelihood_density": est_avg_log_likelihood,
+    }
 
-    evaluate(
-        test_dataset,
-        t_cond_program_est,
-        c_bar,
-        title="uganda_n={}_d={}_cond_program_est".format(n, d),
-    )
+    policies = [t_cond_program_qr, t_cond_program_est, t_joint_program_est]
+    names = ["cond_program_qr", "cond_program_exact", "joint_program"]
 
-    evaluate(
-        test_dataset,
-        t_joint_program_est,
-        c_bar,
-        title="uganda_n={}_d={}_joint_program_est".format(n, d),
-    )
+    for i in range(len(policies)):
+        metadata["method"] = names[i]
+        evaluate(
+            test_dataset,
+            policies[i],
+            c_bar,
+            title="uganda_n={}".format(n),
+            metadata=metadata,
+        )
 
 
 if __name__ == "__main__":

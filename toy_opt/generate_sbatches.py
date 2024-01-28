@@ -38,7 +38,7 @@ def generate_sim_runs():
 
 
 def generate_uganda_runs():
-    ds = [2, 5, 10]
+    ds = [0]
     for d in ds:
         exp_id = "uganda_d={}".format(d)
         script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
@@ -54,5 +54,5 @@ def generate_uganda_runs():
             print("sleep 1", file=f)
 
 
-generate_sim_runs()
-# generate_uganda_runs()
+# generate_sim_runs()
+generate_uganda_runs()
