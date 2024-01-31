@@ -19,12 +19,10 @@ import argh
 import dill as pickle
 
 COUNTRIES = {"uganda": load_uganda}
-POVERTY_LINE_COUNTRY = {"uganda": 8204}
+POVERTY_LINE_COUNTRY = {"uganda": 65000}
 
 
-def run_alg(train_dataset, cond_density_estimator, budget, c_bar):
-    title = "uganda_n={}_d={}".format(len(train_dataset), train_dataset.X.shape[1])
-
+def run_cond_alg(train_dataset, cond_density_estimator, budget, c_bar):
     t_cond_program_qr = solve_conditional_program_quantile_regression(
         train_dataset, budget, c_bar
     )
@@ -32,23 +30,28 @@ def run_alg(train_dataset, cond_density_estimator, budget, c_bar):
     t_cond_program_est = solve_conditional_program(
         cond_density_estimator, budget, c_bar
     )
+    return t_cond_program_qr, t_cond_program_est
+
+
+def run_main_alg(dataset, cond_density_estimator, budget, c_bar):
+    title = "uganda_d={}".format(dataset.X.shape[1])
 
     (
         t_alpha_joint_programs,
         train_total_transfers,
         alphas,
     ) = compute_alpha_opt_policies(
-        train_dataset,
+        dataset,
         cond_density_estimator,
         budget,
         c_bar,
         n_alpha=100,
-        title="{}_estimated_train".format(title),
+        title="{}_joint_opt".format(title),
     )
 
     idx = np.argmin(train_total_transfers)
     t_joint_program_est = t_alpha_joint_programs[idx]
-    return t_cond_program_qr, t_cond_program_est, t_joint_program_est
+    return t_joint_program_est
 
 
 def evaluate(test_dataset, policy, c_bar, title, metadata):
@@ -64,18 +67,18 @@ def evaluate(test_dataset, policy, c_bar, title, metadata):
 def main(country="uganda", d=2, density_est_method="log_normal"):
     X, y, r, features = COUNTRIES[country]()
     # dont use sample weights until we fix knapsack algorithm
-    outcome_range = (0.0, np.quantile(y, 0.99))
+    outcome_range = (min(y), np.quantile(y, 0.99))
     train_dataset, test_dataset = split_data(
         X, y, r=r, d=d, p=0.6, outcome_range=outcome_range
     )
     max_d = X.shape[1]
     n = len(train_dataset)
-    budget = 0.01
+    budget = 0.1
     c_bar = POVERTY_LINE_COUNTRY[country]
     print("c_bar:{}".format(c_bar))
-
+    print("Features: ", features[:d])
     cond_density_estimator = get_cond_density_estimator(
-        train_dataset, density_est_method, outcome_range
+        train_dataset, outcome_range, density_est_method
     )
 
     pickle.dump(
@@ -101,7 +104,7 @@ def main(country="uganda", d=2, density_est_method="log_normal"):
         )
     )
 
-    t_cond_program_qr, t_cond_program_est, t_joint_program_est = run_alg(
+    t_cond_program_qr, t_cond_program_est = run_cond_alg(
         train_dataset, cond_density_estimator, budget, c_bar
     )
 
@@ -111,8 +114,8 @@ def main(country="uganda", d=2, density_est_method="log_normal"):
         "avg_log_likelihood_density": est_avg_log_likelihood,
     }
 
-    policies = [t_cond_program_qr, t_cond_program_est, t_joint_program_est]
-    names = ["cond_program_qr", "cond_program_exact", "joint_program"]
+    policies = [t_cond_program_qr, t_cond_program_est]
+    names = ["cond_program_qr", "cond_program_exact"]
 
     for i in range(len(policies)):
         metadata["method"] = names[i]
@@ -123,6 +126,18 @@ def main(country="uganda", d=2, density_est_method="log_normal"):
             title="uganda_n={}".format(n),
             metadata=metadata,
         )
+
+    t_joint_program_est = run_main_alg(
+        test_dataset, cond_density_estimator, budget, c_bar
+    )
+    metadata["method"] = "joint_program"
+    evaluate(
+        test_dataset,
+        t_joint_program_est,
+        c_bar,
+        title="uganda_n={}".format(n),
+        metadata=metadata,
+    )
 
 
 if __name__ == "__main__":

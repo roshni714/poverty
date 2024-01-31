@@ -1,11 +1,9 @@
 import numpy as np
 from scipy.stats import lognorm
-from scipy.interpolate import interp1d
 import itertools
-from scipy.spatial import ConvexHull
 from itertools import product
-from scipy.integrate import quad
 import torch
+from scipy.interpolate import interp1d
 
 
 def compare_ratio(curr_p, old_p, new_p):
@@ -21,8 +19,7 @@ def compare_ratio(curr_p, old_p, new_p):
 
 class ConditionalDistribution:
     def __init__(self):
-        self.inv1 = None
-        self.inv2 = None
+        self.inverses = None
 
     def pdf(self, z):
         raise NotImplementedError("pdf function not implemented")
@@ -45,16 +42,16 @@ class ConditionalDistribution:
         Returns a numpy array of alpha-valid transfers in sorted order.
         """
         assert alpha > 0
-        if self.inv1 is None:
+
+        if self.inverses is None:
             self.set_inverses()
         z = [0, c_bar]
-        if alpha < self.pdf(self.mode):
-            v2 = c_bar - self.inv2(alpha)
-            v1 = c_bar - self.inv1(alpha)
-            if v1 > 0 and v1 < c_bar:
-                z.append(v1)
-            if v2 > 0 and v2 < c_bar:
-                z.append(v2)
+        for i, domain in enumerate(self.domains):
+            if alpha <= domain[1] and alpha >= domain[0]:
+                inv = self.inverses[i]
+                v = c_bar - inv(alpha)
+                if v > 0 and v < c_bar:
+                    z.append(v)
         z = np.array(sorted(z))
         return z
 
@@ -124,36 +121,26 @@ class LogNormalConditionalDistribution(ConditionalDistribution):
         p1s = self.pdf(z1s)
         p2s = self.pdf(z2s)
 
-        self.inv1 = interp1d(p1s, z1s, fill_value=(z1s[0], z1s[-1]), bounds_error=False)
-        self.inv2 = interp1d(p2s, z2s, fill_value=(z2s[0], z2s[-1]), bounds_error=False)
+        inv1 = interp1d(p1s, z1s, fill_value=(z1s[0], z1s[-1]), bounds_error=False)
+        inv2 = interp1d(p2s, z2s, fill_value=(z2s[0], z2s[-1]), bounds_error=False)
+        self.inverses = [inv1, inv2]
+        self.domains = [np.array([min(p1s), max(p1s)]), np.array([min(p2s), max(p2s)])]
 
 
 class GLMSplineConditionalDistribution(ConditionalDistribution):
-    def __init__(self, pdf_function, cdf_function, ppf_function, y_range, mode):
+    def __init__(
+        self, pdf_function, cdf_function, ppf_function, extrema, outcome_range
+    ):
         super().__init__()
-        self.y_range = y_range
-        self.mode = mode
         self.cdf_function = cdf_function
         self.pdf_function = pdf_function
         self.ppf_function = ppf_function
+        self.extrema = extrema
+        self.mode = extrema[np.argmax([pdf_function(pt) for pt in extrema])].item()
+        self.outcome_range = outcome_range
 
     def pdf(self, z):
         return self.pdf_function(z)
-
-    #        if isinstance(z, np.ndarray):
-    #            suff_stat = self.spline_basis(z)  # len(z) x k
-    #        elif isinstance(z, float):
-    #            suff_stat = self.spline_basis(np.array([[z]]))
-    #        carrier = self.carrier_function(z)  # len(z)
-    #        pdf = (
-    #            carrier
-    #            * torch.exp(
-    #                torch.matmul(
-    #                    torch.Tensor(suff_stat).squeeze(), self.nat_param
-    #                ).squeeze()
-    #                - self.norm_constant
-    #            ).numpy()
-    #        )  # z
 
     def cdf(self, z):
         return np.clip(self.cdf_function(z), a_min=0.0, a_max=1.0)
@@ -165,10 +152,51 @@ class GLMSplineConditionalDistribution(ConditionalDistribution):
         """
         Computes the left (inv1) and right inverses of the pdf.
         """
-        z1s = np.linspace(self.y_range[0], self.mode, 10000)
-        z2s = np.linspace(self.mode, self.y_range[1], 10000)
-        p1s = self.pdf(z1s)
-        p2s = self.pdf(z2s)
+        inverses = []
+        domains = []
+        for i, pt in enumerate(self.extrema):
+            if i == 0:
+                zs = np.linspace(self.outcome_range[0], pt, 1000)
+            elif i == len(self.extrema) - 1:
+                zs = np.linspace(pt, self.outcome_range[1], 1000)
+            else:
+                zs = np.linspace(self.extrema[i - 1], self.extrema[i], 1000)
+            ps = self.pdf(zs)
+            inv = interp1d(ps, zs, fill_value=0.0, bounds_error=False)
+            inverses.append(inv)
+            domains.append(np.array([min(ps), max(ps)]))
+        self.inverses = inverses
+        self.domains = domains
 
-        self.inv1 = interp1d(p1s, z1s, fill_value=(z1s[0], z1s[-1]), bounds_error=False)
-        self.inv2 = interp1d(p2s, z2s, fill_value=(z2s[0], z2s[-1]), bounds_error=False)
+
+"""
+        def right_pdf(z):
+            if isinstance(z, np.ndarray):
+                t = z < self.mode
+                val = self.pdf(z)
+                val[t] = 0.
+                return val
+            elif isinstance(z, float):
+                if z >= self.mode:
+                    return self.pdf(z)
+                else:
+                    return 0.
+
+        def left_pdf(z):
+            if isinstance(z, np.ndarray):
+                t = z >= self.mode
+                val = self.pdf(z)
+                val[t] = 0.
+                return val
+            elif isinstance(z, float):
+                if z < self.mode:
+                    return self.pdf(z)
+                else:
+                    return 0.
+       
+        if alpha < self.pdf(self.mode):
+            root1 = fsolve(lambda x: left_pdf(x) - alpha, self.mode- 10)
+            root2 = fsolve(lambda x: right_pdf(x) - alpha, self.mode + 10)
+            z.append(root1.item())
+            z.append(root2.item())
+"""

@@ -24,12 +24,14 @@ def log_likelihood(test_dataset, cond_density_estimator, outcome_range, full_X=F
     return np.sum(log_likelihoods)
 
 
-def get_cond_density_estimator(train_dataset, method, outcome_range=None):
+def get_cond_density_estimator(train_dataset, outcome_range, method):
     if method == "log_normal":
         cond_density_estimator = get_lognormal_fit_helper(train_dataset)
 
     elif method == "glm_spline":
-        cond_density_estimator = get_glm_spline_fit_helper(train_dataset, outcome_range)
+        cond_density_estimator = get_glm_spline_fit_helper(
+            train_dataset, outcome_range=outcome_range
+        )
 
     return cond_density_estimator
 

@@ -12,7 +12,7 @@ from data_loaders.data_utils import split_data
 import numpy as np
 import argh
 
-np.random.seed(0)
+np.random.seed(123456)
 
 
 def run_alg(train_dataset, cond_density_estimator, budget, c_bar):
@@ -39,7 +39,7 @@ def run_alg(train_dataset, cond_density_estimator, budget, c_bar):
         cond_density_estimator,
         budget,
         c_bar,
-        n_alpha=10,
+        n_alpha=100,
         title="{}_estimated_train".format(title),
     )
 
@@ -69,7 +69,7 @@ def run_ground_truth(train_dataset, cond_density_true, budget, c_bar):
         cond_density_true,
         budget,
         c_bar,
-        n_alpha=10,
+        n_alpha=100,
         title="{}_true_train".format(title),
         full_X=True,
     )
@@ -92,7 +92,7 @@ def main(d=2, density_est_method="log_normal"):
     max_d = 10
     X, y, cond_density_true = generate_heteroscedastic_data(n, max_d)
     print("d", d, "density_est_method", density_est_method)
-    outcome_range = (0.0, np.quantile(y, 0.99))
+    outcome_range = (0.0, max(y))
     train_dataset, test_dataset = split_data(
         X, y, r=None, d=d, p=0.5, outcome_range=outcome_range
     )

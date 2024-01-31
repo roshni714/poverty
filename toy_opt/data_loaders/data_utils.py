@@ -15,17 +15,15 @@ def standardize(z):
 
 
 class Dataset:
-    def __init__(self, X, y, d, r=None, outcome_range=None):
-        self.X = X[:, :d]
+    def __init__(self, X, y, d, r=None):
+        self.X = X[:, :d].squeeze()
         self.y = y
         self.d = d
         self.full_X = X
         if r is None:
-            self.r = np.ones(y.shape) / len(y)
+            self.r = np.ones(self.y.shape) / len(self.y)
         else:
             self.r = r / r.sum()
-        if outcome_range is not None:
-            self.y = np.clip(self.y, a_min=outcome_range[0], a_max=outcome_range[1])
 
     def __len__(self):
         return self.X.shape[0]
@@ -35,6 +33,14 @@ class Dataset:
 
 
 def split_data(X, y, d, p, r=None, outcome_range=None):
+    # Truncate and drop
+    #    idx = np.where(np.logical_and(y >= outcome_range[0], y <= outcome_range[1]))
+    #    y = y[idx]
+    #    X = X[idx, :].squeeze()
+    #    r = r[idx]
+
+    y = np.clip(y, a_min=outcome_range[0], a_max=outcome_range[1])
+
     rng = np.random.RandomState(123456)
     permutation = rng.permutation(X.shape[0])
     index_train = permutation[: int(p * X.shape[0])]
@@ -43,6 +49,18 @@ def split_data(X, y, d, p, r=None, outcome_range=None):
     X_test = X[index_test]
     y_train = y[index_train]
     y_test = y[index_test]
+
+    assert (
+        np.mean(np.logical_and(y_test >= outcome_range[0], y_test <= outcome_range[1]))
+        == 1.0
+    )
+    assert (
+        np.mean(
+            np.logical_and(y_train >= outcome_range[0], y_train <= outcome_range[1])
+        )
+        == 1.0
+    )
+
     if r is not None:
         r_train = r[index_train]
         r_test = r[index_test]
@@ -50,6 +68,6 @@ def split_data(X, y, d, p, r=None, outcome_range=None):
         r_train = None
         r_test = None
 
-    return Dataset(
-        X_train, y_train, d=d, r=r_train, outcome_range=outcome_range
-    ), Dataset(X_test, y_test, d=d, r=r_test, outcome_range=outcome_range)
+    return Dataset(X_train, y_train, d=d, r=r_train), Dataset(
+        X_test, y_test, d=d, r=r_test
+    )

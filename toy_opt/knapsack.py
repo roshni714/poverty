@@ -182,7 +182,7 @@ def compute_alpha_opt_policies(
     total_transfers = []
     opt_policies = []
     max_alpha = max([dist.pdf(dist.mode) for dist in cond_dists]).item()
-    min_alpha = max([dist.pdf(dist.mode) for dist in cond_dists]).item() / 1000
+    min_alpha = max([dist.pdf(dist.mode) for dist in cond_dists]).item() / 50
     alphas = np.linspace(min_alpha, max_alpha, n_alpha)
     print("Alpha range: {}, {}".format(alphas[0], alphas[-1]))
     results_file = "results/{}.csv".format(title)

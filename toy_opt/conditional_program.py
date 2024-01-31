@@ -2,6 +2,7 @@ import numpy as np
 import xgboost as xg
 
 from data_loaders.data_utils import standardize
+from statsmodels.stats.weightstats import DescrStatsW
 
 
 def solve_conditional_program(compute_cond_density, budget, c_bar):
@@ -21,25 +22,29 @@ def solve_conditional_program(compute_cond_density, budget, c_bar):
 def solve_conditional_program_quantile_regression(train_dataset, budget, c_bar):
     X = train_dataset.X
     y = train_dataset.y
+    r = train_dataset.r
 
     X, X_mean, X_std = standardize(X)
     y, y_mean, y_std = standardize(y)
 
     if X.shape[1] == 0:
-        q_hat = np.quantile(y, budget).item()
+        wq = DescrStatsW(data=y, weights=r)
+        q_hat = wq.quantile(budget).item()
     else:
         q_hat = xg.XGBRegressor(
             objective="reg:quantileerror",
             max_depth=3,
             n_estimators=10,
             quantile_alpha=budget,
-        ).fit(X, y)
+        ).fit(
+            X, y
+        )  # add a baseline that can take sample weights
 
     def t(X_test):
         if isinstance(q_hat, float):
             quantile = (q_hat * y_std + y_mean) * np.ones(X_test.shape[0])
         else:
-            X_test = (X_test - X.mean()) / X.std()
+            X_test = (X_test - X_mean) / X_std
             quantile = q_hat.predict(X_test) * y_std + y_mean
         transfer = np.maximum(c_bar - quantile, 0)
         assignments = {x_idx: [] for x_idx in range(len(X_test))}
