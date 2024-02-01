@@ -38,7 +38,8 @@ def generate_sim_runs():
 
 
 def generate_uganda_runs():
-    ds = [5]
+    #    ds = [5]
+    ds = [0, 5, 6, 8, 10, 12]
     for d in ds:
         exp_id = "uganda_d={}".format(d)
         script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))

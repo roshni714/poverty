@@ -8,7 +8,7 @@ from data_loaders.data_utils import Dataset
 from cond_dist import GLMSplineConditionalDistribution
 from scipy.stats import gaussian_kde
 import tqdm
-from scipy.signal import argrelmin, argrelmax
+from scipy.signal import argrelmin, argrelmax, argrelextrema
 from scipy.interpolate import interp1d
 
 import dill as pickle
@@ -32,12 +32,15 @@ def get_basis_matrix(y, num_basis_elements):
     return spline_matrix.basis.reshape(len(y), 1, num_basis_elements)
 
 
-def get_glm_spline_fit_helper(train_dataset, outcome_range, num_basis_elements=5):
+def get_glm_spline_fit_helper(train_dataset, num_basis_elements=5, log_transform=True):
     X = train_dataset.X
     y = train_dataset.y
     r = train_dataset.r
 
     X, X_mean, X_std = standardize(X)
+
+    if log_transform:
+        y = np.log(y)
     y, y_mean, y_std = standardize(y)
 
     carrier_function = fit_carrier_function(y)
@@ -55,8 +58,8 @@ def get_glm_spline_fit_helper(train_dataset, outcome_range, num_basis_elements=5
 
     basis_matrix = torch.Tensor(get_basis_matrix(y, k))  # n x 1 x k
     n_bins = 5000
+
     bins = np.linspace(min(y), max(y), n_bins)
-    unscaled_bins = bins * y_std + y_mean
     bin_basis_elements = torch.Tensor(get_basis_matrix(bins, k))  # 500 x 1 x K
     front = torch.Tensor(carrier_function(bins))
     bin_width = bins[1] - bins[0]
@@ -93,6 +96,11 @@ def get_glm_spline_fit_helper(train_dataset, outcome_range, num_basis_elements=5
     final_theta = theta.detach().cpu()
     print("Final Theta: {}".format(final_theta))
 
+    if log_transform:
+        unscaled_bins = np.exp(bins * y_std + y_mean)
+    else:
+        unscaled_bins = bins * y_std + y_mean
+
     def helper(X_test):
         X_test = (X_test - X_mean) / X_std
         nat_param = torch.matmul(
@@ -116,14 +124,22 @@ def get_glm_spline_fit_helper(train_dataset, outcome_range, num_basis_elements=5
             )
         ) / y_std  # / y_bins
 
-        idx_maxima = argrelmin(pdf_matrix.numpy(), axis=1)
-        idx_minima = argrelmax(pdf_matrix.numpy(), axis=1)
+        if log_transform:
+            pdf_matrix /= y_bins
+
+        idx_maxima = argrelextrema(pdf_matrix.numpy(), np.less_equal, axis=1)
+        idx_minima = argrelextrema(pdf_matrix.numpy(), np.greater_equal, axis=1)
 
         cdf_matrix = torch.cumulative_trapezoid(pdf_matrix, y_bins, dim=1)
+
         cond_dists = []
         y_midpoint_bins = np.array(
             [(y_bins[i] + y_bins[i + 1]) / 2 for i in range(len(y_bins) - 1)]
         )
+
+        best_idx = torch.argmax(pdf_matrix, axis=1)
+        modes = y_bins[best_idx]
+
         for i in range(len(X_test)):
             idx_extrema = np.sort(
                 np.hstack(
@@ -133,6 +149,11 @@ def get_glm_spline_fit_helper(train_dataset, outcome_range, num_basis_elements=5
                     )
                 )
             )
+
+            #            if len(idx_extrema) == 0:
+            #                import pdb
+            #                pdb.set_trace()
+
             cdf_function = interp1d(
                 y_midpoint_bins,
                 cdf_matrix[i].flatten(),
@@ -149,7 +170,7 @@ def get_glm_spline_fit_helper(train_dataset, outcome_range, num_basis_elements=5
                 cdf_matrix[i].flatten(),
                 y_midpoint_bins,
                 bounds_error=False,
-                fill_value=(min(y) * y_std + y_mean, max(y) * y_std + y_mean),
+                fill_value=(y_midpoint_bins[0], y_midpoint_bins[-1]),
             )
 
             cond_dists.append(
@@ -158,7 +179,8 @@ def get_glm_spline_fit_helper(train_dataset, outcome_range, num_basis_elements=5
                     cdf_function,
                     ppf_function,
                     extrema=y_bins[idx_extrema],
-                    outcome_range=outcome_range,
+                    outcome_range=(y_bins[0], y_bins[-1]),
+                    mode=modes[i].item(),
                 )
             )
 

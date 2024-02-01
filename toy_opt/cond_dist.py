@@ -129,14 +129,14 @@ class LogNormalConditionalDistribution(ConditionalDistribution):
 
 class GLMSplineConditionalDistribution(ConditionalDistribution):
     def __init__(
-        self, pdf_function, cdf_function, ppf_function, extrema, outcome_range
+        self, pdf_function, cdf_function, ppf_function, extrema, mode, outcome_range
     ):
         super().__init__()
         self.cdf_function = cdf_function
         self.pdf_function = pdf_function
         self.ppf_function = ppf_function
         self.extrema = extrema
-        self.mode = extrema[np.argmax([pdf_function(pt) for pt in extrema])].item()
+        self.mode = mode
         self.outcome_range = outcome_range
 
     def pdf(self, z):
@@ -154,11 +154,11 @@ class GLMSplineConditionalDistribution(ConditionalDistribution):
         """
         inverses = []
         domains = []
-        for i, pt in enumerate(self.extrema):
+        for i in range(len(self.extrema) + 1):
             if i == 0:
-                zs = np.linspace(self.outcome_range[0], pt, 1000)
-            elif i == len(self.extrema) - 1:
-                zs = np.linspace(pt, self.outcome_range[1], 1000)
+                zs = np.linspace(self.outcome_range[0], self.extrema[i], 1000)
+            elif i == len(self.extrema):
+                zs = np.linspace(self.extrema[-1], self.outcome_range[1], 1000)
             else:
                 zs = np.linspace(self.extrema[i - 1], self.extrema[i], 1000)
             ps = self.pdf(zs)

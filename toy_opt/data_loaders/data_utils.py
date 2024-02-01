@@ -37,7 +37,8 @@ def split_data(X, y, d, p, r=None, outcome_range=None):
     #    idx = np.where(np.logical_and(y >= outcome_range[0], y <= outcome_range[1]))
     #    y = y[idx]
     #    X = X[idx, :].squeeze()
-    #    r = r[idx]
+    #    if r is not None:
+    #        r = r[idx]
 
     y = np.clip(y, a_min=outcome_range[0], a_max=outcome_range[1])
 
