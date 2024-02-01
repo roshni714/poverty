@@ -48,7 +48,26 @@ def generate_uganda_runs():
                 SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id),
                 file=f,
             )
-            base_cmd = "python main_real.py main --d {} --density_est_method glm_spline".format(
+            base_cmd = "python main_real.py main --d {} --density_est_method glm_spline --country uganda".format(
+                d
+            )
+            print(base_cmd, file=f)
+            print("sleep 1", file=f)
+
+
+def generate_malawi_runs():
+    #    ds = [5]
+    ds = [0, 3, 12, 14, 16, 20, 25, 28]
+    #    ds = [0, 2, 3, 4, 6, 8, 9, 15, 18]
+    for d in ds:
+        exp_id = "malawi_d={}".format(d)
+        script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
+        with open(script_fn, "w") as f:
+            print(
+                SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id),
+                file=f,
+            )
+            base_cmd = "python main_real.py main --d {} --density_est_method glm_spline --country malawi".format(
                 d
             )
             print(base_cmd, file=f)
@@ -56,4 +75,4 @@ def generate_uganda_runs():
 
 
 # generate_sim_runs()
-generate_uganda_runs()
+generate_malawi_runs()

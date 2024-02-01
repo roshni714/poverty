@@ -10,7 +10,7 @@ from utils import (
     log_likelihood,
 )
 from data_loaders.data_utils import split_data
-from data_loaders.data_loader import load_uganda
+from data_loaders.data_loader import load_dataset
 from reporting import write_result
 
 
@@ -18,8 +18,7 @@ import numpy as np
 import argh
 import dill as pickle
 
-COUNTRIES = {"uganda": load_uganda}
-POVERTY_LINE_COUNTRY = {"uganda": 65000}
+POVERTY_LINE_COUNTRY = {"uganda": 65000, "malawi": 4575}
 
 
 def run_cond_alg(train_dataset, cond_density_estimator, budget, c_bar):
@@ -33,8 +32,8 @@ def run_cond_alg(train_dataset, cond_density_estimator, budget, c_bar):
     return t_cond_program_qr, t_cond_program_est
 
 
-def run_main_alg(dataset, cond_density_estimator, budget, c_bar):
-    title = "uganda_d={}".format(dataset.X.shape[1])
+def run_main_alg(dataset, cond_density_estimator, budget, c_bar, country):
+    title = "{}_d={}".format(country, dataset.X.shape[1])
 
     (
         t_alpha_joint_programs,
@@ -45,7 +44,7 @@ def run_main_alg(dataset, cond_density_estimator, budget, c_bar):
         cond_density_estimator,
         budget,
         c_bar,
-        n_alpha=100,
+        n_alpha=200,
         title="{}_joint_opt".format(title),
     )
 
@@ -65,12 +64,13 @@ def evaluate(test_dataset, policy, c_bar, title, metadata):
 @argh.arg("--density_est_method", default="log_normal")
 @argh.arg("--country", default="uganda")
 def main(country="uganda", d=2, density_est_method="log_normal"):
-    X, y, r, features = COUNTRIES[country]()
+    X, y, r, features = load_dataset(country)
     # dont use sample weights until we fix knapsack algorithm
     trunc_range = (min(y), np.quantile(y, 0.99))
     train_dataset, test_dataset = split_data(
         X, y, r=None, d=d, p=0.6, outcome_range=trunc_range
     )
+
     max_d = X.shape[1]
     n = len(train_dataset)
     budget = 0.1
@@ -90,7 +90,7 @@ def main(country="uganda", d=2, density_est_method="log_normal"):
         train_dataset,
         cond_density_estimator,
         outcome_range=trunc_range,
-        title="uganda_n={}_d={}".format(n, d),
+        title="{}_n={}_d={}".format(country, n, d),
     )
     train_avg_log_likelihood = log_likelihood(
         train_dataset, cond_density_estimator, trunc_range, full_X=False
@@ -123,19 +123,19 @@ def main(country="uganda", d=2, density_est_method="log_normal"):
             test_dataset,
             policies[i],
             c_bar,
-            title="uganda_n={}".format(n),
+            title="{}_n={}".format(country, n),
             metadata=metadata,
         )
 
     t_joint_program_est = run_main_alg(
-        test_dataset, cond_density_estimator, budget, c_bar
+        test_dataset, cond_density_estimator, budget, c_bar, country
     )
     metadata["method"] = "joint_program"
     evaluate(
         test_dataset,
         t_joint_program_est,
         c_bar,
-        title="uganda_n={}".format(n),
+        title="{}_n={}".format(country, n),
         metadata=metadata,
     )
 
