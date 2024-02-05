@@ -56,9 +56,7 @@ def generate_uganda_runs():
 
 
 def generate_malawi_runs():
-    #    ds = [5]
     ds = [0, 3, 12, 14, 16, 20, 25, 28]
-    #    ds = [0, 2, 3, 4, 6, 8, 9, 15, 18]
     for d in ds:
         exp_id = "malawi_d={}".format(d)
         script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
@@ -74,5 +72,5 @@ def generate_malawi_runs():
             print("sleep 1", file=f)
 
 
-# generate_sim_runs()
-generate_malawi_runs()
+generate_uganda_runs()
+# generate_malawi_runs()

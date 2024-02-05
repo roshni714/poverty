@@ -157,6 +157,7 @@ def _load_malawi_merged():
     adult_equiv = adult_equiv.fillna(adult_equiv.mean())
     y /= adult_equiv
     y /= 12
+    #    y *= 0.0066
 
     r = df["hh_wgt"]
     df["laborstat_head"] = df["laborstat_head"].astype("category").cat.codes

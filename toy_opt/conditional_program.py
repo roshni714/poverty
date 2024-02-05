@@ -1,7 +1,7 @@
 import numpy as np
 import xgboost as xg
 
-from data_loaders.data_utils import standardize
+from data_loaders.data_utils import standardize, EarlyStopper
 from statsmodels.stats.weightstats import DescrStatsW
 import tqdm
 import torch
@@ -37,10 +37,9 @@ def solve_conditional_program_quantile_regression(train_dataset, budget, c_bar):
         q_hat = wq.quantile(budget).item()
     else:
         d = X.shape[1]
-        q_hat = torch.nn.Sequential(torch.nn.Linear(d, 5), torch.nn.Linear(5, 1))
-        #        theta = torch.nn.Parameter(
-        #        torch.Tensor(np.random.uniform(-1.0, 1.0, d).reshape(1, d))
-        #        )
+        q_hat = torch.nn.Sequential(
+            torch.nn.Linear(d, 5), torch.nn.ReLU(), torch.nn.Linear(5, 1)
+        )
 
         def quantile_loss(q_hat, idx):
             sub_n = len(idx)
@@ -51,15 +50,29 @@ def solve_conditional_program_quantile_regression(train_dataset, budget, c_bar):
 
         n_epochs = 500
         optimizer = torch.optim.Adam(q_hat.parameters(), lr=1e-2)
-        batch_size = int(len(X) / 3)
-        print("Fitting conditional program - QR method via glm spline method...")
+        train_prop = 0.7
+        idx_train_set, idx_val_set = list(range(int(train_prop * len(X)))), list(
+            range(int(train_prop * len(X)), len(X))
+        )
+
+        batch_size = int(len(idx_train_set) / 3)
+        print("Fitting conditional program - QR method via nonparametric regression...")
         pbar = tqdm.tqdm(list(range(n_epochs)))
+        early_stopper = EarlyStopper(patience=3)
         for epoch in pbar:
-            idx = np.random.choice(len(X), size=batch_size)
+            val_loss = torch.sum(
+                quantile_loss(q_hat, idx_val_set) * torch.Tensor(r[idx_val_set])
+            )
+            res = early_stopper.early_stop(val_loss.detach())
+            if res:
+                break
+
+            idx = np.random.choice(idx_train_set, size=batch_size)
             optimizer.zero_grad()
             loss = torch.sum(quantile_loss(q_hat, idx) * torch.Tensor(r[idx]))
             loss.backward()
             optimizer.step()
+
             pbar.set_postfix({"loss": loss.item()})
 
     def t(X_test):

@@ -18,7 +18,7 @@ import numpy as np
 import argh
 import dill as pickle
 
-POVERTY_LINE_COUNTRY = {"uganda": 65000, "malawi": 4575}
+POVERTY_LINE_COUNTRY = {"malawi": 4575, "uganda": 65000}
 
 
 def run_cond_alg(train_dataset, cond_density_estimator, budget, c_bar):
@@ -66,9 +66,9 @@ def evaluate(test_dataset, policy, c_bar, title, metadata):
 def main(country="uganda", d=2, density_est_method="log_normal"):
     X, y, r, features = load_dataset(country)
     # dont use sample weights until we fix knapsack algorithm
-    trunc_range = (min(y), np.quantile(y, 0.99))
+    #    trunc_range = (min(y), np.quantile(y, 0.99))
     train_dataset, test_dataset = split_data(
-        X, y, r=None, d=d, p=0.6, outcome_range=trunc_range
+        X, y, r=None, d=d, p=0.6, outcome_range=None
     )
 
     max_d = X.shape[1]
@@ -78,7 +78,7 @@ def main(country="uganda", d=2, density_est_method="log_normal"):
     print("c_bar:{}".format(c_bar))
     print("Features: ", features[:d])
     cond_density_estimator = get_cond_density_estimator(
-        train_dataset, density_est_method
+        train_dataset, budget, density_est_method
     )
 
     pickle.dump(
@@ -89,14 +89,14 @@ def main(country="uganda", d=2, density_est_method="log_normal"):
     make_estimated_density_plot(
         train_dataset,
         cond_density_estimator,
-        outcome_range=trunc_range,
+        outcome_range=(min(y), np.quantile(y, 0.97)),
         title="{}_n={}_d={}".format(country, n, d),
     )
     train_avg_log_likelihood = log_likelihood(
-        train_dataset, cond_density_estimator, trunc_range, full_X=False
+        train_dataset, cond_density_estimator, full_X=False
     )
     est_avg_log_likelihood = log_likelihood(
-        test_dataset, cond_density_estimator, trunc_range, full_X=False
+        test_dataset, cond_density_estimator, full_X=False
     )
     print(
         "Train Average LL: {}, Test Average LL: {}".format(
