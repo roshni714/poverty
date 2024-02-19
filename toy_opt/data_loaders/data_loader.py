@@ -2,6 +2,9 @@ import pandas as pd
 import numpy as np
 
 
+CONVERSION_FACTORS = {"malawi": 0.01406191874, "uganda": 0.002047965035}
+
+
 def _load_uganda_merged():
     df = pd.read_stata(
         "/home/users/rsahoo/poverty/toy_opt/data_loaders/data/clean/uganda_merged.dta"
@@ -19,6 +22,8 @@ def _load_uganda_merged():
     total_df = total_df.reset_index()
 
     y = total_df["welfare"]
+    y *= CONVERSION_FACTORS["uganda"]
+    y /= 30
     r = total_df["wgt10"]
     total_df["urban"] = total_df["urban"].cat.codes
     features = [
@@ -84,6 +89,7 @@ def _load_ethiopia_merged():
     total_df = total_df.reset_index()
 
     y = total_df["welfare"]
+    y *= CONVERSION_FACTORS["ethiopia"]
     r = total_df["wgt10"]
     total_df["urban"] = total_df["urban"].cat.codes
     features = [
@@ -152,12 +158,13 @@ def _load_malawi_merged():
     df.dropna(axis=0, subset="rexpagg", inplace=True)
     df = df.reset_index()
 
-    y = df["rexpagg"]
-    adult_equiv = df["num_kids"] * 0.5 + df["num_adults"]
+    df["outcome"] = df["rexpagg"].copy()
+    df["outcome"] *= CONVERSION_FACTORS["malawi"]
+    adult_equiv = df["num_kids"] + df["num_adults"]
     adult_equiv = adult_equiv.fillna(adult_equiv.mean())
-    y /= adult_equiv
-    y /= 12
-    #    y *= 0.0066
+    df["outcome"] /= adult_equiv
+    df["outcome"] /= 365
+    y = df["outcome"]
 
     r = df["hh_wgt"]
     df["laborstat_head"] = df["laborstat_head"].astype("category").cat.codes

@@ -3,6 +3,7 @@ from conditional_program import (
     solve_conditional_program_quantile_regression,
     solve_conditional_program,
 )
+from oracle import run_oracle
 from evaluate import post_transfer_metrics
 from utils import (
     make_estimated_density_plot,
@@ -18,8 +19,6 @@ import numpy as np
 import argh
 import dill as pickle
 
-POVERTY_LINE_COUNTRY = {"malawi": 4575, "uganda": 65000}
-
 
 def run_cond_alg(train_dataset, cond_density_estimator, budget, c_bar):
     t_cond_program_qr = solve_conditional_program_quantile_regression(
@@ -33,7 +32,7 @@ def run_cond_alg(train_dataset, cond_density_estimator, budget, c_bar):
 
 
 def run_main_alg(dataset, cond_density_estimator, budget, c_bar, country):
-    title = "{}_d={}".format(country, dataset.X.shape[1])
+    title = "{}_d={}_budget={}".format(country, dataset.X.shape[1], budget)
 
     (
         t_alpha_joint_programs,
@@ -50,35 +49,40 @@ def run_main_alg(dataset, cond_density_estimator, budget, c_bar, country):
 
     idx = np.argmin(train_total_transfers)
     t_joint_program_est = t_alpha_joint_programs[idx]
+    import pdb
+
+    pdb.set_trace()
     return t_joint_program_est
 
 
 def evaluate(test_dataset, policy, c_bar, title, metadata):
-    result = post_transfer_metrics(test_dataset, policy, c_bar)
+    if metadata["method"] == "oracle":
+        result = post_transfer_metrics(test_dataset, policy, c_bar, oracle=True)
+    else:
+        result = post_transfer_metrics(test_dataset, policy, c_bar)
+
     metadata.update(result)
     results_file = "results/{}.csv".format(title)
     write_result(results_file, metadata)
 
 
+@argh.arg("--budget", default=0.1)
 @argh.arg("--d", default=2)
-@argh.arg("--density_est_method", default="log_normal")
+@argh.arg("--density_est_method", default="glm")
 @argh.arg("--country", default="uganda")
-def main(country="uganda", d=2, density_est_method="log_normal"):
+def main(country="uganda", d=2, budget=0.1, density_est_method="glm"):
     X, y, r, features = load_dataset(country)
     # dont use sample weights until we fix knapsack algorithm
     #    trunc_range = (min(y), np.quantile(y, 0.99))
-    train_dataset, test_dataset = split_data(
-        X, y, r=None, d=d, p=0.6, outcome_range=None
-    )
+    train_dataset, test_dataset = split_data(X[:, :d], y, r=None, p=0.6)
 
     max_d = X.shape[1]
     n = len(train_dataset)
-    budget = 0.1
-    c_bar = POVERTY_LINE_COUNTRY[country]
-    print("c_bar:{}".format(c_bar))
+    c_bar = 2.15
+    print("c_bar:{}".format(c_bar), "budget:{}".format(budget))
     print("Features: ", features[:d])
     cond_density_estimator = get_cond_density_estimator(
-        train_dataset, budget, density_est_method
+        train_dataset, density_est_method
     )
 
     pickle.dump(
@@ -89,7 +93,7 @@ def main(country="uganda", d=2, density_est_method="log_normal"):
     make_estimated_density_plot(
         train_dataset,
         cond_density_estimator,
-        outcome_range=(min(y), np.quantile(y, 0.97)),
+        outcome_range=(min(y), np.quantile(y, 0.99)),
         title="{}_n={}_d={}".format(country, n, d),
     )
     train_avg_log_likelihood = log_likelihood(
@@ -111,11 +115,14 @@ def main(country="uganda", d=2, density_est_method="log_normal"):
     metadata = {
         "density_est_method": density_est_method,
         "d": d,
+        "budget": budget,
         "avg_log_likelihood_density": est_avg_log_likelihood,
     }
 
-    policies = [t_cond_program_qr, t_cond_program_est]
-    names = ["cond_program_qr", "cond_program_exact"]
+    t_oracle = run_oracle(test_dataset, budget, c_bar)
+
+    policies = [t_cond_program_qr, t_cond_program_est, t_oracle]
+    names = ["cond_program_qr", "cond_program_density", "oracle"]
 
     for i in range(len(policies)):
         metadata["method"] = names[i]

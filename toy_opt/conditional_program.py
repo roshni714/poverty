@@ -1,10 +1,11 @@
 import numpy as np
 import xgboost as xg
 
-from data_loaders.data_utils import standardize, EarlyStopper
+from data_loaders.data_utils import standardize
 from statsmodels.stats.weightstats import DescrStatsW
 import tqdm
 import torch
+import copy
 
 
 def solve_conditional_program(compute_cond_density, budget, c_bar):
@@ -34,7 +35,7 @@ def solve_conditional_program_quantile_regression(train_dataset, budget, c_bar):
 
     if X.shape[1] == 0:
         wq = DescrStatsW(data=y, weights=r)
-        q_hat = wq.quantile(budget).item()
+        final_q_hat = wq.quantile(budget).item()
     else:
         d = X.shape[1]
         q_hat = torch.nn.Sequential(
@@ -48,7 +49,7 @@ def solve_conditional_program_quantile_regression(train_dataset, budget, c_bar):
                 1 - budget
             ) * torch.nn.functional.relu(y_pred - torch.Tensor(y[idx]))
 
-        n_epochs = 500
+        n_epochs = 300
         optimizer = torch.optim.Adam(q_hat.parameters(), lr=1e-2)
         train_prop = 0.7
         idx_train_set, idx_val_set = list(range(int(train_prop * len(X)))), list(
@@ -58,14 +59,16 @@ def solve_conditional_program_quantile_regression(train_dataset, budget, c_bar):
         batch_size = int(len(idx_train_set) / 3)
         print("Fitting conditional program - QR method via nonparametric regression...")
         pbar = tqdm.tqdm(list(range(n_epochs)))
-        early_stopper = EarlyStopper(patience=3)
+        val_losses = []
+        models = []
+
         for epoch in pbar:
-            val_loss = torch.sum(
-                quantile_loss(q_hat, idx_val_set) * torch.Tensor(r[idx_val_set])
-            )
-            res = early_stopper.early_stop(val_loss.detach())
-            if res:
-                break
+            if epoch % 25 == 0:
+                val_loss = torch.sum(
+                    quantile_loss(q_hat, idx_val_set) * torch.Tensor(r[idx_val_set])
+                )
+                val_losses.append(val_loss.detach().item())
+                models.append(copy.deepcopy(q_hat))
 
             idx = np.random.choice(idx_train_set, size=batch_size)
             optimizer.zero_grad()
@@ -74,14 +77,16 @@ def solve_conditional_program_quantile_regression(train_dataset, budget, c_bar):
             optimizer.step()
 
             pbar.set_postfix({"loss": loss.item()})
+        best_model_idx = np.argmin(val_losses)
+        final_q_hat = models[best_model_idx]
 
     def t(X_test):
         if X_test.shape[1] == 0:
-            quantile = (q_hat * y_std + y_mean) * np.ones(X_test.shape[0])
+            quantile = (final_q_hat * y_std + y_mean) * np.ones(X_test.shape[0])
         else:
             X_test = (X_test - X_mean) / X_std
             quantile = (
-                (q_hat(torch.Tensor(X_test)).squeeze() * y_std + y_mean)
+                (final_q_hat(torch.Tensor(X_test)).squeeze() * y_std + y_mean)
                 .detach()
                 .numpy()
             )

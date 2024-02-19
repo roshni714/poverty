@@ -1,34 +1,46 @@
 import numpy as np
-from data_loaders.data_utils import standardize, EarlyStopper
+from data_loaders.data_utils import standardize
 from data_loaders.sim_data_gen import generate_heteroscedastic_data
 import torch
 import statsmodels.api as sm
 from data_loaders.data_utils import Dataset
-from cond_dist import GLMSplineConditionalDistribution
+from cond_dist import GLMConditionalDistribution
 from scipy.stats import gaussian_kde
 import tqdm
-from scipy.signal import argrelmin, argrelmax, argrelextrema
+from scipy.signal import argrelextrema
 from scipy.interpolate import interp1d
 import statsmodels.gam.smooth_basis as sb
-
-import dill as pickle
 
 
 def fit_carrier_function(y, r):
     kde = sm.nonparametric.KDEUnivariate(y)
-    kde.fit(weights=r, fft=False, adjust=0.8, cut=0.0)
+    kde.fit(weights=r, fft=False, adjust=0.8)
     return kde
 
 
-def setup_bspline_basis(y, mode, degree=3):
-    df = 6
-    spline_matrix = sb.BSplines(
-        y,
-        df=df,
-        degree=degree,
-        include_intercept=True,
-        knot_kwds=[{"spacing": "quantile"}],
-    )
+def setup_bspline_basis(y, degree=3, df=None):
+    # More knots at small quantiles
+
+    if df is None:
+        qs = [0.1, 0.20, 0.4, 0.6]
+        internal_knots = [np.quantile(y, q) for q in qs]
+        df = len(internal_knots) + degree + 1
+        spline_matrix = sb.BSplines(
+            y,
+            df=df,
+            degree=degree,
+            include_intercept=True,
+            knot_kwds=[{"knots": internal_knots}],
+        )
+    else:
+        spline_matrix = sb.BSplines(
+            y,
+            df=df,
+            degree=degree,
+            include_intercept=True,
+            knot_kwds=[{"spacing": "quantile"}],
+        )
+
     knots = spline_matrix.smoothers[0].knots
     num_basis_elem = spline_matrix.basis.shape[1]
     print("KNOTS:{}".format(knots))
@@ -41,12 +53,187 @@ def setup_bspline_basis(y, mode, degree=3):
             include_intercept=True,
             knot_kwds=[{"all_knots": knots}],
         )
-        return spline_matrix.basis.reshape(len(z), 1, num_basis_elem)
+
+        basis = spline_matrix.basis.reshape(len(z), 1, num_basis_elem)
+        return basis
 
     return get_basis, num_basis_elem
 
 
-def get_glm_spline_fit_helper(train_dataset, budget, log_transform=True):
+def get_glm_fit_helper(train_dataset, log_transform=True, df=None):
+    if train_dataset.X.shape[1] == 0:
+        helper = lindsey_method(train_dataset, log_transform, df)
+
+    else:
+        helper = lindsey_method_with_covariates(train_dataset, log_transform, df)
+    return helper
+
+
+def lindsey_method(train_dataset, log_transform=True, df=None):
+    y = train_dataset.y
+    r = train_dataset.r
+
+    if log_transform:
+        y = np.log(y)
+    y, y_mean, y_std = standardize(y)
+
+    n = y.shape[0]
+    torch.manual_seed(123456)
+    np.random.seed(123456)
+
+    n_bins = 2000
+    bin_ends = np.linspace(min(y), max(y), n_bins)
+    kde = fit_carrier_function(y, r)
+    front = kde.evaluate(bin_ends)
+
+    if df is None:
+        get_basis_matrix, k = setup_bspline_basis(y, degree=3)
+    else:
+        get_basis_matrix, k = setup_bspline_basis(y, degree=3, df=df)
+
+    bin_basis_elements = get_basis_matrix(bin_ends)
+    basis_matrix = get_basis_matrix(y)  # n x 1 x k
+
+    r = torch.tensor(r, dtype=torch.float64)
+    y = torch.tensor(y, dtype=torch.float64)
+    basis_matrix = torch.tensor(basis_matrix, dtype=torch.float64)  # n x k
+    bin_basis_elements = torch.tensor(
+        bin_basis_elements, dtype=torch.float64
+    )  # n_bins x k
+    bin_ends = torch.tensor(bin_ends, dtype=torch.float64)
+    front = torch.tensor(front, dtype=torch.float64)
+    theta = torch.nn.Parameter(
+        torch.tensor(np.random.uniform(-1.0, 1.0, k).reshape(k, 1), dtype=torch.float64)
+    )
+    if log_transform:
+        unscaled_bin_ends = torch.exp(bin_ends * y_std + y_mean)
+    else:
+        unscaled_bin_ends = bin_ends * y_std + y_mean
+
+    def glm_nll(theta, idx):
+        sub_n = len(idx)
+        res = torch.matmul(basis_matrix[idx, :], theta).squeeze()  # n
+        norm_res = torch.exp(
+            torch.matmul(
+                bin_basis_elements.reshape(
+                    bin_basis_elements.shape[0], bin_basis_elements.shape[2]
+                ),
+                theta,
+            )
+        ).squeeze()  # n_bins  x1
+        final_matrix = front * norm_res
+        log_norm_constant = torch.log(torch.trapezoid(y=final_matrix, x=bin_ends))
+        nll = -res + log_norm_constant
+        return nll
+
+    n_epochs = 300
+    optimizer = torch.optim.Adam([theta], lr=1e-2)
+    batch_size = int(len(y) / 3)
+    print("Fitting conditional densities vs glm spline method...")
+    pbar = tqdm.tqdm(list(range(n_epochs)))
+    train_prop = 0.7
+    idx_train_set, idx_val_set = list(range(int(train_prop * len(y)))), list(
+        range(int(train_prop * len(y)), len(y))
+    )
+    thetas = []
+    val_losses = []
+    for epoch in pbar:
+        if epoch % 25 == 0:
+            val_loss = torch.sum(glm_nll(theta, idx_val_set) * r[idx_val_set])
+            val_losses.append(val_loss.detach().item())
+            thetas.append(theta.detach().clone())
+
+        idx = np.random.choice(idx_train_set, size=batch_size)
+        optimizer.zero_grad()
+        loss = torch.sum(glm_nll(theta, idx) * r[idx])
+        loss.backward()
+        optimizer.step()
+        pbar.set_postfix({"loss": loss.item(), "val_loss": val_loss.item()})
+
+    best_model_idx = np.argmin(val_losses)
+    final_theta = thetas[best_model_idx]
+    print("Final Theta: {}".format(final_theta))
+
+    def helper(X_test):
+        norm_res = torch.exp(
+            torch.matmul(
+                bin_basis_elements.reshape(
+                    bin_basis_elements.shape[0], bin_basis_elements.shape[2]
+                ),
+                final_theta,
+            )
+        ).squeeze()
+        final_matrix = front * norm_res
+        norm_constant = torch.trapezoid(final_matrix, bin_ends)
+
+        center = torch.exp(
+            torch.matmul(
+                bin_basis_elements.reshape(
+                    bin_basis_elements.shape[0], bin_basis_elements.shape[2]
+                ),
+                final_theta,
+            )
+        ).squeeze()
+        pdf_matrix = (front * center) / norm_constant / y_std
+
+        if log_transform:
+            pdf_matrix = pdf_matrix / unscaled_bin_ends
+
+        pdf_matrix = pdf_matrix.detach()
+
+        idx_maxima = argrelextrema(pdf_matrix.numpy(), np.less_equal)
+        idx_minima = argrelextrema(pdf_matrix.numpy(), np.greater_equal)
+        cdf_matrix = torch.cumulative_trapezoid(y=pdf_matrix, x=unscaled_bin_ends)
+
+        cond_dists = []
+
+        best_idx = torch.argmax(pdf_matrix)
+        mode = unscaled_bin_ends[best_idx]
+        idx_extrema = np.sort(
+            np.hstack(
+                (
+                    idx_maxima,
+                    idx_minima,
+                )
+            )
+        )
+        cdf_function = interp1d(
+            unscaled_bin_ends[1:],
+            cdf_matrix,
+            bounds_error=False,
+            fill_value=(0.0, 1.0),
+        )
+        pdf_function = interp1d(
+            unscaled_bin_ends,
+            pdf_matrix,
+            bounds_error=False,
+            fill_value=0.0,
+        )
+        ppf_function = interp1d(
+            cdf_matrix,
+            unscaled_bin_ends[1:],
+            bounds_error=False,
+            fill_value=(unscaled_bin_ends[1], unscaled_bin_ends[-1]),
+        )
+
+        for i in range(len(X_test)):
+            cond_dists.append(
+                GLMConditionalDistribution(
+                    pdf_function,
+                    cdf_function,
+                    ppf_function,
+                    extrema=unscaled_bin_ends[idx_extrema],
+                    outcome_range=(unscaled_bin_ends[0], unscaled_bin_ends[-1]),
+                    mode=mode.item(),
+                )
+            )
+
+        return cond_dists
+
+    return helper
+
+
+def lindsey_method_with_covariates(train_dataset, log_transform=True, df=None):
     X = train_dataset.X
     y = train_dataset.y
     r = train_dataset.r
@@ -65,11 +252,13 @@ def get_glm_spline_fit_helper(train_dataset, budget, log_transform=True):
     n_bins = 2000
     bin_ends = np.linspace(min(y), max(y), n_bins)
     kde = fit_carrier_function(y, r)
-    mode_idx = np.argmax(kde.evaluate(bin_ends))
     front = kde.evaluate(bin_ends)
-    get_basis_matrix, k = setup_bspline_basis(
-        y, mode=kde.evaluate(bin_ends[mode_idx]).item(), degree=3
-    )
+
+    if df is None:
+        get_basis_matrix, k = setup_bspline_basis(y, degree=3)
+    else:
+        get_basis_matrix, k = setup_bspline_basis(y, degree=3, df=df)
+
     bin_basis_elements = get_basis_matrix(bin_ends)
     basis_matrix = get_basis_matrix(y)  # n x 1 x k
 
@@ -85,6 +274,10 @@ def get_glm_spline_fit_helper(train_dataset, budget, log_transform=True):
             np.random.uniform(-1.0, 1.0, k * d).reshape(k, d), dtype=torch.float64
         )
     )
+    if log_transform:
+        unscaled_bin_ends = torch.exp(bin_ends * y_std + y_mean)
+    else:
+        unscaled_bin_ends = bin_ends * y_std + y_mean
 
     def glm_nll(theta, idx):
         sub_n = len(idx)
@@ -105,7 +298,7 @@ def get_glm_spline_fit_helper(train_dataset, budget, log_transform=True):
         nll = -res + log_norm_constant
         return nll
 
-    n_epochs = 500
+    n_epochs = 300
     optimizer = torch.optim.Adam([theta], lr=1e-2)
     batch_size = int(len(X) / 3)
     print("Fitting conditional densities vs glm spline method...")
@@ -114,27 +307,24 @@ def get_glm_spline_fit_helper(train_dataset, budget, log_transform=True):
     idx_train_set, idx_val_set = list(range(int(train_prop * len(X)))), list(
         range(int(train_prop * len(X)), len(X))
     )
-    early_stopper = EarlyStopper(patience=5)
+    thetas = []
+    val_losses = []
     for epoch in pbar:
-        val_loss = torch.sum(glm_nll(theta, idx_val_set) * r[idx_val_set])
-        res = early_stopper.early_stop(val_loss.detach())
-        if res:
-            break
+        if epoch % 25 == 0:
+            val_loss = torch.sum(glm_nll(theta, idx_val_set) * r[idx_val_set])
+            val_losses.append(val_loss.detach().item())
+            thetas.append(theta.detach().clone())
 
         idx = np.random.choice(idx_train_set, size=batch_size)
         optimizer.zero_grad()
         loss = torch.sum(glm_nll(theta, idx) * r[idx])
         loss.backward()
         optimizer.step()
-        pbar.set_postfix({"loss": loss.item()})
+        pbar.set_postfix({"loss": loss.item(), "val_loss": val_loss.item()})
 
-    final_theta = theta.detach()
-    print("Final Theta: {}".format(final_theta))
-
-    if log_transform:
-        unscaled_bin_ends = torch.exp(bin_ends * y_std + y_mean)
-    else:
-        unscaled_bin_ends = bin_ends * y_std + y_mean
+        best_model_idx = np.argmin(val_losses)
+        final_theta = thetas[best_model_idx]
+        print("Final Theta: {}".format(final_theta))
 
     def helper(X_test):
         X_test = (X_test - X_mean) / X_std
@@ -165,7 +355,6 @@ def get_glm_spline_fit_helper(train_dataset, budget, log_transform=True):
         )
         pdf_matrix = ((front * center) / norm_constant.reshape(len(X_test), 1)) / y_std
         pdf_matrix = pdf_matrix.detach()
-
         if log_transform:
             pdf_matrix /= unscaled_bin_ends
 
@@ -189,7 +378,6 @@ def get_glm_spline_fit_helper(train_dataset, budget, log_transform=True):
                     )
                 )
             )
-
             cdf_function = interp1d(
                 unscaled_bin_ends[1:],
                 cdf_matrix[i].flatten(),
@@ -210,7 +398,7 @@ def get_glm_spline_fit_helper(train_dataset, budget, log_transform=True):
             )
 
             cond_dists.append(
-                GLMSplineConditionalDistribution(
+                GLMConditionalDistribution(
                     pdf_function,
                     cdf_function,
                     ppf_function,
@@ -219,7 +407,6 @@ def get_glm_spline_fit_helper(train_dataset, budget, log_transform=True):
                     mode=modes[i].item(),
                 )
             )
-
         return np.array(cond_dists)
 
     return helper

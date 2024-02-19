@@ -15,11 +15,10 @@ def standardize(z):
 
 
 class Dataset:
-    def __init__(self, X, y, d, r=None):
-        self.X = X[:, :d].squeeze()
+    def __init__(self, X, y, r=None):
+        self.X = X
         self.y = y
-        self.d = d
-        self.full_X = X
+
         if r is None:
             self.r = np.ones(self.y.shape) / len(self.y)
         else:
@@ -32,25 +31,7 @@ class Dataset:
         return self.X[i, :], self.y[i], self.r[i]
 
 
-class EarlyStopper:
-    def __init__(self, patience=1, min_delta=0):
-        self.patience = patience
-        self.min_delta = min_delta
-        self.counter = 0
-        self.min_validation_loss = float("inf")
-
-    def early_stop(self, validation_loss):
-        if validation_loss < self.min_validation_loss:
-            self.min_validation_loss = validation_loss
-            self.counter = 0
-        elif validation_loss > (self.min_validation_loss + self.min_delta):
-            self.counter += 1
-            if self.counter >= self.patience:
-                return True
-        return False
-
-
-def split_data(X, y, d, p, r=None, outcome_range=None):
+def split_data(X, y, p, r=None):
     # Truncate and drop
     #    idx = np.where(np.logical_and(y >= outcome_range[0], y <= outcome_range[1]))
     #    y = y[idx]
@@ -69,20 +50,6 @@ def split_data(X, y, d, p, r=None, outcome_range=None):
     y_train = y[index_train]
     y_test = y[index_test]
 
-    if outcome_range is not None:
-        assert (
-            np.mean(
-                np.logical_and(y_test >= outcome_range[0], y_test <= outcome_range[1])
-            )
-            == 1.0
-        )
-        assert (
-            np.mean(
-                np.logical_and(y_train >= outcome_range[0], y_train <= outcome_range[1])
-            )
-            == 1.0
-        )
-
     if r is not None:
         r_train = r[index_train]
         r_test = r[index_test]
@@ -90,6 +57,4 @@ def split_data(X, y, d, p, r=None, outcome_range=None):
         r_train = None
         r_test = None
 
-    return Dataset(X_train, y_train, d=d, r=r_train), Dataset(
-        X_test, y_test, d=d, r=r_test
-    )
+    return Dataset(X_train, y_train, r=r_train), Dataset(X_test, y_test, r=r_test)

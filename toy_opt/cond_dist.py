@@ -6,6 +6,30 @@ import torch
 from scipy.interpolate import interp1d
 
 
+def get_lower_cvx_hull(tups):
+    sorted_tups = list(sorted(tups, key=lambda x: (x[0], x[1])))
+
+    tups = []
+    for j in range(len(sorted_tups)):
+        if len(tups) == 0:
+            tups.append(sorted_tups[0])
+        else:
+            if tups[-1][0] == sorted_tups[j][0]:
+                continue
+            else:
+                tups.append(sorted_tups[j])
+
+    if len(tups) == 1:
+        return np.array(tups)
+
+    lower = []
+    for p in tups:
+        while len(lower) >= 2 and compare_ratio(lower[-2], lower[-1], p):
+            lower.pop()
+        lower.append(p)
+    return np.array(lower)
+
+
 def compare_ratio(curr_p, old_p, new_p):
     """
     Compares the change in objective-budget tradeoff from curr_p to old_p and from curr_p to new_p.
@@ -72,27 +96,8 @@ class ConditionalDistribution:
         z = self.get_z(alpha, c_bar)
         p = self.get_p(alpha, c_bar)
         tups = list(zip(p, z))
-        sorted_tups = list(sorted(tups, key=lambda x: (x[0], x[1])))
-
-        tups = []
-        for j in range(len(sorted_tups)):
-            if len(tups) == 0:
-                tups.append(sorted_tups[0])
-            else:
-                if tups[-1][0] == sorted_tups[j][0]:
-                    continue
-                else:
-                    tups.append(sorted_tups[j])
-
-        if len(tups) == 1:
-            return np.array(tups)
-
-        lower = []
-        for p in tups:
-            while len(lower) >= 2 and compare_ratio(lower[-2], lower[-1], p):
-                lower.pop()
-            lower.append(p)
-        return np.array(lower)
+        cvx_hull = get_lower_cvx_hull(tups)
+        return cvx_hull
 
 
 class LogNormalConditionalDistribution(ConditionalDistribution):
@@ -101,7 +106,10 @@ class LogNormalConditionalDistribution(ConditionalDistribution):
         self.loc = loc
         self.scale = scale
         self.shape = shape
-        self.mode = np.exp(np.log(self.scale) - (self.shape) ** 2) + self.loc
+
+        mu = np.log(self.scale)
+        sigma = self.shape
+        self.mode = np.exp(mu - sigma**2) + self.loc
 
     def pdf(self, z):
         return lognorm.pdf(z, loc=self.loc, scale=self.scale, s=self.shape)
@@ -112,11 +120,14 @@ class LogNormalConditionalDistribution(ConditionalDistribution):
     def ppf(self, a):
         return lognorm.ppf(a, loc=self.loc, scale=self.scale, s=self.shape)
 
+    def expect(self, f):
+        return lognorm.expect(f, loc=self.loc, scale=self.scale, args=(self.shape,))
+
     def set_inverses(self):
         """
         Computes the left (inv1) and right inverses of the pdf.
         """
-        z1s = np.linspace(1e-10, self.mode, 10000)
+        z1s = np.linspace(self.loc, self.mode, 10000)
         z2s = np.linspace(self.mode, 30 * self.scale + self.mode, 10000)
         p1s = self.pdf(z1s)
         p2s = self.pdf(z2s)
@@ -127,7 +138,7 @@ class LogNormalConditionalDistribution(ConditionalDistribution):
         self.domains = [np.array([min(p1s), max(p1s)]), np.array([min(p2s), max(p2s)])]
 
 
-class GLMSplineConditionalDistribution(ConditionalDistribution):
+class GLMConditionalDistribution(ConditionalDistribution):
     def __init__(
         self, pdf_function, cdf_function, ppf_function, extrema, mode, outcome_range
     ):
