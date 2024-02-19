@@ -2,7 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from glm import get_glm_fit_helper
 from mle import get_lognormal_fit_helper
-from glm_boundary import get_glm_boundary_fit_helper
 
 
 def log_likelihood(test_dataset, cond_density_estimator, full_X=False):
