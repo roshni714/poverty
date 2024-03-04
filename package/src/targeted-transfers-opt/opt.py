@@ -14,7 +14,8 @@ class ConditionalTargetedTransfers:
         self.opt_policy = None
         self.c_bar = c_bar
         self.budget = budget
-
+        self.quantile_regressor = None
+        self.density_estimator = None
  
     def fit(self, X_train, y_train, r_train=None, log_transform=True, df=None):
         dataset = Dataset(X_train, y_train, r_train)
@@ -27,16 +28,51 @@ class ConditionalTargetedTransfers:
             open("{}_cond_density_estimator.pickle".format(self.name), "wb"),
             )
             self.density_estimator = density_estimator
-        else:
+        elif self.method == "qr":
             quantile_regressor = get_quantile_regressor(dataset, self.budget)
+            self.quantile_regressor = quantile_regressor
 
     def set_density_estimator(self, cond_density):
         self.density_estimator = cond_density
 
-        
+    def run_opt(self, X_test, y_test, r_test=None):
+        if method == "qr":
+            if self.quantile_regressor is None:
+                assert False, "Need to fit quantile regressor first"
 
+            def t(X_test):
+                quantile = self.quantile_regressor(X_test)
+                transfer = np.maximum(c_bar - quantile, 0)
+                assignments = {x_idx: [] for x_idx in range(len(X_test))}
+                for i in range(len(X_test)):
+                    assignments[i].append((transfer[i], 1.0))
+                return assignments
 
+        elif method == "density":
+            if self.density_estimator is None:
+                assert False, "Need to fit density function first"
 
+            def t(X_test):
+                cond_densities = compute_cond_density(X_test)
+                assignments = {x_idx: [] for x_idx in range(len(X_test))}
+                for i, cond_dist in enumerate(cond_densities):
+                    if cond_dist.cdf(c_bar) > budget:
+                        assignments[i] = [(c_bar - cond_dist.ppf(budget), 1.0)]
+                    else:
+                        assignments[i] = [(0.0, 1.0)]
+                return assignments
+        self.opt_policy = t
+        return t
+
+     def evaluate(self, X_test, y_test, r_test=None):
+        if self.opt_policy is None:
+            assert False, "Need to first run optimization"
+
+        dataset = Dataset(X_test, y_test, r_test)
+        result = post_transfer_metrics(dataset, self.opt_policy, self.c_bar)
+        return result
+
+ 
 class OptTargetedTransfers:
 
     def __init__(self, name="malawi_test", c_bar=2.15, budget=0.1):
