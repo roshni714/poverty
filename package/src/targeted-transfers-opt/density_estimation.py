@@ -7,7 +7,7 @@ import statsmodels.gam.smooth_basis as sb
 import statsmodels.api as sm
 
 
-from dataset import standardize
+from dataset_utils import standardize
 from cond_dist import GLMConditionalDistribution
 
 def get_cond_density_estimator(dataset, log_transform=True, df=None):
