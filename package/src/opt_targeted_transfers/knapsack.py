@@ -173,7 +173,7 @@ def compute_alpha_opt_policies(
     alpha_min=None,
     alpha_max=None,
     n_alpha=1000,
-    title="sim",
+    path="sim"
 ):
     cond_dists = compute_cond_density(train_dataset.X)
 
@@ -185,7 +185,7 @@ def compute_alpha_opt_policies(
         alpha_min = max([dist.pdf(dist.mode) for dist in cond_dists]).item() / 1000
     alphas = np.linspace(min_alpha, max_alpha, n_alpha)
     print("Alpha range: {}, {}".format(alphas[0], alphas[-1]))
-    results_file = "results/{}.csv".format(title)
+    results_file = path 
 
     if os.path.exists(results_file):
         os.remove(results_file)
@@ -212,5 +212,6 @@ def compute_alpha_opt_policies(
         }
         total_transfers.append(total_transfer)
         opt_policies.append(t_alpha)
-        write_result(results_file, result)
+        if results_file is not None:
+            write_result(results_file, result)
     return opt_policies, total_transfers, alphas

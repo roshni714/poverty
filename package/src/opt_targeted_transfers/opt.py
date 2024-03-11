@@ -1,4 +1,4 @@
-from dataset import Dataset
+from dataset_utils import Dataset
 from density_estimation import get_cond_density_estimator
 from knapsack import compute_alpha_opt_policies
 from quantile_regression import get_quantile_regressor
@@ -53,7 +53,7 @@ class ConditionalTargetedTransfers:
                 assert False, "Need to fit density function first"
 
             def t(X_test):
-                cond_densities = compute_cond_density(X_test)
+                cond_densities = self.density_estimator(X_test)
                 assignments = {x_idx: [] for x_idx in range(len(X_test))}
                 for i, cond_dist in enumerate(cond_densities):
                     if cond_dist.cdf(c_bar) > budget:
@@ -64,7 +64,7 @@ class ConditionalTargetedTransfers:
         self.opt_policy = t
         return t
 
-     def evaluate(self, X_test, y_test, r_test=None):
+    def evaluate(self, X_test, y_test, r_test=None):
         if self.opt_policy is None:
             assert False, "Need to first run optimization"
 
@@ -97,7 +97,7 @@ class OptTargetedTransfers:
     def set_density_estimator(self, cond_density):
         self.density_estimator = cond_density
 
-    def run_opt(self, X_test, y_test, r_test=None, alpha_min=None, alpha_max=None, n_alpha=200):
+    def run_opt(self, X_test, y_test, r_test=None, alpha_min=None, alpha_max=None, n_alpha=200, path=None):
         if self.density_estimator is None:
             assert False, "Need to first set density estimator"
         dataset = Dataset(X_test, y_test, r_test)
@@ -112,9 +112,8 @@ class OptTargetedTransfers:
         c_bar=self.c_bar,
         alpha_min = alpha_min,
         alpha_max = alpha_max,
-        n_alpha=n_alpha,
-        title="{}_joint_opt".format(self.name),
-        )
+        n_alpha=n_alpha, 
+        path=path)
 
         idx = np.argmin(total_transfers)
         t_joint_program_est = t_alpha_joint_programs[idx]
