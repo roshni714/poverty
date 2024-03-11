@@ -1,7 +1,7 @@
-from dataset_utils import Dataset
-from density_estimation import get_cond_density_estimator
-from knapsack import compute_alpha_opt_policies
-from quantile_regression import get_quantile_regressor
+from opt_targeted_transfers.dataset_utils import Dataset
+from opt_targeted_transfers.density_estimation import get_cond_density_estimator
+from opt_targeted_transfers.knapsack import compute_alpha_opt_policies
+from opt_targeted_transfers.quantile_regression import get_quantile_regressor
 
 import dill as pickle
 

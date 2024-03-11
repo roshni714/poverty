@@ -7,8 +7,8 @@ import statsmodels.gam.smooth_basis as sb
 import statsmodels.api as sm
 
 
-from dataset_utils import standardize
-from cond_dist import GLMConditionalDistribution
+from opt_targeted_transfers.dataset_utils import standardize
+from opt_targeted_transfers.cond_dist import GLMConditionalDistribution
 
 def get_cond_density_estimator(dataset, log_transform=True, df=None):
     if train_dataset.X.shape[1] == 0:

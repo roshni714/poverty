@@ -4,7 +4,7 @@ import numpy as np
 import tqdm
 import copy
 
-from dataset_utils import standardize
+from opt_targeted_transfers.dataset_utils import standardize
 
 
 def get_quantile_regressor(dataset, budget):

@@ -2,8 +2,9 @@ import numpy as np
 from tqdm import tqdm
 import os
 import bisect
-from priority_queue import PriorityQueue
-from reporting import write_result
+
+from opt_targeted_transfers.priority_queue import PriorityQueue
+from opt_targeted_transfers.reporting import write_result
 
 
 def solve_fractional_knapsack_problem(p_xs, convex_hulls, budget):
