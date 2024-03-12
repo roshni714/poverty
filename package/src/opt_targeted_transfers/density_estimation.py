@@ -4,51 +4,46 @@ import tqdm
 from scipy.signal import argrelextrema
 from scipy.interpolate import interp1d
 import statsmodels.gam.smooth_basis as sb
-import statsmodels.api as sm
+from statsmodels.nonparametric.kde import KDEUnivariate
 
 
 from opt_targeted_transfers.dataset_utils import standardize
 from opt_targeted_transfers.cond_dist import GLMConditionalDistribution
 
-def get_cond_density_estimator(dataset, log_transform=True, df=None):
-    if train_dataset.X.shape[1] == 0:
-        helper = lindsey_method(train_dataset, log_transform, df)
+def get_cond_density_estimator(dataset, log_transform=True, knot_quantiles=None, n_epochs=300):
+    if dataset.X.shape[1] == 0:
+        helper = lindsey_method(dataset, log_transform, knot_quantiles, n_epochs)
 
     else:
-        helper = lindsey_method_with_covariates(train_dataset, log_transform, df)
+        helper = lindsey_method_with_covariates(dataset, log_transform, knot_quantiles, n_epochs)
     return helper
 
 def fit_carrier_function(y, r):
-    kde = sm.nonparametric.KDEUnivariate(y)
+    kde = KDEUnivariate(y)
     kde.fit(weights=r, fft=False, adjust=0.8)
     return kde
 
-def setup_bspline_basis(y, degree=3, df=None):
+def setup_bspline_basis(y, degree=3, knot_quantiles=None):
     # More knots at small quantiles
 
-    if df is None:
+    if knot_quantiles is None:
         qs = [0.1, 0.20, 0.4, 0.6]
-        internal_knots = [np.quantile(y, q) for q in qs]
-        df = len(internal_knots) + degree + 1
-        spline_matrix = sb.BSplines(
+    else:
+        qs = knot_quantiles
+
+    internal_knots = [np.quantile(y, q) for q in qs]
+
+    df = len(internal_knots) + degree + 1
+    spline_matrix = sb.BSplines(
             y,
             df=df,
             degree=degree,
             include_intercept=True,
             knot_kwds=[{"knots": internal_knots}],
         )
-    else:
-        spline_matrix = sb.BSplines(
-            y,
-            df=df,
-            degree=degree,
-            include_intercept=True,
-            knot_kwds=[{"spacing": "quantile"}],
-        )
 
     knots = spline_matrix.smoothers[0].knots
     num_basis_elem = spline_matrix.basis.shape[1]
-    print("KNOTS:{}".format(knots))
 
     def get_basis(z):
         spline_matrix = sb.BSplines(
@@ -64,7 +59,7 @@ def setup_bspline_basis(y, degree=3, df=None):
 
     return get_basis, num_basis_elem
 
-def lindsey_method(train_dataset, log_transform=True, df=None):
+def lindsey_method(train_dataset, log_transform=True, knot_quantiles=None, n_epochs=300):
     y = train_dataset.y
     r = train_dataset.r
 
@@ -81,13 +76,12 @@ def lindsey_method(train_dataset, log_transform=True, df=None):
     kde = fit_carrier_function(y, r)
     front = kde.evaluate(bin_ends)
 
-    if df is None:
-        get_basis_matrix, k = setup_bspline_basis(y, degree=3)
-    else:
-        get_basis_matrix, k = setup_bspline_basis(y, degree=3, df=df)
+    get_basis_matrix, k = setup_bspline_basis(y, degree=3, knot_quantiles=knot_quantiles)
 
     bin_basis_elements = get_basis_matrix(bin_ends)
     basis_matrix = get_basis_matrix(y)  # n x 1 x k
+
+    print("Made basis")
 
     r = torch.tensor(r, dtype=torch.float64)
     y = torch.tensor(y, dtype=torch.float64)
@@ -121,7 +115,6 @@ def lindsey_method(train_dataset, log_transform=True, df=None):
         nll = -res + log_norm_constant
         return nll
 
-    n_epochs = 300
     optimizer = torch.optim.Adam([theta], lr=1e-2)
     batch_size = int(len(y) / 3)
     print("Fitting conditional densities vs glm spline method...")
@@ -228,7 +221,7 @@ def lindsey_method(train_dataset, log_transform=True, df=None):
     return helper
 
 
-def lindsey_method_with_covariates(train_dataset, log_transform=True, df=None):
+def lindsey_method_with_covariates(train_dataset, log_transform=True, knot_quantiles=None, n_epochs=300):
     X = train_dataset.X
     y = train_dataset.y
     r = train_dataset.r
@@ -249,11 +242,7 @@ def lindsey_method_with_covariates(train_dataset, log_transform=True, df=None):
     kde = fit_carrier_function(y, r)
     front = kde.evaluate(bin_ends)
 
-    if df is None:
-        get_basis_matrix, k = setup_bspline_basis(y, degree=3)
-    else:
-        get_basis_matrix, k = setup_bspline_basis(y, degree=3, df=df)
-
+    get_basis_matrix, k = setup_bspline_basis(y, degree=3, knot_quantiles=knot_quantiles)
     bin_basis_elements = get_basis_matrix(bin_ends)
     basis_matrix = get_basis_matrix(y)  # n x 1 x k
 
@@ -293,7 +282,6 @@ def lindsey_method_with_covariates(train_dataset, log_transform=True, df=None):
         nll = -res + log_norm_constant
         return nll
 
-    n_epochs = 300
     optimizer = torch.optim.Adam([theta], lr=1e-2)
     batch_size = int(len(X) / 3)
     print("Fitting conditional densities vs glm spline method...")
@@ -317,9 +305,9 @@ def lindsey_method_with_covariates(train_dataset, log_transform=True, df=None):
         optimizer.step()
         pbar.set_postfix({"loss": loss.item(), "val_loss": val_loss.item()})
 
-        best_model_idx = np.argmin(val_losses)
-        final_theta = thetas[best_model_idx]
-        print("Final Theta: {}".format(final_theta))
+    best_model_idx = np.argmin(val_losses)
+    final_theta = thetas[best_model_idx]
+    print("Final Theta: {}".format(final_theta))
 
     def helper(X_test):
         X_test = (X_test - X_mean) / X_std

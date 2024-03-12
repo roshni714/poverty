@@ -2,9 +2,10 @@ from opt_targeted_transfers.dataset_utils import Dataset
 from opt_targeted_transfers.density_estimation import get_cond_density_estimator
 from opt_targeted_transfers.knapsack import compute_alpha_opt_policies
 from opt_targeted_transfers.quantile_regression import get_quantile_regressor
+from opt_targeted_transfers.evaluate import post_transfer_metrics
 
 import dill as pickle
-
+import numpy as np
 
 class ConditionalTargetedTransfers:
 
@@ -75,20 +76,20 @@ class ConditionalTargetedTransfers:
  
 class OptTargetedTransfers:
 
-    def __init__(self, name="malawi_test", c_bar=2.15, budget=0.1):
+    def __init__(self, name="malawi_test", c_bar=2.15, budget=None):
         self.name = name
         self.density_estimator = None
         self.opt_policy = None
         self.c_bar = c_bar
         self.budget = budget
 
-    def fit(self, X_train, y_train, r_train=None, log_transform=True, df=None):
+    def fit(self, X_train, y_train, r_train=None, log_transform=True, knot_quantiles=None, n_epochs=300):
         dataset = Dataset(X_train, y_train, r_train)
         
-        density_estimator = get_cond_density_estimator(dataset, log_transform=log_transform, df=df)
+        density_estimator = get_cond_density_estimator(dataset, log_transform=log_transform, knot_quantiles=knot_quantiles, n_epochs=n_epochs)
 
         pickle.dump(
-        cond_density_estimator,
+        density_estimator,
         open("{}_cond_density_estimator.pickle".format(self.name), "wb"),
         )
 
@@ -97,9 +98,16 @@ class OptTargetedTransfers:
     def set_density_estimator(self, cond_density):
         self.density_estimator = cond_density
 
-    def run_opt(self, X_test, y_test, r_test=None, alpha_min=None, alpha_max=None, n_alpha=200, path=None):
+    def set_budget(self, budget):
+        if budget != self.budget:
+            self.opt_policy= None
+        self.budget = budget
+
+    def run_opt(self, X_test, y_test, r_test=None, min_alpha=None, max_alpha=None, n_alpha=200, path=None):
         if self.density_estimator is None:
             assert False, "Need to first set density estimator"
+        if self.budget is None:
+            assert False, "Need to first set budget"
         dataset = Dataset(X_test, y_test, r_test)
 
         (t_alpha_joint_programs,
@@ -110,8 +118,8 @@ class OptTargetedTransfers:
         self.density_estimator,
         budget=self.budget,
         c_bar=self.c_bar,
-        alpha_min = alpha_min,
-        alpha_max = alpha_max,
+        min_alpha = min_alpha,
+        max_alpha = max_alpha,
         n_alpha=n_alpha, 
         path=path)
 

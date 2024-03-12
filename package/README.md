@@ -1,7 +1,8 @@
-# Example Package
+# opt_targeted_transfers
 
 This package implements methods for learning targeted transfer policies.
 
+Here are the installation instructions.
 ```
 pip install virtualenv
 python3 -m venv opt

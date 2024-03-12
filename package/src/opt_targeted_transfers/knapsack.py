@@ -171,8 +171,8 @@ def compute_alpha_opt_policies(
     compute_cond_density,
     budget,
     c_bar,
-    alpha_min=None,
-    alpha_max=None,
+    min_alpha=None,
+    max_alpha=None,
     n_alpha=1000,
     path="sim"
 ):
@@ -180,10 +180,10 @@ def compute_alpha_opt_policies(
 
     total_transfers = []
     opt_policies = []
-    if alpha_max is None:
-        alpha_max  = max([dist.pdf(dist.mode) for dist in cond_dists]).item()
-    if alpha_min is None:
-        alpha_min = max([dist.pdf(dist.mode) for dist in cond_dists]).item() / 1000
+    if max_alpha is None:
+        max_alpha  = max([dist.pdf(dist.mode) for dist in cond_dists]).item()
+    if min_alpha is None:
+        min_alpha = max([dist.pdf(dist.mode) for dist in cond_dists]).item() / 1000
     alphas = np.linspace(min_alpha, max_alpha, n_alpha)
     print("Alpha range: {}, {}".format(alphas[0], alphas[-1]))
     results_file = path 
