@@ -14,6 +14,25 @@ from opt_targeted_transfers.cond_dist import GLMConditionalDistribution
 def get_cond_density_estimator(
     dataset, log_transform=True, knot_quantiles=None, n_epochs=300
 ):
+    """
+    Compute the conditional density estimator.
+
+    :param dataset: A dataset of (X, Y, R) pairs.
+    :type dataset: Dataset
+    :param log_transform: Whether to perform a log-transform on Y before estimation.
+                          Defaults to True.
+    :type log_transform: bool
+    :param knot_quantiles: The quantiles to use as knots for the spline basis functions.
+                           If None, evenly spaced knots will be used.
+                           Defaults to None.
+    :type knot_quantiles: numpy.ndarray or None
+    :param n_epochs: The number of epochs to train the density estimator.
+                     Defaults to 300.
+    :type n_epochs: int
+    :return: The conditional density estimator as a Python function that takes a numpy array
+             with shape (N, D), where D is the same as the dimension of X in the dataset.
+    :rtype: Callable[[np.ndarray], np.ndarray]
+    """
     if dataset.X.shape[1] == 0:
         helper = lindsey_method(dataset, log_transform, knot_quantiles, n_epochs)
 
@@ -25,14 +44,36 @@ def get_cond_density_estimator(
 
 
 def fit_carrier_function(y, r):
+    """
+    Computes the carrier density.
+
+    :param y: A numpy array of Y values
+    :type y: np.ndarray
+    :param r: A numpy array of R values
+    :type r: np.ndarray
+    :return: A kernel density estimate of the Y-marginal.
+    :rtype: KDEUnivariate
+    """
     kde = KDEUnivariate(y)
     kde.fit(weights=r, fft=False, adjust=0.8)
     return kde
 
 
 def setup_bspline_basis(y, degree=3, knot_quantiles=None):
-    # More knots at small quantiles
+    """
+    Set up a B-spline basis.
 
+    :param y: The data used to specify the splines.
+    :type y: numpy.ndarray
+    :param degree: The degree of the B-spline basis functions. Defaults to 3.
+    :type degree: int
+    :param knot_quantiles: The quantiles to use as knots for the B-spline basis functions.
+                           If None, quantiles [0.1, 0.2, 0.4, 0.6] will be used.
+                           Defaults to None.
+    :type knot_quantiles: numpy.ndarray or None
+    :return: A function that evaluates the B-Spline basis.
+    :rtype: Callable[[np.ndarray], np.ndarray]
+    """
     if knot_quantiles is None:
         qs = [0.1, 0.20, 0.4, 0.6]
     else:
@@ -70,6 +111,24 @@ def setup_bspline_basis(y, degree=3, knot_quantiles=None):
 def lindsey_method(
     train_dataset, log_transform=True, knot_quantiles=None, n_epochs=300
 ):
+    """
+    Apply the Lindsey's method for marginal density estimation (Efron & Tibshirani 1996).
+
+    :param train_dataset: The training dataset for which to apply the Lindsey method.
+    :type train_dataset: Dataset
+    :param log_transform: Whether to perform a log-transform on the dataset before estimation.
+                          Defaults to True.
+    :type log_transform: bool
+    :param knot_quantiles: The quantiles to use as knots for the spline basis functions.
+                           If None, evenly spaced knots will be used.
+                           Defaults to None.
+    :type knot_quantiles: numpy.ndarray or None
+    :param n_epochs: The number of epochs to train the density estimator.
+                     Defaults to 300.
+    :type n_epochs: int
+    :return: A callable that maps a numpy array to a numpy array of GLMConditionalDistribution objects.
+    :rtype: Callable[[np.ndarray], np.ndarray]
+    """
     y = train_dataset.y
     r = train_dataset.r
 
@@ -228,7 +287,7 @@ def lindsey_method(
                 )
             )
 
-        return cond_dists
+        return np.array(cond_dists)
 
     return helper
 
@@ -236,6 +295,25 @@ def lindsey_method(
 def lindsey_method_with_covariates(
     train_dataset, log_transform=True, knot_quantiles=None, n_epochs=300
 ):
+    """
+    Apply the Lindsey's method for marginal density estimation (Efron & Tibshirani 1996).
+
+    :param train_dataset: The training dataset for which to apply the Lindsey method.
+    :type train_dataset: Dataset
+    :param log_transform: Whether to perform a log-transform on the dataset before estimation.
+                          Defaults to True.
+    :type log_transform: bool
+    :param knot_quantiles: The quantiles to use as knots for the spline basis functions.
+                           If None, evenly spaced knots will be used.
+                           Defaults to None.
+    :type knot_quantiles: numpy.ndarray or None
+    :param n_epochs: The number of epochs to train the density estimator.
+                     Defaults to 300.
+    :type n_epochs: int
+    :return: A callable that maps a numpy array to a numpy array of GLMConditionalDistribution objects.
+    :rtype: Callable[[np.ndarray], np.ndarray]
+    """
+
     X = train_dataset.X
     y = train_dataset.y
     r = train_dataset.r

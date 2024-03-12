@@ -79,8 +79,20 @@ class ConditionalTargetedTransfers:
 
 
 class OptTargetedTransfers:
+    """
+    Computes the optimal unconditional targeted transfer policy.
+    """
 
     def __init__(self, name="malawi_test", c_bar=2.15, budget=None):
+        """
+        Initialize a new instance of the OptTargetedTransfers class.
+        :param name: The name of the transfer policy. Defaults to "malawi_test".
+        :type name: str
+        :param c_bar: The minimum threshold value (poverty line). Defaults to 2.15.
+        :type c_bar: float
+        :param budget: The budget for the test. Defaults to None.
+        :type budget: float or None
+        """
         self.name = name
         self.density_estimator = None
         self.opt_policy = None
@@ -96,6 +108,25 @@ class OptTargetedTransfers:
         knot_quantiles=None,
         n_epochs=300,
     ):
+        """
+        Fitting the conditional density.
+
+        :param X_train: The input features of the training data.
+        :type X_train: numpy.ndarray
+        :param y_train: The target values of the training data.
+        :type y_train: numpy.ndarray
+        :param r_train: The sampling weight variable of the training data. Defaults to None.
+        :type r_train: numpy.ndarray or None
+        :param log_transform: Whether to perform a log-transform on Y before fitting.
+                          Defaults to True.
+        :type log_transform: bool
+        :param knot_quantiles: The quantiles to use as knots for the spline basis functions.
+                           If None, evenly spaced knots will be used.
+                           Defaults to None.
+        :type knot_quantiles: numpy.ndarray or None
+        :param n_epochs: The number of epochs to train the model. Defaults to 300.
+        :type n_epochs: int
+        """
         dataset = Dataset(X_train, y_train, r_train)
 
         density_estimator = get_cond_density_estimator(
@@ -113,9 +144,25 @@ class OptTargetedTransfers:
         self.density_estimator = density_estimator
 
     def set_density_estimator(self, cond_density):
+        """
+        Set the conditional density estimator for the model.
+
+        :param cond_density: The conditional density estimator that maps numpy array
+                             of X values with shape (N, D) to numpy array of ConditionalDistribution
+                             objects.
+        :type cond_density: Callable[[np.ndarray], np.ndarray]
+        """
         self.density_estimator = cond_density
 
     def set_budget(self, budget):
+        """
+        Set the budget.
+        Note that setting the budget to a new value will clear the
+        existing optimal policy.
+
+        :param budget: The budget to set.
+        :type budget: float
+        """
         if budget != self.budget:
             self.opt_policy = None
         self.budget = budget
@@ -123,13 +170,28 @@ class OptTargetedTransfers:
     def run_opt(
         self,
         X_test,
-        y_test,
         r_test=None,
         min_alpha=None,
         max_alpha=None,
         n_alpha=200,
         path=None,
     ):
+        """
+        Run the optimization algorithm.
+
+        :param X_test: The input features of the test data.
+        :type X_test: numpy.ndarray
+        :param r_test: The sampling weight variable of the test data. Defaults to None.
+        :type r_test: numpy.ndarray or None
+        :param min_alpha: The minimum value of alpha for optimization. Defaults to None.
+        :type min_alpha: float or None
+        :param max_alpha: The maximum value of alpha for optimization. Defaults to None.
+        :type max_alpha: float or None
+        :param n_alpha: The number of alpha values to consider. Defaults to 200.
+        :type n_alpha: int
+        :param path: The path to save the optimization results. Defaults to None.
+        :type path: str or None
+        """
         if self.density_estimator is None:
             assert False, "Need to first set density estimator"
         if self.budget is None:
@@ -157,6 +219,18 @@ class OptTargetedTransfers:
         return t_joint_program_est
 
     def evaluate(self, X_test, y_test, r_test=None):
+        """
+        Evaluate optimal policy.
+
+        :param X_test: The input features of the test data.
+        :type X_test: numpy.ndarray
+        :param y_test: The target values of the test data.
+        :type y_test: numpy.ndarray
+        :param r_test: The response variable of the test data. Defaults to None.
+        :type r_test: numpy.ndarray or None
+        :return: A dictionary of evaluation results.
+        :rtype: dict
+        """
         if self.opt_policy is None:
             assert False, "Need to first run optimization"
 

@@ -5,6 +5,24 @@ from scipy.interpolate import interp1d
 
 
 def get_lower_cvx_hull(tups):
+    """
+    Compute the lower convex hull of a set of points.
+
+    :param tups: A list of 2D points represented as tuples.
+    :type tups: list of tuples
+    :return lower: An array representing the points on the lower convex hull,
+             sorted by x-coordinate.
+    :rtype: numpy.ndarray
+    """
+
+    def compare_ratio(curr_p, old_p, new_p):
+        # Compares the change in cost-weight tradeoff from curr_p to old_p and from curr_p to new_p.
+        # Returns True if new_p gives lower has lower slope (better tradeoff).
+
+        slope1 = (new_p[1] - curr_p[1]) / (new_p[0] - curr_p[0])
+        slope2 = (old_p[1] - curr_p[1]) / (old_p[0] - curr_p[0])
+        return slope1 < slope2
+
     sorted_tups = list(sorted(tups, key=lambda x: (x[0], x[1])))
 
     tups = []
@@ -25,43 +43,89 @@ def get_lower_cvx_hull(tups):
         while len(lower) >= 2 and compare_ratio(lower[-2], lower[-1], p):
             lower.pop()
         lower.append(p)
-    return np.array(lower)
-
-
-def compare_ratio(curr_p, old_p, new_p):
-    """
-    Compares the change in objective-budget tradeoff from curr_p to old_p and from curr_p to new_p.
-    Returns True if new_p gives lower has lower slope (better tradeoff).
-    """
-
-    slope1 = (new_p[1] - curr_p[1]) / (new_p[0] - curr_p[0])
-    slope2 = (old_p[1] - curr_p[1]) / (old_p[0] - curr_p[0])
-    return slope1 < slope2
+    lower = np.array(lower)
+    return lower
 
 
 class ConditionalDistribution:
+    """
+    Represents a conditional distribution.
+
+    :ivar inverses: Placeholder for inverse functions
+    :ivar domains: Placeholder for domains of inverse functions.
+    :vartype inverses: Any
+
+    :return: A new ConditionalDistribution instance.
+    :rtype: ConditionalDistribution
+    """
+
     def __init__(self):
+        """
+        Initialize the ConditionalDistribution.
+
+        :return: None
+        """
         self.inverses = None
+        self.domains = None
 
     def pdf(self, z):
+        """
+        Probability density function (pdf) of the distribution.
+
+        :param z: The input value.
+        :type z: Any
+        :raises NotImplementedError: If the method is not implemented.
+        """
         raise NotImplementedError("pdf function not implemented")
 
     def cdf(self, z):
+        """
+        Cumulative distribution function (cdf) of the distribution.
+
+        :param z: The input value.
+        :type z: Any
+        :raises NotImplementedError: If the method is not implemented.
+        """
         raise NotImplementedError("cdf function not implemented")
 
     def ppf(self, a):
+        """
+        Percent point function (inverse of cdf) of the distribution.
+
+        :param a: The probability value.
+        :type a: float
+        :raises NotImplementedError: If the method is not implemented.
+        """
         raise NotImplementedError("ppf function not implemented")
 
     def expect(self, f):
+        """
+        Expected value of a given function under the distribution.
+
+        :param f: The function for which the expected value is computed.
+        :type f: callable
+        :raises NotImplementedError: If the method is not implemented.
+        """
         raise NotImplementedError("expect function not implemented")
 
     def set_inverses(self):
+        """
+        Placeholder method to set inverse functions.
+
+        :raises NotImplementedError: If the method is not implemented.
+        """
         raise NotImplementedError("set_inverses function not implemented")
 
     def get_z(self, alpha, c_bar):
         """
         Computes the set of alpha-valid transfers.
-        Returns a numpy array of alpha-valid transfers in sorted order.
+
+        :param alpha: The alpha value for validity of transfers.
+        :type alpha: float
+        :param c_bar: The threshold value for transfers.
+        :type c_bar: float
+        :return z: A numpy array of alpha-valid transfers in sorted order.
+        :rtype: numpy.ndarray
         """
         assert alpha > 0
 
@@ -79,7 +143,16 @@ class ConditionalDistribution:
 
     def get_p(self, alpha, c_bar):
         """
-        Computes the probability of that the post-transfer outcome is below  the poverty line for each of the alpha-valid transfer.
+        Computes the probability that the post-transfer outcome is below the poverty line
+        for each of the alpha-valid transfers.
+
+        :param alpha: The alpha value for validity of transfers.
+        :type alpha: float
+        :param c_bar: The threshold value for transfers.
+        :type c_bar: float
+        :return p: A numpy array of probabilities, each representing the probability that the
+             post-transfer outcome is below the poverty line for an alpha-valid transfer.
+        :rtype: numpy.ndarray
         """
         assert alpha > 0
         z = self.get_z(alpha, c_bar)
@@ -89,6 +162,14 @@ class ConditionalDistribution:
     def get_convex_hull(self, alpha, c_bar):
         """
         Computes the lower convex hull of the alpha-valid transfers.
+
+        :param alpha: The alpha value for validity of transfers.
+        :type alpha: float
+        :param c_bar: The threshold value for transfers.
+        :type c_bar: float
+        :return cvx_hull: A numpy array representing the points on the lower convex hull of the
+             alpha-valid transfers, sorted by x-coordinate.
+        :rtype: numpy.ndarray
         """
         assert alpha > 0
         z = self.get_z(alpha, c_bar)
@@ -99,7 +180,37 @@ class ConditionalDistribution:
 
 
 class LogNormalConditionalDistribution(ConditionalDistribution):
+    """
+    Represents a conditional distribution with log-normal distribution.
+
+    :ivar loc: Location parameter of the log-normal distribution.
+    :vartype loc: float
+    :ivar scale: Scale parameter of the log-normal distribution.
+    :vartype scale: float
+    :ivar shape: Shape parameter of the log-normal distribution.
+    :vartype shape: float
+    :ivar mode: Mode of the distribution.
+    :vartype mode: float
+
+    :param loc: Location parameter of the log-normal distribution.
+    :type loc: float
+    :param scale: Scale parameter of the log-normal distribution.
+    :type scale: float
+    :param shape: Shape parameter of the log-normal distribution.
+    :type shape: float
+    """
+
     def __init__(self, loc, scale, shape):
+        """
+        Initialize the LogNormalConditionalDistribution.
+
+        :param loc: Location parameter of the log-normal distribution.
+        :type loc: float
+        :param scale: Scale parameter of the log-normal distribution.
+        :type scale: float
+        :param shape: Shape parameter of the log-normal distribution.
+        :type shape: float
+        """
         super().__init__()
         self.loc = loc
         self.scale = scale
@@ -110,20 +221,52 @@ class LogNormalConditionalDistribution(ConditionalDistribution):
         self.mode = np.exp(mu - sigma**2) + self.loc
 
     def pdf(self, z):
+        """
+        Probability density function (pdf) of the log-normal distribution.
+
+        :param z: The input value.
+        :type z: float or numpy.ndarray
+        :return: The probability density at z.
+        :rtype: float or numpy.ndarray
+        """
         return lognorm.pdf(z, loc=self.loc, scale=self.scale, s=self.shape)
 
     def cdf(self, z):
+        """
+        Cumulative distribution function (CDF) of the log-normal distribution.
+
+        :param z: The input value.
+        :type z: float or numpy.ndarray
+        :return: The cumulative probability up to z.
+        :rtype: float or numpy.ndarray
+        """
         return lognorm.cdf(z, loc=self.loc, scale=self.scale, s=self.shape)
 
     def ppf(self, a):
+        """
+        Percent point function (inverse CDF) of the log-normal distribution.
+
+        :param a: The probability value.
+        :type a: float or numpy.ndarray
+        :return: The value such that the CDF is equal to a.
+        :rtype: float or numpy.ndarray
+        """
         return lognorm.ppf(a, loc=self.loc, scale=self.scale, s=self.shape)
 
     def expect(self, f):
+        """
+        Expected value of a given function under the log-normal distribution.
+
+        :param f: The function for which the expected value is computed.
+        :type f: callable
+        :return: The expected value of f under the distribution.
+        :rtype: float
+        """
         return lognorm.expect(f, loc=self.loc, scale=self.scale, args=(self.shape,))
 
     def set_inverses(self):
         """
-        Computes the left (inv1) and right inverses of the pdf.
+        Computes the left (inv1) and right inverses (inv2) of the pdf.
         """
         z1s = np.linspace(self.loc, self.mode, 10000)
         z2s = np.linspace(self.mode, 30 * self.scale + self.mode, 10000)
@@ -159,7 +302,7 @@ class GLMConditionalDistribution(ConditionalDistribution):
 
     def set_inverses(self):
         """
-        Computes the left (inv1) and right inverses of the pdf.
+        Computes the inverses of the pdf.
         """
         inverses = []
         domains = []
