@@ -26,12 +26,12 @@ tt = OptTargetedTransfers(name="malawi_example", c_bar=2.15, budget=None)
 tt.fit(X_train, y_train)
 
 tt.set_budget(budget=0.1)
-tt.run_opt(X_test, n_alpha=10)
+tt.run_opt(X_test)
 res = tt.evaluate(X_test, y_test)
 transfer = tt.opt_policy(X_test[[0]])
 
 tt.set_budget(budget=0.15)
-tt.run_opt(X_test, n_alpha=10)
+tt.run_opt(X_test)
 res = tt.evaluate(X_test, y_test)
 ```
 
