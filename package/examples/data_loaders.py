@@ -13,11 +13,14 @@ def get_dataset(country_name):
     elif country_name == "malawi":
         return _load_malawi_data()
 
+
 def _load_uganda_data():
     pass
 
+
 def _load_ethiopia_data():
     pass
+
 
 def _load_malawi_data():
     df = pd.read_csv(PATH_TO_DATA)
@@ -61,9 +64,9 @@ def _load_malawi_data():
     ]
 
     # Handle missingness in X's by creating dummy variables to denote missingness in the features.
-    # For categorical variables, use a one hot encoding with an 
+    # For categorical variables, use a one hot encoding with an
     # additional category that is a NaN indicator for that feature.
-    # If there are NaNs in other feature, add a new category that is a 
+    # If there are NaNs in other feature, add a new category that is a
     # NaN for that feature and impute the NaN with 0.
     X_cat = []
     X_cat = [
@@ -84,5 +87,3 @@ def _load_malawi_data():
     # Get survey weights
     r = df["hh_wgt"]
     return X.to_numpy(), y.to_numpy(), r.to_numpy(), X.columns
-
-

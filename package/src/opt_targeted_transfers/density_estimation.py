@@ -10,18 +10,25 @@ from statsmodels.nonparametric.kde import KDEUnivariate
 from opt_targeted_transfers.dataset_utils import standardize
 from opt_targeted_transfers.cond_dist import GLMConditionalDistribution
 
-def get_cond_density_estimator(dataset, log_transform=True, knot_quantiles=None, n_epochs=300):
+
+def get_cond_density_estimator(
+    dataset, log_transform=True, knot_quantiles=None, n_epochs=300
+):
     if dataset.X.shape[1] == 0:
         helper = lindsey_method(dataset, log_transform, knot_quantiles, n_epochs)
 
     else:
-        helper = lindsey_method_with_covariates(dataset, log_transform, knot_quantiles, n_epochs)
+        helper = lindsey_method_with_covariates(
+            dataset, log_transform, knot_quantiles, n_epochs
+        )
     return helper
+
 
 def fit_carrier_function(y, r):
     kde = KDEUnivariate(y)
     kde.fit(weights=r, fft=False, adjust=0.8)
     return kde
+
 
 def setup_bspline_basis(y, degree=3, knot_quantiles=None):
     # More knots at small quantiles
@@ -35,12 +42,12 @@ def setup_bspline_basis(y, degree=3, knot_quantiles=None):
 
     df = len(internal_knots) + degree + 1
     spline_matrix = sb.BSplines(
-            y,
-            df=df,
-            degree=degree,
-            include_intercept=True,
-            knot_kwds=[{"knots": internal_knots}],
-        )
+        y,
+        df=df,
+        degree=degree,
+        include_intercept=True,
+        knot_kwds=[{"knots": internal_knots}],
+    )
 
     knots = spline_matrix.smoothers[0].knots
     num_basis_elem = spline_matrix.basis.shape[1]
@@ -59,7 +66,10 @@ def setup_bspline_basis(y, degree=3, knot_quantiles=None):
 
     return get_basis, num_basis_elem
 
-def lindsey_method(train_dataset, log_transform=True, knot_quantiles=None, n_epochs=300):
+
+def lindsey_method(
+    train_dataset, log_transform=True, knot_quantiles=None, n_epochs=300
+):
     y = train_dataset.y
     r = train_dataset.r
 
@@ -76,7 +86,9 @@ def lindsey_method(train_dataset, log_transform=True, knot_quantiles=None, n_epo
     kde = fit_carrier_function(y, r)
     front = kde.evaluate(bin_ends)
 
-    get_basis_matrix, k = setup_bspline_basis(y, degree=3, knot_quantiles=knot_quantiles)
+    get_basis_matrix, k = setup_bspline_basis(
+        y, degree=3, knot_quantiles=knot_quantiles
+    )
 
     bin_basis_elements = get_basis_matrix(bin_ends)
     basis_matrix = get_basis_matrix(y)  # n x 1 x k
@@ -221,7 +233,9 @@ def lindsey_method(train_dataset, log_transform=True, knot_quantiles=None, n_epo
     return helper
 
 
-def lindsey_method_with_covariates(train_dataset, log_transform=True, knot_quantiles=None, n_epochs=300):
+def lindsey_method_with_covariates(
+    train_dataset, log_transform=True, knot_quantiles=None, n_epochs=300
+):
     X = train_dataset.X
     y = train_dataset.y
     r = train_dataset.r
@@ -242,7 +256,9 @@ def lindsey_method_with_covariates(train_dataset, log_transform=True, knot_quant
     kde = fit_carrier_function(y, r)
     front = kde.evaluate(bin_ends)
 
-    get_basis_matrix, k = setup_bspline_basis(y, degree=3, knot_quantiles=knot_quantiles)
+    get_basis_matrix, k = setup_bspline_basis(
+        y, degree=3, knot_quantiles=knot_quantiles
+    )
     bin_basis_elements = get_basis_matrix(bin_ends)
     basis_matrix = get_basis_matrix(y)  # n x 1 x k
 

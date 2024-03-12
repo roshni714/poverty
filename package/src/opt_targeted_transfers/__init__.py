@@ -1,1 +1,4 @@
-from opt_targeted_transfers.opt import OptTargetedTransfers, ConditionalTargetedTransfers
+from opt_targeted_transfers.opt import (
+    OptTargetedTransfers,
+    ConditionalTargetedTransfers,
+)

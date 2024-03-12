@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def split_data(X, y, p, r=None):
     rng = np.random.RandomState(123456)
     permutation = rng.permutation(X.shape[0])

@@ -3,7 +3,7 @@ from data_loaders import get_dataset
 from data_utils import split_data
 
 
-#Make train and test sets
+# Make train and test sets
 X, y, r, features = get_dataset("malawi")
 d = 3
 (X_train, y_train, r_train), (X_test, y_test, r_test) = split_data(X=X, y=y, r=r, p=0.6)
@@ -17,10 +17,12 @@ print("Fitting densities...")
 tt.fit(X_train, y_train, r_train)
 
 # Set budget (can do this at initialization or after fitting densities)
-tt.set_budget(budget=0.1) 
+tt.set_budget(budget=0.1)
 
 # Run optimization algorithm
-tt.run_opt(X_test, r_test, n_alpha=10, path="malawi_example_unconditional_budget=0.1.csv")
+tt.run_opt(
+    X_test, r_test, n_alpha=10, path="malawi_example_unconditional_budget=0.1.csv"
+)
 
 # Evaluate policy
 res = tt.evaluate(X_test, y_test, r_test)
@@ -34,7 +36,9 @@ print(transfer)
 # Note that setting a new budget will clear the previously computed policy,
 # so we will have to re-run the optimization.
 tt.set_budget(budget=0.15)
-tt.run_opt(X_test, r_test, n_alpha=10, path="malawi_example_unconditional_budget=0.15.csv")
+tt.run_opt(
+    X_test, r_test, n_alpha=10, path="malawi_example_unconditional_budget=0.15.csv"
+)
 
 # Evaluate policy
 res = tt.evaluate(X_test, y_test, r_test)
