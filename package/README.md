@@ -22,7 +22,7 @@ from examples.data_loaders import get_dataset
 
 X_train, y_train, X_test, y_test = get_dataset("simple")
 
-tt = OptTargetedTransfers(name="malawi_example", c_bar=2.15, budget=None)
+tt = OptTargetedTransfers(name="simple_example", c_bar=2.15, budget=None)
 tt.fit(X_train, y_train)
 
 tt.set_budget(budget=0.1)

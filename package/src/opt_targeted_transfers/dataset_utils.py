@@ -15,7 +15,7 @@ def standardize(z):
 
 
 class Dataset:
-    def __init__(self, X, y, r=None):
+    def __init__(self, X, y=None, r=None):
         self.X = X
         self.y = y
 
@@ -28,4 +28,8 @@ class Dataset:
         return self.X.shape[0]
 
     def __getitem__(self, i):
-        return self.X[i, :], self.y[i], self.r[i]
+
+        if self.y is not None:
+            return self.X[i, :], self.y[i], self.r[i]
+        else:
+            return self.X[i, :], self.r[i]

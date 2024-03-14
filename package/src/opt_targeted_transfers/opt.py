@@ -9,8 +9,10 @@ import numpy as np
 
 
 class ConditionalTargetedTransfers:
-
-    def __init__(self, method="qr", name="malawi_test", c_bar=2.15, budget=0.1):
+    """
+    Compute optimal conditional targeted transfers.
+    """
+    def __init__(self, method="qr", name="malawi_test", c_bar=2.15, budget=None):
         self.name = name
         self.method = method
         self.opt_policy = None
@@ -19,12 +21,12 @@ class ConditionalTargetedTransfers:
         self.quantile_regressor = None
         self.density_estimator = None
 
-    def fit(self, X_train, y_train, r_train=None, log_transform=True, df=None):
+    def fit(self, X_train, y_train, r_train=None, log_transform=True, knot_quantiles=None):
         dataset = Dataset(X_train, y_train, r_train)
 
         if self.method == "density":
             density_estimator = get_cond_density_estimator(
-                dataset, log_transform=log_transform, df=df
+                dataset, log_transform=log_transform, knot_quantiles=knot_quantiles
             )
 
             pickle.dump(
@@ -39,7 +41,25 @@ class ConditionalTargetedTransfers:
     def set_density_estimator(self, cond_density):
         self.density_estimator = cond_density
 
-    def run_opt(self, X_test, y_test, r_test=None):
+    def set_budget(self, budget):
+        """
+        Set the budget.
+        Note that setting the budget to a new value will clear the
+        existing optimal policy. Furthermore, if the method is "qr,"
+        then setting a new budget will also clear the quantile 
+        regressor.
+
+        :param budget: The budget to set.
+        :type budget: float
+        """
+        if budget != self.budget:
+            self.opt_policy = None
+            if self.method == "qr":
+                self.quantile_regressor = None
+
+        self.budget = budget
+
+    def run_opt(self, X_test, r_test=None):
         if method == "qr":
             if self.quantile_regressor is None:
                 assert False, "Need to fit quantile regressor first"
@@ -75,6 +95,7 @@ class ConditionalTargetedTransfers:
 
         dataset = Dataset(X_test, y_test, r_test)
         result = post_transfer_metrics(dataset, self.opt_policy, self.c_bar)
+        result.update({"method": self.method})
         return result
 
 
@@ -196,7 +217,7 @@ class OptTargetedTransfers:
             assert False, "Need to first set density estimator"
         if self.budget is None:
             assert False, "Need to first set budget"
-        dataset = Dataset(X_test, y_test, r_test)
+        dataset = Dataset(X_test, y=None, r=r_test)
 
         (
             t_alpha_joint_programs,
@@ -234,6 +255,6 @@ class OptTargetedTransfers:
         if self.opt_policy is None:
             assert False, "Need to first run optimization"
 
-        dataset = Dataset(X_test, y_test, r_test)
+        dataset = Dataset(X_test, y=y_test, r=r_test)
         result = post_transfer_metrics(dataset, self.opt_policy, self.c_bar)
         return result
