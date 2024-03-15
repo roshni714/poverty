@@ -7,7 +7,7 @@ import copy
 from opt_targeted_transfers.dataset_utils import standardize
 
 
-def get_quantile_regressor(dataset, budget):
+def get_quantile_regressor(dataset, tolerance, n_epochs=300):
     X = dataset.X
     y = dataset.y
     r = dataset.r
@@ -20,7 +20,7 @@ def get_quantile_regressor(dataset, budget):
 
     if X.shape[1] == 0:
         wq = DescrStatsW(data=y, weights=r)
-        final_q_hat = wq.quantile(budget).item()
+        final_q_hat = wq.quantile(tolerance).item()
     else:
         d = X.shape[1]
         q_hat = torch.nn.Sequential(
@@ -30,11 +30,12 @@ def get_quantile_regressor(dataset, budget):
         def quantile_loss(q_hat, idx):
             sub_n = len(idx)
             y_pred = q_hat(torch.Tensor(X[idx, :])).squeeze()
-            return budget * torch.nn.functional.relu(torch.Tensor(y[idx]) - y_pred) + (
-                1 - budget
-            ) * torch.nn.functional.relu(y_pred - torch.Tensor(y[idx]))
+            return tolerance * torch.nn.functional.relu(
+                torch.Tensor(y[idx]) - y_pred
+            ) + (1 - tolerance) * torch.nn.functional.relu(
+                y_pred - torch.Tensor(y[idx])
+            )
 
-        n_epochs = 300
         optimizer = torch.optim.Adam(q_hat.parameters(), lr=1e-2)
         train_prop = 0.7
         idx_train_set, idx_val_set = list(range(int(train_prop * len(X)))), list(
@@ -67,11 +68,15 @@ def get_quantile_regressor(dataset, budget):
 
         def quantile_regressor(X_test):
             if X_test.shape[1] == 0:
-                quantile = (final_q_hat * y_std + y_mean) * np.ones(X_test.shape[0])
+                quantile = (final_q_hat * y_std + y_mean) * np.ones(X_test.shape[0], 1)
             else:
                 X_test = (X_test - X_mean) / X_std
                 quantile = (
-                    (final_q_hat(torch.Tensor(X_test)).squeeze() * y_std + y_mean)
+                    (
+                        final_q_hat(torch.Tensor(X_test)).reshape(X_test.shape[0], 1)
+                        * y_std
+                        + y_mean
+                    )
                     .detach()
                     .numpy()
                 )

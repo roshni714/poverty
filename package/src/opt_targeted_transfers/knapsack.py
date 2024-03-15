@@ -7,7 +7,7 @@ from opt_targeted_transfers.priority_queue import PriorityQueue
 from opt_targeted_transfers.reporting import write_result
 
 
-def solve_fractional_knapsack_problem(p_xs, convex_hulls, budget):
+def solve_fractional_knapsack_problem(p_xs, convex_hulls, tolerance):
     """
     Priority queue algorithm of Svedrup et al 2023.
     """
@@ -32,7 +32,7 @@ def solve_fractional_knapsack_problem(p_xs, convex_hulls, budget):
     etas = [-float("inf")]
     metadata = [None]
     lamb = 0.0
-    while total_spend < budget and pq:
+    while total_spend < tolerance and pq:
         ratio, tups = pq.get()
         # Remove previous assignment
         prev_spend = sum(
@@ -65,12 +65,12 @@ def solve_fractional_knapsack_problem(p_xs, convex_hulls, budget):
 
         etas.append(ratio)
         metadata.append(tups)
-        if total_spend > budget:
+        if total_spend > tolerance:
             # Fractional allocation
             total_spend -= curr_spend
             total_gain -= curr_gain
 
-            remainder = budget - total_spend
+            remainder = tolerance - total_spend
 
             prev_spend = sum(
                 [
@@ -169,7 +169,7 @@ def check_assignments_are_equal(assignment1, assignment2):
 def compute_alpha_opt_policies(
     train_dataset,
     compute_cond_density,
-    budget,
+    tolerance,
     c_bar,
     min_alpha=None,
     max_alpha=None,
@@ -199,7 +199,7 @@ def compute_alpha_opt_policies(
             prob_below_line,
             eta,
             lamb,
-        ) = solve_fractional_knapsack_problem(train_dataset.r, cvx_hulls, budget)
+        ) = solve_fractional_knapsack_problem(train_dataset.r, cvx_hulls, tolerance)
         t_alpha = get_transfer_function(
             alpha, c_bar, eta, lamb, compute_cond_density=compute_cond_density
         )

@@ -12,76 +12,98 @@ class ConditionalTargetedTransfers:
     """
     Compute optimal conditional targeted transfers.
     """
-    def __init__(self, method="qr", name="malawi_test", c_bar=2.15, budget=None):
+
+    def __init__(self, method="qr", name="malawi_test", c_bar=2.15, tolerance=None):
         self.name = name
         self.method = method
         self.opt_policy = None
         self.c_bar = c_bar
-        self.budget = budget
+        self.tolerance = tolerance
         self.quantile_regressor = None
         self.density_estimator = None
 
-    def fit(self, X_train, y_train, r_train=None, log_transform=True, knot_quantiles=None):
+    def fit(
+        self,
+        X_train,
+        y_train,
+        r_train=None,
+        log_transform=True,
+        knot_quantiles=None,
+        n_epochs=300,
+    ):
+        if self.tolerance is None and self.method == "qr":
+            assert False, "First set tolerance before fitting if method is {}".format(
+                self.method
+            )
         dataset = Dataset(X_train, y_train, r_train)
 
         if self.method == "density":
             density_estimator = get_cond_density_estimator(
-                dataset, log_transform=log_transform, knot_quantiles=knot_quantiles
+                dataset,
+                log_transform=log_transform,
+                knot_quantiles=knot_quantiles,
+                n_epochs=n_epochs,
             )
 
             pickle.dump(
-                cond_density_estimator,
+                density_estimator,
                 open("{}_cond_density_estimator.pickle".format(self.name), "wb"),
             )
             self.density_estimator = density_estimator
         elif self.method == "qr":
-            quantile_regressor = get_quantile_regressor(dataset, self.budget)
+            quantile_regressor = get_quantile_regressor(
+                dataset, self.tolerance, n_epochs=n_epochs
+            )
             self.quantile_regressor = quantile_regressor
 
     def set_density_estimator(self, cond_density):
         self.density_estimator = cond_density
 
-    def set_budget(self, budget):
+    def set_tolerance(self, tolerance):
         """
-        Set the budget.
-        Note that setting the budget to a new value will clear the
+        Set the tolerance.
+        Note that setting the tolerance to a new value will clear the
         existing optimal policy. Furthermore, if the method is "qr,"
-        then setting a new budget will also clear the quantile 
+        then setting a new tolerance will also clear the quantile
         regressor.
 
-        :param budget: The budget to set.
-        :type budget: float
+        :param tolerance: The tolerance to set.
+        :type tolerance: float
         """
-        if budget != self.budget:
+        if tolerance != self.tolerance:
             self.opt_policy = None
             if self.method == "qr":
                 self.quantile_regressor = None
 
-        self.budget = budget
+        self.tolerance = tolerance
 
     def run_opt(self, X_test, r_test=None):
-        if method == "qr":
+        if self.method == "qr":
+            if self.tolerance is None:
+                assert False, "Need to specify tolerance"
             if self.quantile_regressor is None:
-                assert False, "Need to fit quantile regressor first"
+                assert False, "Need to fit quantile regressor"
 
             def t(X_test):
                 quantile = self.quantile_regressor(X_test)
-                transfer = np.maximum(c_bar - quantile, 0)
+                transfer = np.maximum(self.c_bar - quantile, 0)
                 assignments = {x_idx: [] for x_idx in range(len(X_test))}
                 for i in range(len(X_test)):
-                    assignments[i].append((transfer[i], 1.0))
+                    assignments[i].append((transfer[i].item(), 1.0))
                 return assignments
 
-        elif method == "density":
+        elif self.method == "density":
+            if self.tolerance is None:
+                assert False, "Need to specify tolerance"
             if self.density_estimator is None:
-                assert False, "Need to fit density function first"
+                assert False, "Need to fit density function"
 
             def t(X_test):
                 cond_densities = self.density_estimator(X_test)
                 assignments = {x_idx: [] for x_idx in range(len(X_test))}
                 for i, cond_dist in enumerate(cond_densities):
-                    if cond_dist.cdf(c_bar) > budget:
-                        assignments[i] = [(c_bar - cond_dist.ppf(budget), 1.0)]
+                    if cond_dist.cdf(self.c_bar) > self.tolerance:
+                        assignments[i] = [(self.c_bar - cond_dist.ppf(self.tolerance), 1.0)]
                     else:
                         assignments[i] = [(0.0, 1.0)]
                 return assignments
@@ -99,26 +121,26 @@ class ConditionalTargetedTransfers:
         return result
 
 
-class OptTargetedTransfers:
+class UnconditionalTargetedTransfers:
     """
     Computes the optimal unconditional targeted transfer policy.
     """
 
-    def __init__(self, name="malawi_test", c_bar=2.15, budget=None):
+    def __init__(self, name="malawi_test", c_bar=2.15, tolerance=None):
         """
         Initialize a new instance of the OptTargetedTransfers class.
         :param name: The name of the transfer policy. Defaults to "malawi_test".
         :type name: str
         :param c_bar: The minimum threshold value (poverty line). Defaults to 2.15.
         :type c_bar: float
-        :param budget: The budget for the test. Defaults to None.
-        :type budget: float or None
+        :param tolerance: The . Defaults to None.
+        :type tolerance: float or None
         """
         self.name = name
         self.density_estimator = None
         self.opt_policy = None
         self.c_bar = c_bar
-        self.budget = budget
+        self.tolerance = tolerance
 
     def fit(
         self,
@@ -175,18 +197,18 @@ class OptTargetedTransfers:
         """
         self.density_estimator = cond_density
 
-    def set_budget(self, budget):
+    def set_tolerance(self, tolerance):
         """
-        Set the budget.
-        Note that setting the budget to a new value will clear the
+        Set the tolerance.
+        Note that setting the tolerance to a new value will clear the
         existing optimal policy.
 
-        :param budget: The budget to set.
-        :type budget: float
+        :param tolerance: The tolerance to set.
+        :type tolerance: float
         """
-        if budget != self.budget:
+        if tolerance != self.tolerance:
             self.opt_policy = None
-        self.budget = budget
+        self.tolerance = tolerance
 
     def run_opt(
         self,
@@ -215,8 +237,8 @@ class OptTargetedTransfers:
         """
         if self.density_estimator is None:
             assert False, "Need to first set density estimator"
-        if self.budget is None:
-            assert False, "Need to first set budget"
+        if self.tolerance is None:
+            assert False, "Need to first set tolerance"
         dataset = Dataset(X_test, y=None, r=r_test)
 
         (
@@ -226,7 +248,7 @@ class OptTargetedTransfers:
         ) = compute_alpha_opt_policies(
             dataset,
             self.density_estimator,
-            budget=self.budget,
+            tolerance=self.tolerance,
             c_bar=self.c_bar,
             min_alpha=min_alpha,
             max_alpha=max_alpha,
