@@ -21,7 +21,6 @@ SAVE_PATH = "/home/users/rsahoo/poverty/replication/results/"
 
 def generate_malawi_runs():
     ds = [0, 3, 12, 20]
-    budgets = [0.05, 0.075, 0.10, 0.15, 0.20]
 
     constraints = ["unconditional", "conditional"]
     quantile_methods = ["qr", "density"]

@@ -38,7 +38,7 @@ class Dataset:
         self.y = y
 
         if r is None:
-            self.r = np.ones(self.y.shape) / len(self.y)
+            self.r = np.ones(len(X)) / len(self.X)
         else:
             self.r = r / r.sum()
 

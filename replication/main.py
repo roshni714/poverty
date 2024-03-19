@@ -27,8 +27,8 @@ def main(
     X, y, r, features = get_dataset(country)
 
     (X_train, y_train, r_train), (X_test, y_test, r_test) = split_data(
-        X=X[:, :d], y=y, r=r, p=0.6
-    )
+        X=X[:, :d], y=y, r=None, p=0.6
+    )  # for now not using sampling weights r
 
     if constraint == "unconditional":
         tt = UnconditionalTargetedTransfers(name=country, c_bar=2.15)
@@ -52,7 +52,7 @@ def main(
                     path=save + "{}_d={}_tol={}_opt.csv".format(country, d, tol),
                 )
             else:
-                tt.run_opt(X_test, r_test)
+                tt.run_opt(X_test=X_test, r_test=r_test)
             res = tt.evaluate(X_test, y_test, r_test)
             write_result(save + "{}.csv".format(country), res)
 
@@ -60,7 +60,7 @@ def main(
         for tol in tolerance:
             tt.set_tolerance(tol)
             tt.fit(X_train, y_train, r_train)
-            tt.run_opt(X_test, r_test)
+            tt.run_opt(X_test=X_test, r_test=r_test)
             res = tt.evaluate(X_test, y_test, r_test)
             write_result(save + "{}.csv".format(country), res)
 

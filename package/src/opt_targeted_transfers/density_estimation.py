@@ -92,6 +92,7 @@ def setup_bspline_basis(y, degree=3, knot_quantiles=None):
 
     knots = spline_matrix.smoothers[0].knots
     num_basis_elem = spline_matrix.basis.shape[1]
+    print("KNOTS:{}".format(knots))
 
     def get_basis(z):
         spline_matrix = sb.BSplines(

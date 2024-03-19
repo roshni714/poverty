@@ -15,7 +15,7 @@ def split_data(X, y, p, r=None):
         r_train = r[index_train]
         r_test = r[index_test]
     else:
-        r_train = None
-        r_test = None
+        r_train = np.ones(y_train.shape) / len(y_train)
+        r_test = np.ones(y_test.shape) / len(y_test)
 
     return (X_train, y_train, r_train), (X_test, y_test, r_test)
