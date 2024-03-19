@@ -63,7 +63,8 @@ def _load_malawi_data():
         "yn_radio",
     ]
 
-    # Handle missingness in X's by creating dummy variables to denote missingness in the features.
+    # Handle missingness in X's by creating dummy variables to denote missingness in the features
+    # with at least 15% missingness. Otherwise, just impute with mean.
     # For categorical variables, use a one hot encoding with an
     # additional category that is a NaN indicator for that feature.
     # If there are NaNs in other feature, add a new category that is a
@@ -71,16 +72,19 @@ def _load_malawi_data():
     X_cat = []
     X_cat = [
         pd.get_dummies(
-            df[[cat_feat]], dummy_na=(df[[cat_feat]].isna().sum().item() > 0)
+            df[[cat_feat]],
+            dummy_na=(df[[cat_feat]].isna().sum().item() > 0.15 * len(df[cat_feat])),
         ).astype(float)
         for cat_feat in categorical_features
     ]
     for col in other_features:
-        if df[col].isna().sum() > 0:
+        if df[col].isna().sum() > 0.15 * len(df):
             df[f"{col}_nan"] = df[col].isna().astype(float)
             other_features.append(f"{col}_nan")
+            df[col] = df[col].fillna(0.0)
+        else:
+            df[col] = df[col].fillna(df[col].mean())
     X_other = df[sorted(other_features)]
-    X_other = X_other.fillna(0.0)
     X = X_cat[0].join(X_cat[1:])
     X = X.join(X_other)
 
