@@ -8,7 +8,7 @@ from statsmodels.nonparametric.kde import KDEUnivariate
 
 
 from opt_targeted_transfers.dataset_utils import standardize
-from opt_targeted_transfers.cond_dist import GLMConditionalDistribution
+from opt_targeted_transfers.cond_dist import NonparametricConditionalDistribution
 
 
 def get_cond_density_estimator(
@@ -126,7 +126,7 @@ def lindsey_method(
     :param n_epochs: The number of epochs to train the density estimator.
                      Defaults to 300.
     :type n_epochs: int
-    :return: A callable that maps a numpy array to a numpy array of GLMConditionalDistribution objects.
+    :return: A callable that maps a numpy array to a numpy array of NonparametricConditionalDistribution objects.
     :rtype: Callable[[np.ndarray], np.ndarray]
     """
     y = train_dataset.y
@@ -151,8 +151,6 @@ def lindsey_method(
 
     bin_basis_elements = get_basis_matrix(bin_ends)
     basis_matrix = get_basis_matrix(y)  # n x 1 x k
-
-    print("Made basis")
 
     r = torch.tensor(r, dtype=torch.float64)
     y = torch.tensor(y, dtype=torch.float64)
@@ -255,7 +253,8 @@ def lindsey_method(
                     idx_minima,
                 )
             )
-        )
+        ).flatten()
+
         cdf_function = interp1d(
             unscaled_bin_ends[1:],
             cdf_matrix,
@@ -277,11 +276,11 @@ def lindsey_method(
 
         for i in range(len(X_test)):
             cond_dists.append(
-                GLMConditionalDistribution(
+                NonparametricConditionalDistribution(
                     pdf_function,
                     cdf_function,
                     ppf_function,
-                    extrema=unscaled_bin_ends[idx_extrema],
+                    extrema=unscaled_bin_ends[idx_extrema].numpy(),
                     outcome_range=(unscaled_bin_ends[0], unscaled_bin_ends[-1]),
                     mode=mode.item(),
                 )
@@ -310,7 +309,7 @@ def lindsey_method_with_covariates(
     :param n_epochs: The number of epochs to train the density estimator.
                      Defaults to 300.
     :type n_epochs: int
-    :return: A callable that maps a numpy array to a numpy array of GLMConditionalDistribution objects.
+    :return: A callable that maps a numpy array to a numpy array of NonparametricConditionalDistribution objects.
     :rtype: Callable[[np.ndarray], np.ndarray]
     """
 
@@ -475,11 +474,11 @@ def lindsey_method_with_covariates(
             )
 
             cond_dists.append(
-                GLMConditionalDistribution(
+                NonparametricConditionalDistribution(
                     pdf_function,
                     cdf_function,
                     ppf_function,
-                    extrema=unscaled_bin_ends[idx_extrema],
+                    extrema=unscaled_bin_ends[idx_extrema].flatten(),
                     outcome_range=(unscaled_bin_ends[0], unscaled_bin_ends[-1]),
                     mode=modes[i].item(),
                 )

@@ -2,6 +2,20 @@ import numpy as np
 
 
 def post_transfer_metrics(test_dataset, policy, c_bar, oracle=False):
+    """
+    Compute post-transfer metrics for a policy given the test dataset.
+
+    :param test_dataset: The test dataset.
+    :type test_dataset: Dataset
+    :param policy: The policy function.
+    :type policy: Callable[[np.ndarray], np.ndarray]
+    :param c_bar: The minimum threshold value.
+    :type c_bar: float
+    :param oracle: Whether or not policy is the oracle policy.
+    :type oracle: bool
+    :return: A dictionary of post-transfer metrics.
+    :rtype: dict
+    """
     dic = {
         "initial_poverty_rate": 0.0,
         "initial_poverty_gap": 0.0,

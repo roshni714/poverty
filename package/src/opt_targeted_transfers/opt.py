@@ -14,6 +14,18 @@ class ConditionalTargetedTransfers:
     """
 
     def __init__(self, method="qr", name="malawi_test", c_bar=2.15, tolerance=None):
+        """
+        Initialize a new instance of the UnconditionalTargetedTransfers class.
+        :param method: The method used for fitting the nuisance parameter. Either "qr" or "density."
+        :type method: str
+        :param name: The name of the transfer policy. Defaults to "malawi_test".
+        :type name: str
+        :param c_bar: The minimum threshold value (poverty line). Defaults to 2.15.
+        :type c_bar: float
+        :param tolerance: The tolerance. Defaults to None.
+        :type tolerance: float or None
+        """
+
         self.name = name
         self.method = method
         self.opt_policy = None
@@ -31,6 +43,26 @@ class ConditionalTargetedTransfers:
         knot_quantiles=None,
         n_epochs=300,
     ):
+        """
+        Fitting the nuisance parameter.
+
+        :param X_train: The input features of the training data.
+        :type X_train: numpy.ndarray
+        :param y_train: The target values of the training data.
+        :type y_train: numpy.ndarray
+        :param r_train: The sampling weight variable of the training data. Defaults to None.
+        :type r_train: numpy.ndarray or None
+        :param log_transform: Whether to perform a log-transform on Y before fitting for "density" method.
+                          Defaults to True.
+        :type log_transform: bool
+        :param knot_quantiles: The quantiles to use as knots for the spline basis functions for "density" method.
+                           If None, evenly spaced knots will be used.
+                           Defaults to None.
+        :type knot_quantiles: numpy.ndarray or None
+        :param n_epochs: The number of epochs to train the model. Defaults to 300.
+        :type n_epochs: int
+        """
+
         if self.tolerance is None and self.method == "qr":
             assert False, "First set tolerance before fitting if method is {}".format(
                 self.method
@@ -57,6 +89,15 @@ class ConditionalTargetedTransfers:
             self.quantile_regressor = quantile_regressor
 
     def set_density_estimator(self, cond_density):
+        """
+        Set the conditional density estimator for the model.
+
+        :param cond_density: The conditional density estimator that maps numpy array
+                             of X values with shape (N, D) to numpy array of ConditionalDistribution
+                             objects.
+        :type cond_density: Callable[[np.ndarray], np.ndarray]
+        """
+
         self.density_estimator = cond_density
 
     def set_tolerance(self, tolerance):
@@ -78,6 +119,15 @@ class ConditionalTargetedTransfers:
         self.tolerance = tolerance
 
     def run_opt(self, X_test, r_test=None):
+        """
+        Run the optimization algorithm.
+
+        :param X_test: The input features of the test data.
+        :type X_test: numpy.ndarray
+        :param r_test: The sampling weight variable of the test data. Defaults to None.
+        :type r_test: numpy.ndarray or None
+        """
+
         if self.method == "qr":
             if self.tolerance is None:
                 assert False, "Need to specify tolerance"
@@ -103,7 +153,9 @@ class ConditionalTargetedTransfers:
                 assignments = {x_idx: [] for x_idx in range(len(X_test))}
                 for i, cond_dist in enumerate(cond_densities):
                     if cond_dist.cdf(self.c_bar) > self.tolerance:
-                        assignments[i] = [(self.c_bar - cond_dist.ppf(self.tolerance), 1.0)]
+                        assignments[i] = [
+                            (self.c_bar - cond_dist.ppf(self.tolerance), 1.0)
+                        ]
                     else:
                         assignments[i] = [(0.0, 1.0)]
                 return assignments
@@ -112,12 +164,35 @@ class ConditionalTargetedTransfers:
         return t
 
     def evaluate(self, X_test, y_test, r_test=None):
+        """
+        Evaluate optimal policy.
+
+        :param X_test: The input features of the test data.
+        :type X_test: numpy.ndarray
+        :param y_test: The target values of the test data.
+        :type y_test: numpy.ndarray
+        :param r_test: The response variable of the test data. Defaults to None.
+        :type r_test: numpy.ndarray or None
+        :return: A dictionary of evaluation results.
+        :rtype: dict
+        """
+
         if self.opt_policy is None:
             assert False, "Need to first run optimization"
 
         dataset = Dataset(X_test, y_test, r_test)
         result = post_transfer_metrics(dataset, self.opt_policy, self.c_bar)
-        result.update({"method": self.method})
+        if len(X_test.shape) > 1:
+            d = X_test.shape[1]
+        else:
+            d = 0
+        result.update(
+            {
+                "method": "conditional_{}".format(self.method),
+                "tolerance": self.tolerance,
+                "d": d,
+            }
+        )
         return result
 
 
@@ -128,12 +203,12 @@ class UnconditionalTargetedTransfers:
 
     def __init__(self, name="malawi_test", c_bar=2.15, tolerance=None):
         """
-        Initialize a new instance of the OptTargetedTransfers class.
+        Initialize a new instance of the UnconditionalTargetedTransfers class.
         :param name: The name of the transfer policy. Defaults to "malawi_test".
         :type name: str
         :param c_bar: The minimum threshold value (poverty line). Defaults to 2.15.
         :type c_bar: float
-        :param tolerance: The . Defaults to None.
+        :param tolerance: The tolerance. Defaults to None.
         :type tolerance: float or None
         """
         self.name = name
@@ -279,4 +354,9 @@ class UnconditionalTargetedTransfers:
 
         dataset = Dataset(X_test, y=y_test, r=r_test)
         result = post_transfer_metrics(dataset, self.opt_policy, self.c_bar)
+        if len(X_test.shape) > 1:
+            d = X_test.shape[1]
+        else:
+            d = 0
+        result.update({"method": "unconditional", "tolerance": self.tolerance, "d": d})
         return result

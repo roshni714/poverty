@@ -7,9 +7,19 @@ from opt_targeted_transfers.priority_queue import PriorityQueue
 from opt_targeted_transfers.reporting import write_result
 
 
-def solve_fractional_knapsack_problem(p_xs, convex_hulls, tolerance):
+def solve_fractional_mc_knapsack_problem(p_xs, convex_hulls, tolerance):
     """
     Priority queue algorithm of Svedrup et al 2023.
+
+    :param p_xs: A numpy.array of weights.
+    :type p_xs: list[(float, float)]
+    :param convex_hulls: A list of convex hulls representing feasible solutions.
+    :type convex_hulls: list[numpy.ndarray]
+    :param tolerance: Tolerance for poverty rate.
+    :type tolerance: float
+    :return: A tuple including assignments, total_gain (total transfer amount),
+             total_spend (tolerance), threshold cost-benefit ratio, threshold probability.
+    :rtype: (dict, float, float, float, float)
     """
 
     total_gain = 0
@@ -123,6 +133,23 @@ def solve_fractional_knapsack_problem(p_xs, convex_hulls, tolerance):
 
 
 def get_transfer_function(alpha, c_bar, eta, lamb, compute_cond_density):
+    """
+    Compute the transfer function.
+
+    :param alpha: The alpha value.
+    :type alpha: float
+    :param c_bar: The poverty line.
+    :type c_bar: float
+    :param eta: The threshold cost-benefit ratio.
+    :type eta: float
+    :param lamb: The threshold probability.
+    :type lamb: float
+    :param compute_cond_density: A function to compute the conditional density.
+    :type compute_cond_density: Callable[[np.ndarray], np.ndarray]
+    :return: The transfer function.
+    :rtype: Callable[[np.ndarray], np.ndarray]
+    """
+
     def t(X_test):
         cond_densities = compute_cond_density(X_test)
         assignments = {x_idx: [] for x_idx in range(len(X_test))}
@@ -173,9 +200,29 @@ def compute_alpha_opt_policies(
     c_bar,
     min_alpha=None,
     max_alpha=None,
-    n_alpha=1000,
+    n_alpha=200,
     path="sim",
 ):
+    """
+    Compute alpha-optimal policies for a given training dataset.
+
+    :param train_dataset: The training dataset.
+    :type train_dataset: Dataset
+    :param compute_cond_density: A function to compute the conditional density.
+    :type compute_cond_density: Callable[[np.ndarray], np.ndarray]
+    :param tolerance: Tolerance for poverty rate.
+    :type tolerance: float
+    :param c_bar: The poverty line.
+    :type c_bar: float
+    :param min_alpha: The minimum value of alpha for optimization. Defaults to None.
+    :type min_alpha: float or None
+    :param max_alpha: The maximum value of alpha for optimization. Defaults to None.
+    :type max_alpha: float or None
+    :param n_alpha: The number of alpha values to consider. Defaults to 200.
+    :type n_alpha: int
+    :param path: The path to save the simulation results. Defaults to "sim".
+    :type path: str
+    """
     cond_dists = compute_cond_density(train_dataset.X)
 
     total_transfers = []
@@ -199,7 +246,7 @@ def compute_alpha_opt_policies(
             prob_below_line,
             eta,
             lamb,
-        ) = solve_fractional_knapsack_problem(train_dataset.r, cvx_hulls, tolerance)
+        ) = solve_fractional_mc_knapsack_problem(train_dataset.r, cvx_hulls, tolerance)
         t_alpha = get_transfer_function(
             alpha, c_bar, eta, lamb, compute_cond_density=compute_cond_density
         )

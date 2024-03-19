@@ -41,7 +41,6 @@ def main(
         fit_first = False
 
     if fit_first:
-        print("fitting first")
         tt.fit(X_train, y_train, r_train)
 
         for tol in tolerance:
@@ -58,7 +57,6 @@ def main(
             write_result(save + "{}.csv".format(country), res)
 
     else:
-        print("setting tolerance first")
         for tol in tolerance:
             tt.set_tolerance(tol)
             tt.fit(X_train, y_train, r_train)

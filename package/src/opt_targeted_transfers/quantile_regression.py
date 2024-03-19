@@ -8,6 +8,18 @@ from opt_targeted_transfers.dataset_utils import standardize
 
 
 def get_quantile_regressor(dataset, tolerance, n_epochs=300):
+    """
+    Get a quantile regressor for a given dataset.
+
+    :param dataset: The dataset used for training the regressor.
+    :type dataset: Dataset
+    :param tolerance: The tolerance for the poverty rate
+    :type tolerance: float
+    :param n_epochs: The number of epochs for training the regressor. Defaults to 300.
+    :type n_epochs: int
+    :return: The quantile regressor.
+    :rtype: Callable[[np.ndarray], np.ndarray]
+    """
     X = dataset.X
     y = dataset.y
     r = dataset.r
@@ -66,20 +78,20 @@ def get_quantile_regressor(dataset, tolerance, n_epochs=300):
         best_model_idx = np.argmin(val_losses)
         final_q_hat = models[best_model_idx]
 
-        def quantile_regressor(X_test):
-            if X_test.shape[1] == 0:
-                quantile = (final_q_hat * y_std + y_mean) * np.ones(X_test.shape[0], 1)
-            else:
-                X_test = (X_test - X_mean) / X_std
-                quantile = (
-                    (
-                        final_q_hat(torch.Tensor(X_test)).reshape(X_test.shape[0], 1)
-                        * y_std
-                        + y_mean
-                    )
-                    .detach()
-                    .numpy()
+    def quantile_regressor(X_test):
+        if X_test.shape[1] == 0:
+            quantile = (final_q_hat * y_std + y_mean) * np.ones((X_test.shape[0], 1))
+        else:
+            X_test = (X_test - X_mean) / X_std
+            quantile = (
+                (
+                    final_q_hat(torch.Tensor(X_test)).reshape(X_test.shape[0], 1)
+                    * y_std
+                    + y_mean
                 )
-            return quantile
+                .detach()
+                .numpy()
+            )
+        return quantile
 
-        return quantile_regressor
+    return quantile_regressor

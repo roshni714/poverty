@@ -279,10 +279,30 @@ class LogNormalConditionalDistribution(ConditionalDistribution):
         self.domains = [np.array([min(p1s), max(p1s)]), np.array([min(p2s), max(p2s)])]
 
 
-class GLMConditionalDistribution(ConditionalDistribution):
+class NonparametricConditionalDistribution(ConditionalDistribution):
+    """
+    Represents a nonparametric conditional distribution.
+    """
+
     def __init__(
         self, pdf_function, cdf_function, ppf_function, extrema, mode, outcome_range
     ):
+        """
+        Initialize a ConditionalDistribution object.
+
+        :param pdf_function: The probability density function.
+        :type pdf_function: callable
+        :param cdf_function: The cumulative distribution function.
+        :type cdf_function: callable
+        :param ppf_function: The percent-point function (inverse of the CDF).
+        :type ppf_function: callable
+        :param extrema: The minimum and maximum possible values of the distribution.
+        :type extrema: tuple
+        :param mode: The mode of the distribution.
+        :type mode: float
+        :param outcome_range: The range of possible outcomes.
+        :type outcome_range: tuple
+        """
         super().__init__()
         self.cdf_function = cdf_function
         self.pdf_function = pdf_function
@@ -292,12 +312,35 @@ class GLMConditionalDistribution(ConditionalDistribution):
         self.outcome_range = outcome_range
 
     def pdf(self, z):
+        """
+        Probability density function (pdf) of conditional distribution.
+
+        :param z: The input value.
+        :type z: float or numpy.ndarray
+        :return: The probability density at z.
+        :rtype: float or numpy.ndarray
+        """
         return self.pdf_function(z)
 
     def cdf(self, z):
+        """
+        Cumulative distribution function (CDF) of the log-normal distribution.
+        :param z: The input value.
+        :type z: float or numpy.ndarray
+        :return: The cumulative probability up to z.
+        :rtype: float or numpy.ndarray
+        """
         return np.clip(self.cdf_function(z), a_min=0.0, a_max=1.0)
 
     def ppf(self, a):
+        """
+        Percent point function (inverse CDF) of the log-normal distribution.
+
+        :param a: The probability value.
+        :type a: float or numpy.ndarray
+        :return: The value such that the CDF is equal to a.
+        :rtype: float or numpy.ndarray
+        """
         return self.ppf_function(a)
 
     def set_inverses(self):
@@ -313,6 +356,7 @@ class GLMConditionalDistribution(ConditionalDistribution):
                 zs = np.linspace(self.extrema[-1], self.outcome_range[1], 1000)
             else:
                 zs = np.linspace(self.extrema[i - 1], self.extrema[i], 1000)
+
             ps = self.pdf(zs)
             inv = interp1d(ps, zs, fill_value=0.0, bounds_error=False)
             inverses.append(inv)
