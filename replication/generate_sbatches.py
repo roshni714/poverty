@@ -19,6 +19,23 @@ OUTPUT_PATH = "/home/users/rsahoo/poverty/replication/scripts/"
 SAVE_PATH = "/home/users/rsahoo/poverty/replication/results/"
 
 
+def generate_malawi_n_class_runs():
+    ds = [0, 3, 12, 20]
+    for d in ds:
+        exp_id = "malawi_nclass_d={}".format(d)
+        script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
+        with open(script_fn, "w") as f:
+            print(
+                SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id),
+                file=f,
+            )
+            base_cmd = "python fixed_transfer_amt.py main --d {} --country malawi --tolerance 0.10 --nclass 2 3 5 8 10 15 20 --save {}".format(
+                d, SAVE_PATH
+            )
+            print(base_cmd, file=f)
+            print("sleep 1", file=f)
+
+
 def generate_malawi_runs():
     ds = [0, 3, 12, 20]
 
@@ -67,4 +84,4 @@ def generate_malawi_runs():
 
 # generate_1d_runs()
 # generate_uganda_runs()
-generate_malawi_runs()
+generate_malawi_n_class_runs()
