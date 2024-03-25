@@ -159,7 +159,7 @@ class ConditionalDistribution:
         p = self.cdf(c_bar - z)
         return p
 
-    def get_convex_hull(self, alpha, c_bar):
+    def get_alpha_convex_hull(self, alpha, c_bar):
         """
         Computes the lower convex hull of the alpha-valid transfers.
 
@@ -174,6 +174,12 @@ class ConditionalDistribution:
         assert alpha > 0
         z = self.get_z(alpha, c_bar)
         p = self.get_p(alpha, c_bar)
+        tups = list(zip(p, z))
+        cvx_hull = get_lower_cvx_hull(tups)
+        return cvx_hull
+
+    def get_convex_hull(self, z, c_bar):
+        p = self.cdf(c_bar - z)
         tups = list(zip(p, z))
         cvx_hull = get_lower_cvx_hull(tups)
         return cvx_hull

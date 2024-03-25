@@ -1,11 +1,16 @@
 from opt_targeted_transfers.dataset_utils import Dataset
+from opt_targeted_transfers.prediction import get_prediction_function
 from opt_targeted_transfers.density_estimation import get_cond_density_estimator
-from opt_targeted_transfers.knapsack import compute_alpha_opt_policies
+from opt_targeted_transfers.knapsack import (
+    compute_alpha_opt_policies,
+    compute_opt_policy_knapsack,
+)
 from opt_targeted_transfers.quantile_regression import get_quantile_regressor
 from opt_targeted_transfers.evaluate import post_transfer_metrics
 
 import dill as pickle
 import numpy as np
+from bisect import bisect
 
 
 class ConditionalTargetedTransfers:
@@ -191,6 +196,7 @@ class ConditionalTargetedTransfers:
                 "method": "conditional_{}".format(self.method),
                 "tolerance": self.tolerance,
                 "d": d,
+                "nclass": None,
             }
         )
         return result
@@ -358,5 +364,138 @@ class UnconditionalTargetedTransfers:
             d = X_test.shape[1]
         else:
             d = 0
-        result.update({"method": "unconditional", "tolerance": self.tolerance, "d": d})
+        result.update(
+            {
+                "method": "unconditional",
+                "tolerance": self.tolerance,
+                "d": d,
+                "nclass": None,
+            }
+        )
+        return result
+
+
+class UnconditionalDiscreteTransfers:
+
+    def __init__(self, method="lindsey", nclass=None, c_bar=2.15, tolerance=None):
+        self.nclass = nclass
+        self.c_bar = c_bar
+        self.tolerance = tolerance
+        if nclass is not None:
+            self.class_thresholds = np.linspace(0.0, self.c_bar, self.nclass)
+        self.method = method
+
+    def fit(
+        self,
+        X_train,
+        y_train,
+        r_train=None,
+        log_transform=True,
+        knot_quantiles=None,
+        n_epochs=300,
+    ):
+
+        if self.method == "nn":
+            if self.nclass is None:
+                assert False, "Method is nn and nclass not set"
+            y_trainclasses = np.searchsorted(self.class_thresholds, y_train) - 1.0
+            dataset = Dataset(X=X_train, y=y_trainclasses, r=r_train)
+            density_estimator = get_prediction_function(
+                dataset, self.nclass, self.class_thresholds, n_epochs=n_epochs
+            )
+        elif self.method == "lindsey":
+            dataset = Dataset(X_train, y_train, r_train)
+
+            density_estimator = get_cond_density_estimator(
+                dataset,
+                log_transform=log_transform,
+                knot_quantiles=knot_quantiles,
+                n_epochs=n_epochs,
+            )
+        self.density_estimator = density_estimator
+
+    def set_tolerance(self, tolerance):
+        """
+        Set the tolerance.
+        Note that setting the tolerance to a new value will clear the
+        existing optimal policy.
+
+        :param tolerance: The tolerance to set.
+        :type tolerance: float
+        """
+        if tolerance != self.tolerance:
+            self.opt_policy = None
+        self.tolerance = tolerance
+
+    def set_nclass(self, nclass):
+        """
+        Set number of classes.
+        Note that setting the number of classes to a new value will clear the
+        existing optimal policy.
+
+        """
+        if nclass != self.nclass:
+            self.opt_policy = None
+            if self.method == "nn":
+                self.density_estimator = None
+
+        self.nclass = nclass
+        self.class_thresholds = np.linspace(0.0, self.c_bar, self.nclass)
+
+    def run_opt(self, X_test, r_test=None):
+        """
+        Run the optimization algorithm.
+
+        :param X_test: The input features of the test data.
+        :type X_test: numpy.ndarray
+        :param r_test: The sampling weight variable of the test data. Defaults to None.
+        :type r_test: numpy.ndarray or None
+        """
+        if self.density_estimator is None:
+            assert False, "Need to first set predictor"
+        if self.tolerance is None:
+            assert False, "Need to first set tolerance"
+        if self.nclass is None:
+            assert False, "Need to first set nclass"
+        dataset = Dataset(X_test, y=None, r=r_test)
+
+        t_opt = compute_opt_policy_knapsack(
+            dataset,
+            self.density_estimator,
+            tolerance=self.tolerance,
+            transfer_amts=self.c_bar - self.class_thresholds,
+            c_bar=self.c_bar,
+        )
+        self.opt_policy = t_opt
+        return t_opt
+
+    def evaluate(self, X_test, y_test, r_test=None):
+        """
+        Evaluate optimal policy.
+
+        :param X_test: The input features of the test data.
+        :type X_test: numpy.ndarray
+        :param y_test: The target values of the test data.
+        :type y_test: numpy.ndarray
+        :param r_test: The response variable of the test data. Defaults to None.
+        :type r_test: numpy.ndarray or None
+        :return: A dictionary of evaluation results.
+        :rtype: dict
+        """
+        if self.opt_policy is None:
+            assert False, "Need to first run optimization"
+        dataset = Dataset(X_test, y=y_test, r=r_test)
+        result = post_transfer_metrics(dataset, self.opt_policy, self.c_bar)
+        if len(X_test.shape) > 1:
+            d = X_test.shape[1]
+        else:
+            d = 0
+        result.update(
+            {
+                "method": "unconditional_discrete_" + self.method,
+                "tolerance": self.tolerance,
+                "d": d,
+                "nclass": None,
+            }
+        )
         return result

@@ -132,7 +132,7 @@ def solve_fractional_mc_knapsack_problem(p_xs, convex_hulls, tolerance):
     return assignments, total_gain, total_spend, etas[-1], lamb
 
 
-def get_transfer_function(alpha, c_bar, eta, lamb, compute_cond_density):
+def get_alpha_transfer_function(alpha, c_bar, eta, lamb, compute_cond_density):
     """
     Compute the transfer function.
 
@@ -155,7 +155,57 @@ def get_transfer_function(alpha, c_bar, eta, lamb, compute_cond_density):
         assignments = {x_idx: [] for x_idx in range(len(X_test))}
 
         for j, cond_density in enumerate(cond_densities):
-            cvx_hull = cond_density.get_convex_hull(alpha, c_bar)
+            cvx_hull = cond_density.get_alpha_convex_hull(alpha, c_bar)
+            ratios = np.zeros(len(cvx_hull)).astype(np.float64)
+            ratios[0] = -np.inf
+            for i in range(len(cvx_hull) - 1):
+                p1 = cvx_hull[i]
+                p2 = cvx_hull[i + 1]
+                ratios[i + 1] = (p2[1] - p1[1]) / (p2[0] - p1[0])
+            idx = bisect.bisect_left(ratios, eta)
+
+            if (
+                idx > 0
+                and idx < len(ratios)
+                and ratios[idx - 1] < eta
+                and ratios[idx] > eta
+            ):
+                assignments[j] = [(cvx_hull[idx - 1][1], 1.0)]
+            elif idx < len(ratios) and ratios[idx] == eta:
+                assignments[j] = [
+                    (cvx_hull[idx - 1][1], lamb),
+                    (cvx_hull[idx][1], 1 - lamb),
+                ]
+            else:
+                assignments[j] = [(0.0, 1.0)]
+
+        return assignments
+
+    return t
+
+
+def get_transfer_function(transfer_amts, c_bar, eta, lamb, compute_cond_density):
+    """
+    Compute the transfer function.
+
+    :param c_bar: The poverty line.
+    :type c_bar: float
+    :param eta: The threshold cost-benefit ratio.
+    :type eta: float
+    :param lamb: The threshold probability.
+    :type lamb: float
+    :param compute_cond_density: A function to compute the conditional density.
+    :type compute_cond_density: Callable[[np.ndarray], np.ndarray]
+    :return: The transfer function.
+    :rtype: Callable[[np.ndarray], np.ndarray]
+    """
+
+    def t(X_test):
+        cond_densities = compute_cond_density(X_test)
+        assignments = {x_idx: [] for x_idx in range(len(X_test))}
+
+        for j, cond_density in enumerate(cond_densities):
+            cvx_hull = cond_density.get_convex_hull(z=transfer_amts, c_bar=c_bar)
             ratios = np.zeros(len(cvx_hull)).astype(np.float64)
             ratios[0] = -np.inf
             for i in range(len(cvx_hull) - 1):
@@ -191,6 +241,26 @@ def check_assignments_are_equal(assignment1, assignment2):
         val1 = assignment1[key]
         val2 = assignment2[key]
         assert val1 == val2, "error at key {} bc {} != {}".format(key, val1, val2)
+
+
+def compute_opt_policy_knapsack(
+    train_dataset, compute_cond_density, tolerance, transfer_amts, c_bar
+):
+    cond_dists = compute_cond_density(train_dataset.X)
+    cvx_hulls = [
+        c_dist.get_convex_hull(z=transfer_amts, c_bar=c_bar) for c_dist in cond_dists
+    ]
+    (opt_assignment, total_transfer, prob_below_line, eta, lamb) = (
+        solve_fractional_mc_knapsack_problem(train_dataset.r, cvx_hulls, tolerance)
+    )
+    t = get_transfer_function(
+        transfer_amts=transfer_amts,
+        c_bar=c_bar,
+        eta=eta,
+        lamb=lamb,
+        compute_cond_density=compute_cond_density,
+    )
+    return t
 
 
 def compute_alpha_opt_policies(
@@ -239,7 +309,9 @@ def compute_alpha_opt_policies(
         os.remove(results_file)
 
     for alpha in tqdm(alphas):
-        cvx_hulls = [c_dist.get_convex_hull(alpha, c_bar) for c_dist in cond_dists]
+        cvx_hulls = [
+            c_dist.get_alpha_convex_hull(alpha, c_bar) for c_dist in cond_dists
+        ]
         (
             opt_assignment,
             total_transfer,
@@ -247,7 +319,7 @@ def compute_alpha_opt_policies(
             eta,
             lamb,
         ) = solve_fractional_mc_knapsack_problem(train_dataset.r, cvx_hulls, tolerance)
-        t_alpha = get_transfer_function(
+        t_alpha = get_alpha_transfer_function(
             alpha, c_bar, eta, lamb, compute_cond_density=compute_cond_density
         )
         #        prox_assignment = t_alpha(train_dataset.X)
