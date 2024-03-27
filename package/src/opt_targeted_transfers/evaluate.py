@@ -1,6 +1,20 @@
 import numpy as np
 
 
+def expected_value_transfers(test_dataset, policy):
+    y_test = test_dataset.y
+    assignments = policy(test_dataset.X)
+
+    transfers = []
+    for i in range(len(test_dataset)):
+        ev = 0.0
+        for j in range(len(assignments[i])):
+            ev += assignments[i][j][1] * assignments[i][j][0]
+
+        transfers.append(ev)
+    return np.array(transfers)
+
+
 def post_transfer_metrics(test_dataset, policy, c_bar, oracle=False):
     """
     Compute post-transfer metrics for a policy given the test dataset.

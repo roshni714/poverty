@@ -84,4 +84,4 @@ def generate_malawi_runs():
 
 # generate_1d_runs()
 # generate_uganda_runs()
-generate_malawi_n_class_runs()
+generate_malawi_runs()

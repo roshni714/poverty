@@ -6,24 +6,133 @@ from opt_targeted_transfers.knapsack import (
     compute_opt_policy_knapsack,
 )
 from opt_targeted_transfers.quantile_regression import get_quantile_regressor
-from opt_targeted_transfers.evaluate import post_transfer_metrics
+from opt_targeted_transfers.evaluate import (
+    post_transfer_metrics,
+    expected_value_transfers,
+)
+from opt_targeted_transfers.reporting import write_result
 
 import dill as pickle
 import numpy as np
 from bisect import bisect
 
 
-class ConditionalTargetedTransfers:
+class TargetedTransfers:
+    """
+    Base class for TargetedTransfers
+    """
+
+    def __init__(self, c_bar=2.15, tolerance=None):
+        self.c_bar = c_bar
+        self.tolerance = tolerance
+        self.density_estimator = None
+        self.opt_policy = None
+        self.name = None
+        self.nclass = None
+
+    def fit(X_train, y_train, r_train=None):
+        pass
+
+    def run_opt(X_test, y_test, r_test=None):
+        pass
+
+    def set_tolerance(self, tolerance):
+        """
+        Set the tolerance.
+        Note that setting the tolerance to a new value will clear the
+        existing optimal policy.
+
+        :param tolerance: The tolerance to set.
+        :type tolerance: float
+        """
+        if tolerance != self.tolerance:
+            self.opt_policy = None
+        self.tolerance = tolerance
+
+    def set_density_estimator(self, cond_density):
+        """
+        Set the conditional density estimator for the model.
+
+        :param cond_density: The conditional density estimator that maps numpy array
+                             of X values with shape (N, D) to numpy array of ConditionalDistribution
+                             objects.
+        :type cond_density: Callable[[np.ndarray], np.ndarray]
+        """
+
+        self.density_estimator = cond_density
+
+    def evaluate(self, X_test, y_test, r_test=None):
+        """
+        Evaluate optimal policy.
+
+        :param X_test: The input features of the test data.
+        :type X_test: numpy.ndarray
+        :param y_test: The target values of the test data.
+        :type y_test: numpy.ndarray
+        :param r_test: The response variable of the test data. Defaults to None.
+        :type r_test: numpy.ndarray or None
+        :return: A dictionary of evaluation results.
+        :rtype: dict
+        """
+
+        if self.opt_policy is None:
+            assert False, "Need to first run optimization"
+
+        dataset = Dataset(X_test, y_test, r_test)
+        result = post_transfer_metrics(dataset, self.opt_policy, self.c_bar)
+        if len(X_test.shape) > 1:
+            d = X_test.shape[1]
+        else:
+            d = 0
+        result.update(
+            {
+                "method": self.name,
+                "tolerance": self.tolerance,
+                "d": d,
+                "nclass": self.nclass,
+            }
+        )
+        return result
+
+    def evaluate_equity(self, X_test, y_test, r_test=None, path=None):
+        """
+        Evaluate equity of optimal policy.
+
+        :param X_test: The input features of the test data.
+        :type X_test: numpy.ndarray
+        :param y_test: The target values of the test data.
+        :type y_test: numpy.ndarray
+        :param r_test: The response variable of the test data. Defaults to None.
+        :type r_test: numpy.ndarray or None
+        :return: A dictionary of evaluation results.
+        :rtype: dict
+        """
+        if self.opt_policy is None:
+            assert False, "Need to first run optimization"
+        dataset = Dataset(X_test, y=y_test, r=r_test)
+        if len(X_test.shape) > 1:
+            d = X_test.shape[1]
+        else:
+            d = 0
+
+        all_transfers_ev = expected_value_transfers(dataset, self.opt_policy)
+
+        for i in range(len(all_transfers_ev)):
+            write_result(
+                path, {"consumption": y_test[i], "ev_transfer": all_transfers_ev[i]}
+            )
+
+
+class ConditionalTargetedTransfers(TargetedTransfers):
     """
     Compute optimal conditional targeted transfers.
     """
 
-    def __init__(self, method="qr", name="malawi_test", c_bar=2.15, tolerance=None):
+    def __init__(self, method="qr", c_bar=2.15, tolerance=None):
         """
         Initialize a new instance of the UnconditionalTargetedTransfers class.
         :param method: The method used for fitting the nuisance parameter. Either "qr" or "density."
         :type method: str
-        :param name: The name of the transfer policy. Defaults to "malawi_test".
         :type name: str
         :param c_bar: The minimum threshold value (poverty line). Defaults to 2.15.
         :type c_bar: float
@@ -31,11 +140,9 @@ class ConditionalTargetedTransfers:
         :type tolerance: float or None
         """
 
-        self.name = name
+        super().__init__(c_bar=c_bar, tolerance=tolerance)
+        self.name = "conditional_{}".format(method)
         self.method = method
-        self.opt_policy = None
-        self.c_bar = c_bar
-        self.tolerance = tolerance
         self.quantile_regressor = None
         self.density_estimator = None
 
@@ -92,18 +199,6 @@ class ConditionalTargetedTransfers:
                 dataset, self.tolerance, n_epochs=n_epochs
             )
             self.quantile_regressor = quantile_regressor
-
-    def set_density_estimator(self, cond_density):
-        """
-        Set the conditional density estimator for the model.
-
-        :param cond_density: The conditional density estimator that maps numpy array
-                             of X values with shape (N, D) to numpy array of ConditionalDistribution
-                             objects.
-        :type cond_density: Callable[[np.ndarray], np.ndarray]
-        """
-
-        self.density_estimator = cond_density
 
     def set_tolerance(self, tolerance):
         """
@@ -168,60 +263,24 @@ class ConditionalTargetedTransfers:
         self.opt_policy = t
         return t
 
-    def evaluate(self, X_test, y_test, r_test=None):
-        """
-        Evaluate optimal policy.
 
-        :param X_test: The input features of the test data.
-        :type X_test: numpy.ndarray
-        :param y_test: The target values of the test data.
-        :type y_test: numpy.ndarray
-        :param r_test: The response variable of the test data. Defaults to None.
-        :type r_test: numpy.ndarray or None
-        :return: A dictionary of evaluation results.
-        :rtype: dict
-        """
-
-        if self.opt_policy is None:
-            assert False, "Need to first run optimization"
-
-        dataset = Dataset(X_test, y_test, r_test)
-        result = post_transfer_metrics(dataset, self.opt_policy, self.c_bar)
-        if len(X_test.shape) > 1:
-            d = X_test.shape[1]
-        else:
-            d = 0
-        result.update(
-            {
-                "method": "conditional_{}".format(self.method),
-                "tolerance": self.tolerance,
-                "d": d,
-                "nclass": None,
-            }
-        )
-        return result
-
-
-class UnconditionalTargetedTransfers:
+class UnconditionalTargetedTransfers(TargetedTransfers):
     """
     Computes the optimal unconditional targeted transfer policy.
     """
 
-    def __init__(self, name="malawi_test", c_bar=2.15, tolerance=None):
+    def __init__(self, c_bar=2.15, tolerance=None):
         """
         Initialize a new instance of the UnconditionalTargetedTransfers class.
-        :param name: The name of the transfer policy. Defaults to "malawi_test".
-        :type name: str
         :param c_bar: The minimum threshold value (poverty line). Defaults to 2.15.
         :type c_bar: float
         :param tolerance: The tolerance. Defaults to None.
         :type tolerance: float or None
         """
-        self.name = name
+        super().__init__(c_bar=c_bar, tolerance=tolerance)
+        self.name = "unconditional"
         self.density_estimator = None
         self.opt_policy = None
-        self.c_bar = c_bar
-        self.tolerance = tolerance
 
     def fit(
         self,
@@ -266,30 +325,6 @@ class UnconditionalTargetedTransfers:
         )
 
         self.density_estimator = density_estimator
-
-    def set_density_estimator(self, cond_density):
-        """
-        Set the conditional density estimator for the model.
-
-        :param cond_density: The conditional density estimator that maps numpy array
-                             of X values with shape (N, D) to numpy array of ConditionalDistribution
-                             objects.
-        :type cond_density: Callable[[np.ndarray], np.ndarray]
-        """
-        self.density_estimator = cond_density
-
-    def set_tolerance(self, tolerance):
-        """
-        Set the tolerance.
-        Note that setting the tolerance to a new value will clear the
-        existing optimal policy.
-
-        :param tolerance: The tolerance to set.
-        :type tolerance: float
-        """
-        if tolerance != self.tolerance:
-            self.opt_policy = None
-        self.tolerance = tolerance
 
     def run_opt(
         self,
@@ -342,48 +377,16 @@ class UnconditionalTargetedTransfers:
         self.opt_policy = t_joint_program_est
         return t_joint_program_est
 
-    def evaluate(self, X_test, y_test, r_test=None):
-        """
-        Evaluate optimal policy.
 
-        :param X_test: The input features of the test data.
-        :type X_test: numpy.ndarray
-        :param y_test: The target values of the test data.
-        :type y_test: numpy.ndarray
-        :param r_test: The response variable of the test data. Defaults to None.
-        :type r_test: numpy.ndarray or None
-        :return: A dictionary of evaluation results.
-        :rtype: dict
-        """
-        if self.opt_policy is None:
-            assert False, "Need to first run optimization"
-
-        dataset = Dataset(X_test, y=y_test, r=r_test)
-        result = post_transfer_metrics(dataset, self.opt_policy, self.c_bar)
-        if len(X_test.shape) > 1:
-            d = X_test.shape[1]
-        else:
-            d = 0
-        result.update(
-            {
-                "method": "unconditional",
-                "tolerance": self.tolerance,
-                "d": d,
-                "nclass": None,
-            }
-        )
-        return result
-
-
-class UnconditionalDiscreteTransfers:
+class UnconditionalDiscreteTransfers(TargetedTransfers):
 
     def __init__(self, method="lindsey", nclass=None, c_bar=2.15, tolerance=None):
+        super().__init__(c_bar=c_bar, tolerance=tolerance)
         self.nclass = nclass
-        self.c_bar = c_bar
-        self.tolerance = tolerance
         if nclass is not None:
             self.class_thresholds = np.linspace(0.0, self.c_bar, self.nclass)
         self.method = method
+        self.name = "unconditional_discrete_{}".format(method)
 
     def fit(
         self,
@@ -413,19 +416,6 @@ class UnconditionalDiscreteTransfers:
                 n_epochs=n_epochs,
             )
         self.density_estimator = density_estimator
-
-    def set_tolerance(self, tolerance):
-        """
-        Set the tolerance.
-        Note that setting the tolerance to a new value will clear the
-        existing optimal policy.
-
-        :param tolerance: The tolerance to set.
-        :type tolerance: float
-        """
-        if tolerance != self.tolerance:
-            self.opt_policy = None
-        self.tolerance = tolerance
 
     def set_nclass(self, nclass):
         """
@@ -468,34 +458,3 @@ class UnconditionalDiscreteTransfers:
         )
         self.opt_policy = t_opt
         return t_opt
-
-    def evaluate(self, X_test, y_test, r_test=None):
-        """
-        Evaluate optimal policy.
-
-        :param X_test: The input features of the test data.
-        :type X_test: numpy.ndarray
-        :param y_test: The target values of the test data.
-        :type y_test: numpy.ndarray
-        :param r_test: The response variable of the test data. Defaults to None.
-        :type r_test: numpy.ndarray or None
-        :return: A dictionary of evaluation results.
-        :rtype: dict
-        """
-        if self.opt_policy is None:
-            assert False, "Need to first run optimization"
-        dataset = Dataset(X_test, y=y_test, r=r_test)
-        result = post_transfer_metrics(dataset, self.opt_policy, self.c_bar)
-        if len(X_test.shape) > 1:
-            d = X_test.shape[1]
-        else:
-            d = 0
-        result.update(
-            {
-                "method": "unconditional_discrete_" + self.method,
-                "tolerance": self.tolerance,
-                "d": d,
-                "nclass": None,
-            }
-        )
-        return result

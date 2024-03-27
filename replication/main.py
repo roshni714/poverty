@@ -31,10 +31,10 @@ def main(
     )  # for now not using sampling weights r
 
     if constraint == "unconditional":
-        tt = UnconditionalTargetedTransfers(name=country, c_bar=2.15)
+        tt = UnconditionalTargetedTransfers(c_bar=2.15)
 
     elif constraint == "conditional":
-        tt = ConditionalTargetedTransfers(name=country, method=method, c_bar=2.15)
+        tt = ConditionalTargetedTransfers(method=method, c_bar=2.15)
 
     fit_first = True
     if constraint == "conditional" and method == "qr":
@@ -55,6 +55,12 @@ def main(
                 tt.run_opt(X_test=X_test, r_test=r_test)
             res = tt.evaluate(X_test, y_test, r_test)
             write_result(save + "{}.csv".format(country), res)
+            tt.evaluate_equity(
+                X_test,
+                y_test,
+                path=save
+                + "equity_{}_{}_d={}_tol={}.csv".format(country, tt.name, d, tol),
+            )
 
     else:
         for tol in tolerance:
@@ -63,6 +69,12 @@ def main(
             tt.run_opt(X_test=X_test, r_test=r_test)
             res = tt.evaluate(X_test, y_test, r_test)
             write_result(save + "{}.csv".format(country), res)
+            tt.evaluate_equity(
+                X_test,
+                y_test,
+                path=save
+                + "equity_{}_{}_d={}_tol={}.csv".format(country, tt.name, d, tol),
+            )
 
 
 if __name__ == "__main__":
