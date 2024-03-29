@@ -115,23 +115,11 @@ class ConditionalDistribution:
         :raises NotImplementedError: If the method is not implemented.
         """
         raise NotImplementedError("set_inverses function not implemented")
-
-    def get_z(self, alpha, c_bar):
-        """
-        Computes the set of alpha-valid transfers.
-
-        :param alpha: The alpha value for validity of transfers.
-        :type alpha: float
-        :param c_bar: The threshold value for transfers.
-        :type c_bar: float
-        :return z: A numpy array of alpha-valid transfers in sorted order.
-        :rtype: numpy.ndarray
-        """
-        assert alpha > 0
-
+    
+    def get_nonboundary_alpha_valid_transfers(self, alpha, c_bar):
         if self.inverses is None:
-            self.set_inverses()
-        z = [0, c_bar]
+             self.set_inverses()
+        z = [c_bar]
         for i, domain in enumerate(self.domains):
             if alpha <= domain[1] and alpha >= domain[0]:
                 inv = self.inverses[i]
@@ -140,43 +128,6 @@ class ConditionalDistribution:
                     z.append(v)
         z = np.array(sorted(z))
         return z
-
-    def get_p(self, alpha, c_bar):
-        """
-        Computes the probability that the post-transfer outcome is below the poverty line
-        for each of the alpha-valid transfers.
-
-        :param alpha: The alpha value for validity of transfers.
-        :type alpha: float
-        :param c_bar: The threshold value for transfers.
-        :type c_bar: float
-        :return p: A numpy array of probabilities, each representing the probability that the
-             post-transfer outcome is below the poverty line for an alpha-valid transfer.
-        :rtype: numpy.ndarray
-        """
-        assert alpha > 0
-        z = self.get_z(alpha, c_bar)
-        p = self.cdf(c_bar - z)
-        return p
-
-    def get_alpha_convex_hull(self, alpha, c_bar):
-        """
-        Computes the lower convex hull of the alpha-valid transfers.
-
-        :param alpha: The alpha value for validity of transfers.
-        :type alpha: float
-        :param c_bar: The threshold value for transfers.
-        :type c_bar: float
-        :return cvx_hull: A numpy array representing the points on the lower convex hull of the
-             alpha-valid transfers, sorted by x-coordinate.
-        :rtype: numpy.ndarray
-        """
-        assert alpha > 0
-        z = self.get_z(alpha, c_bar)
-        p = self.get_p(alpha, c_bar)
-        tups = list(zip(p, z))
-        cvx_hull = get_lower_cvx_hull(tups)
-        return cvx_hull
 
     def get_convex_hull(self, z, c_bar):
         p = self.cdf(c_bar - z)

@@ -132,7 +132,7 @@ def solve_fractional_mc_knapsack_problem(p_xs, convex_hulls, tolerance):
     return assignments, total_gain, total_spend, etas[-1], lamb
 
 
-def get_alpha_transfer_function(alpha, c_bar, eta, lamb, compute_cond_density):
+def get_alpha_transfer_function(alpha, c_bar, eta, lamb, compute_cond_density, min_transfer_function=None):
     """
     Compute the transfer function.
 
@@ -153,9 +153,14 @@ def get_alpha_transfer_function(alpha, c_bar, eta, lamb, compute_cond_density):
     def t(X_test):
         cond_densities = compute_cond_density(X_test)
         assignments = {x_idx: [] for x_idx in range(len(X_test))}
+        cvx_hulls = get_alpha_convex_hulls(alpha, 
+                                           c_bar,
+                                           X=X_test, 
+                                           cond_dists=cond_densities, 
+                                           min_transfer_function=min_transfer_function)
 
         for j, cond_density in enumerate(cond_densities):
-            cvx_hull = cond_density.get_alpha_convex_hull(alpha, c_bar)
+            cvx_hull = cvx_hulls[j]            
             ratios = np.zeros(len(cvx_hull)).astype(np.float64)
             ratios[0] = -np.inf
             for i in range(len(cvx_hull) - 1):
@@ -262,6 +267,22 @@ def compute_opt_policy_knapsack(
     )
     return t
 
+def get_alpha_convex_hulls(alpha, c_bar, X, cond_dists, min_transfer_function=None):
+    nonboundary_transfer_values = [c_dist.get_nonboundary_alpha_valid_transfers(alpha, c_bar) for c_dist in cond_dists]
+    transfer_values = []
+    min_transfer_values = np.zeros(len(X))
+    if min_transfer_function:
+        min_transfer_values = min_transfer_function(X)
+    else:
+        min_transfer_values = np.zeros(len(X))
+    for i in range(len(cond_dists)):
+        tv = list(nonboundary_transfer_values[i])
+        tv.append(min_transfer_values[i])
+        transfer_values.append(np.array(tv))
+
+    cvx_hulls = [cond_dists[i].get_convex_hull(tv, c_bar) for i, tv in enumerate(transfer_values)]
+    return cvx_hulls
+
 
 def compute_alpha_opt_policies(
     train_dataset,
@@ -271,6 +292,7 @@ def compute_alpha_opt_policies(
     min_alpha=None,
     max_alpha=None,
     n_alpha=200,
+    min_transfer_function=None,
     path="sim",
 ):
     """
@@ -309,9 +331,12 @@ def compute_alpha_opt_policies(
         os.remove(results_file)
 
     for alpha in tqdm(alphas):
-        cvx_hulls = [
-            c_dist.get_alpha_convex_hull(alpha, c_bar) for c_dist in cond_dists
-        ]
+        cvx_hulls = get_alpha_convex_hulls(alpha=alpha, 
+                                           c_bar=c_bar, 
+                                           X=train_dataset.X, 
+                                           cond_dists=cond_dists, 
+                                           min_transfer_function=min_transfer_function)
+
         (
             opt_assignment,
             total_transfer,
@@ -320,7 +345,7 @@ def compute_alpha_opt_policies(
             lamb,
         ) = solve_fractional_mc_knapsack_problem(train_dataset.r, cvx_hulls, tolerance)
         t_alpha = get_alpha_transfer_function(
-            alpha, c_bar, eta, lamb, compute_cond_density=compute_cond_density
+            alpha, c_bar, eta, lamb, compute_cond_density=compute_cond_density, min_transfer_function=min_transfer_function
         )
         #        prox_assignment = t_alpha(train_dataset.X)
         #        check_assignments_are_equal(opt_assignment, prox_assignment)

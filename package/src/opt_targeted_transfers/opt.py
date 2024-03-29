@@ -369,6 +369,7 @@ class UnconditionalTargetedTransfers(TargetedTransfers):
             min_alpha=min_alpha,
             max_alpha=max_alpha,
             n_alpha=n_alpha,
+            min_transfer_function=None,
             path=path,
         )
 
