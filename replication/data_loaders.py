@@ -1,6 +1,6 @@
 import pandas as pd
 
-PATH_TO_DATA = "/home/users/rsahoo/poverty/data/malawi_merged.csv"
+PATH_TO_DATA = "/zfs/gsb/intermediate-yens/rsahoo/poverty/data/malawi_merged.csv"
 CONVERSION_FACTORS = {"malawi": 0.01406191874}
 
 

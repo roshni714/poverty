@@ -22,9 +22,12 @@ class TargetedTransfers:
     Base class for TargetedTransfers
     """
 
-    def __init__(self, c_bar=2.15, tolerance=None):
+    def __init__(
+        self, c_bar=2.15, unconditional_tolerance=None, conditional_tolerance=None
+    ):
         self.c_bar = c_bar
-        self.tolerance = tolerance
+        self.unconditional_tolerance = unconditional_tolerance
+        self.conditional_tolerance = conditional_tolerance
         self.density_estimator = None
         self.opt_policy = None
         self.name = None
@@ -36,18 +39,31 @@ class TargetedTransfers:
     def run_opt(X_test, y_test, r_test=None):
         pass
 
-    def set_tolerance(self, tolerance):
+    def set_unconditional_tolerance(self, unconditional_tolerance):
         """
-        Set the tolerance.
+        Set the unconditional tolerance.
         Note that setting the tolerance to a new value will clear the
         existing optimal policy.
 
-        :param tolerance: The tolerance to set.
-        :type tolerance: float
+        :param unconditional_tolerance: The unconditional tolerance to set.
+        :type unconditional_tolerance: float
         """
-        if tolerance != self.tolerance:
+        if unconditional_tolerance != self.unconditional_tolerance:
             self.opt_policy = None
-        self.tolerance = tolerance
+        self.unconditional_tolerance = unconditional_tolerance
+
+    def set_conditional_tolerance(self, conditional_tolerance):
+        """
+        Set the conditional tolerance.
+        Note that setting the tolerance to a new value will clear the
+        existing optimal policy.
+
+        :param conditional_tolerance: The conditional tolerance to set.
+        :type conditional_tolerance: float
+        """
+        if conditional_tolerance != self.conditional_tolerance:
+            self.opt_policy = None
+        self.conditional_tolerance = conditional_tolerance
 
     def set_density_estimator(self, cond_density):
         """
@@ -87,7 +103,8 @@ class TargetedTransfers:
         result.update(
             {
                 "method": self.name,
-                "tolerance": self.tolerance,
+                "unconditional_tolerance": self.unconditional_tolerance,
+                "conditional_tolerance": self.conditional_tolerance,
                 "d": d,
                 "nclass": self.nclass,
             }
@@ -128,7 +145,7 @@ class ConditionalTargetedTransfers(TargetedTransfers):
     Compute optimal conditional targeted transfers.
     """
 
-    def __init__(self, method="qr", c_bar=2.15, tolerance=None):
+    def __init__(self, method="qr", c_bar=2.15, conditional_tolerance=None):
         """
         Initialize a new instance of the UnconditionalTargetedTransfers class.
         :param method: The method used for fitting the nuisance parameter. Either "qr" or "density."
@@ -140,7 +157,11 @@ class ConditionalTargetedTransfers(TargetedTransfers):
         :type tolerance: float or None
         """
 
-        super().__init__(c_bar=c_bar, tolerance=tolerance)
+        super().__init__(
+            c_bar=c_bar,
+            conditional_tolerance=conditional_tolerance,
+            unconditional_tolerance=conditional_tolerance,
+        )
         self.name = "conditional_{}".format(method)
         self.method = method
         self.quantile_regressor = None
@@ -175,8 +196,10 @@ class ConditionalTargetedTransfers(TargetedTransfers):
         :type n_epochs: int
         """
 
-        if self.tolerance is None and self.method == "qr":
-            assert False, "First set tolerance before fitting if method is {}".format(
+        if self.conditional_tolerance is None and self.method == "qr":
+            assert (
+                False
+            ), "First set conditional tolerance before fitting if method is {}".format(
                 self.method
             )
         dataset = Dataset(X_train, y_train, r_train)
@@ -196,11 +219,11 @@ class ConditionalTargetedTransfers(TargetedTransfers):
             self.density_estimator = density_estimator
         elif self.method == "qr":
             quantile_regressor = get_quantile_regressor(
-                dataset, self.tolerance, n_epochs=n_epochs
+                dataset, self.conditional_tolerance, n_epochs=n_epochs
             )
             self.quantile_regressor = quantile_regressor
 
-    def set_tolerance(self, tolerance):
+    def set_conditional_tolerance(self, conditional_tolerance):
         """
         Set the tolerance.
         Note that setting the tolerance to a new value will clear the
@@ -211,12 +234,13 @@ class ConditionalTargetedTransfers(TargetedTransfers):
         :param tolerance: The tolerance to set.
         :type tolerance: float
         """
-        if tolerance != self.tolerance:
+        if conditional_tolerance != self.conditional_tolerance:
             self.opt_policy = None
             if self.method == "qr":
                 self.quantile_regressor = None
 
-        self.tolerance = tolerance
+        self.conditional_tolerance = conditional_tolerance
+        self.unconditional_tolerance = conditional_tolerance
 
     def run_opt(self, X_test, r_test=None):
         """
@@ -229,8 +253,6 @@ class ConditionalTargetedTransfers(TargetedTransfers):
         """
 
         if self.method == "qr":
-            if self.tolerance is None:
-                assert False, "Need to specify tolerance"
             if self.quantile_regressor is None:
                 assert False, "Need to fit quantile regressor"
 
@@ -243,8 +265,6 @@ class ConditionalTargetedTransfers(TargetedTransfers):
                 return assignments
 
         elif self.method == "density":
-            if self.tolerance is None:
-                assert False, "Need to specify tolerance"
             if self.density_estimator is None:
                 assert False, "Need to fit density function"
 
@@ -252,9 +272,12 @@ class ConditionalTargetedTransfers(TargetedTransfers):
                 cond_densities = self.density_estimator(X_test)
                 assignments = {x_idx: [] for x_idx in range(len(X_test))}
                 for i, cond_dist in enumerate(cond_densities):
-                    if cond_dist.cdf(self.c_bar) > self.tolerance:
+                    if cond_dist.cdf(self.c_bar) > self.conditional_tolerance:
                         assignments[i] = [
-                            (self.c_bar - cond_dist.ppf(self.tolerance), 1.0)
+                            (
+                                self.c_bar - cond_dist.ppf(self.conditional_tolerance),
+                                1.0,
+                            )
                         ]
                     else:
                         assignments[i] = [(0.0, 1.0)]
@@ -269,7 +292,7 @@ class UnconditionalTargetedTransfers(TargetedTransfers):
     Computes the optimal unconditional targeted transfer policy.
     """
 
-    def __init__(self, c_bar=2.15, tolerance=None):
+    def __init__(self, c_bar=2.15, unconditional_tolerance=None):
         """
         Initialize a new instance of the UnconditionalTargetedTransfers class.
         :param c_bar: The minimum threshold value (poverty line). Defaults to 2.15.
@@ -277,7 +300,11 @@ class UnconditionalTargetedTransfers(TargetedTransfers):
         :param tolerance: The tolerance. Defaults to None.
         :type tolerance: float or None
         """
-        super().__init__(c_bar=c_bar, tolerance=tolerance)
+        super().__init__(
+            c_bar=c_bar,
+            unconditional_tolerance=unconditional_tolerance,
+            conditional_tolerance=None,
+        )
         self.name = "unconditional"
         self.density_estimator = None
         self.opt_policy = None
@@ -353,8 +380,6 @@ class UnconditionalTargetedTransfers(TargetedTransfers):
         """
         if self.density_estimator is None:
             assert False, "Need to first set density estimator"
-        if self.tolerance is None:
-            assert False, "Need to first set tolerance"
         dataset = Dataset(X_test, y=None, r=r_test)
 
         (
@@ -364,7 +389,7 @@ class UnconditionalTargetedTransfers(TargetedTransfers):
         ) = compute_alpha_opt_policies(
             dataset,
             self.density_estimator,
-            tolerance=self.tolerance,
+            tolerance=self.unconditional_tolerance,
             c_bar=self.c_bar,
             min_alpha=min_alpha,
             max_alpha=max_alpha,
@@ -379,10 +404,157 @@ class UnconditionalTargetedTransfers(TargetedTransfers):
         return t_joint_program_est
 
 
+class HybridTargetedTransfers(TargetedTransfers):
+    """
+    Computes the optimal unconditional targeted transfer policy.
+    """
+
+    def __init__(
+        self, c_bar=2.15, unconditional_tolerance=None, conditional_tolerance=None
+    ):
+        """
+        Initialize a new instance of the UnconditionalTargetedTransfers class.
+        :param c_bar: The minimum threshold value (poverty line). Defaults to 2.15.
+        :type c_bar: float
+        :param unconditional_tolerance: The unconditional tolerance. Defaults to None.
+        :type unconditional_tolerance: float or None
+        :param conditional_tolerance: The conditional tolerance. Defaults to None.
+        :type conditional_tolerance: float or None
+        """
+        super().__init__(
+            c_bar=c_bar,
+            unconditional_tolerance=unconditional_tolerance,
+            conditional_tolerance=conditional_tolerance,
+        )
+        self.name = "hybrid"
+        self.density_estimator = None
+        self.opt_policy = None
+
+    def fit(
+        self,
+        X_train,
+        y_train,
+        r_train=None,
+        log_transform=True,
+        knot_quantiles=None,
+        n_epochs=300,
+    ):
+        """
+        Fitting the conditional density.
+
+        :param X_train: The input features of the training data.
+        :type X_train: numpy.ndarray
+        :param y_train: The target values of the training data.
+        :type y_train: numpy.ndarray
+        :param r_train: The sampling weight variable of the training data. Defaults to None.
+        :type r_train: numpy.ndarray or None
+        :param log_transform: Whether to perform a log-transform on Y before fitting.
+                          Defaults to True.
+        :type log_transform: bool
+        :param knot_quantiles: The quantiles to use as knots for the spline basis functions.
+                           If None, evenly spaced knots will be used.
+                           Defaults to None.
+        :type knot_quantiles: numpy.ndarray or None
+        :param n_epochs: The number of epochs to train the model. Defaults to 300.
+        :type n_epochs: int
+        """
+        dataset = Dataset(X_train, y_train, r_train)
+
+        density_estimator = get_cond_density_estimator(
+            dataset,
+            log_transform=log_transform,
+            knot_quantiles=knot_quantiles,
+            n_epochs=n_epochs,
+        )
+
+        pickle.dump(
+            density_estimator,
+            open("{}_cond_density_estimator.pickle".format(self.name), "wb"),
+        )
+
+        self.density_estimator = density_estimator
+
+    def run_opt(
+        self,
+        X_test,
+        r_test=None,
+        min_alpha=None,
+        max_alpha=None,
+        n_alpha=200,
+        path=None,
+    ):
+        """
+        Run the optimization algorithm.
+
+        :param X_test: The input features of the test data.
+        :type X_test: numpy.ndarray
+        :param r_test: The sampling weight variable of the test data. Defaults to None.
+        :type r_test: numpy.ndarray or None
+        :param min_alpha: The minimum value of alpha for optimization. Defaults to None.
+        :type min_alpha: float or None
+        :param max_alpha: The maximum value of alpha for optimization. Defaults to None.
+        :type max_alpha: float or None
+        :param n_alpha: The number of alpha values to consider. Defaults to 200.
+        :type n_alpha: int
+        :param path: The path to save the optimization results. Defaults to None.
+        :type path: str or None
+        """
+        if self.density_estimator is None:
+            assert False, "Need to first set density estimator"
+        if self.unconditional_tolerance is None:
+            assert False, "Need to first set unconditional tolerance"
+        if self.conditional_tolerance is not None:
+            assert (
+                self.conditional_tolerance >= self.unconditional_tolerance
+            ), "Conditional tolerance must be greater than or equal to uncondiitonal tolerance."
+        dataset = Dataset(X_test, y=None, r=r_test)
+
+        if self.conditional_tolerance is not None:
+
+            def min_transfer_function(cond_densities):
+                min_transfer_values = [
+                    np.maximum(
+                        self.c_bar - cond_dist.ppf(self.conditional_tolerance), 0
+                    ).item()
+                    for cond_dist in cond_densities
+                ]
+                return min_transfer_values
+
+        else:
+            min_transfer_function = None
+
+        (
+            t_alpha_joint_programs,
+            total_transfers,
+            alphas,
+        ) = compute_alpha_opt_policies(
+            dataset,
+            self.density_estimator,
+            tolerance=self.unconditional_tolerance,
+            c_bar=self.c_bar,
+            min_alpha=min_alpha,
+            max_alpha=max_alpha,
+            n_alpha=n_alpha,
+            min_transfer_function=min_transfer_function,
+            path=path,
+        )
+
+        idx = np.argmin(total_transfers)
+        t_joint_program_est = t_alpha_joint_programs[idx]
+        self.opt_policy = t_joint_program_est
+        return t_joint_program_est
+
+
 class UnconditionalDiscreteTransfers(TargetedTransfers):
 
-    def __init__(self, method="lindsey", nclass=None, c_bar=2.15, tolerance=None):
-        super().__init__(c_bar=c_bar, tolerance=tolerance)
+    def __init__(
+        self, method="lindsey", nclass=None, c_bar=2.15, unconditional_tolerance=None
+    ):
+        super().__init__(
+            c_bar=c_bar,
+            unconditional_tolerance=unconditional_tolerance,
+            conditional_tolerance=None,
+        )
         self.nclass = nclass
         if nclass is not None:
             self.class_thresholds = np.linspace(0.0, self.c_bar, self.nclass)
@@ -444,7 +616,7 @@ class UnconditionalDiscreteTransfers(TargetedTransfers):
         """
         if self.density_estimator is None:
             assert False, "Need to first set predictor"
-        if self.tolerance is None:
+        if self.unconditional_tolerance is None:
             assert False, "Need to first set tolerance"
         if self.nclass is None:
             assert False, "Need to first set nclass"
@@ -453,7 +625,7 @@ class UnconditionalDiscreteTransfers(TargetedTransfers):
         t_opt = compute_opt_policy_knapsack(
             dataset,
             self.density_estimator,
-            tolerance=self.tolerance,
+            tolerance=self.unconditional_tolerance,
             transfer_amts=self.c_bar - self.class_thresholds,
             c_bar=self.c_bar,
         )

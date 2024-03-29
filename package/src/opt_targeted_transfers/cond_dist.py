@@ -115,10 +115,10 @@ class ConditionalDistribution:
         :raises NotImplementedError: If the method is not implemented.
         """
         raise NotImplementedError("set_inverses function not implemented")
-    
+
     def get_nonboundary_alpha_valid_transfers(self, alpha, c_bar):
         if self.inverses is None:
-             self.set_inverses()
+            self.set_inverses()
         z = [c_bar]
         for i, domain in enumerate(self.domains):
             if alpha <= domain[1] and alpha >= domain[0]:
