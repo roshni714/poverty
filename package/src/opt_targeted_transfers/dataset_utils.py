@@ -23,7 +23,7 @@ def standardize(z):
 
 
 class Dataset:
-    def __init__(self, X, y=None, r=None):
+    def __init__(self, X=None, y=None, r=None):
         """
         Initialize a Dataset object.
 
@@ -46,7 +46,10 @@ class Dataset:
         """
         Return the number of samples in the dataset.
         """
-        return self.X.shape[0]
+        if self.X is not None:
+            return self.X.shape[0]
+        elif self.y is not None:
+            return self.y.shape[0]
 
     def __getitem__(self, i):
         """
@@ -57,7 +60,9 @@ class Dataset:
         :return: The i-th sample as a tuple (X_i, y_i, r_i) if y is not None, else (X_i, r_i).
         :rtype: tuple
         """
-        if self.y is not None:
+        if self.X is not None and self.y is not None:
             return self.X[i, :], self.y[i], self.r[i]
-        else:
+        elif self.X is not None:
+            return self.y[i], self.r[i]
+        elif self.y is not None:
             return self.X[i, :], self.r[i]

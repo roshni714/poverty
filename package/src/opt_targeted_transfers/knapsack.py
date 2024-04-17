@@ -254,38 +254,40 @@ def check_assignments_are_equal(assignment1, assignment2):
         assert val1 == val2, "error at key {} bc {} != {}".format(key, val1, val2)
 
 
-def compute_opt_policy_knapsack(
-    train_dataset, compute_cond_density, tolerance, transfer_amts, c_bar
+def check_knapsack_feasibility(
+    dataset,
+    cond_densities,
+    unconditional_tolerance,
+    raw_min_transfer_function,
+    c_bar,
+    max_transfer_value,
 ):
-    cond_dists = compute_cond_density(train_dataset.X)
-    cvx_hulls = [
-        c_dist.get_convex_hull(z=transfer_amts, c_bar=c_bar) for c_dist in cond_dists
-    ]
-    (opt_assignment, total_transfer, prob_below_line, eta, lamb) = (
-        solve_fractional_mc_knapsack_problem(train_dataset.r, cvx_hulls, tolerance)
+
+    if raw_min_transfer_function is not None:
+        raw_min_transfer_values = raw_min_transfer_function(cond_densities)
+        if any(raw_min_transfer_values > max_transfer_value):
+            return False
+    probs = np.array(
+        [
+            cond_density.cdf(c_bar - max_transfer_value)
+            for cond_density in cond_densities
+        ]
     )
-    t = get_transfer_function(
-        transfer_amts=transfer_amts,
-        c_bar=c_bar,
-        eta=eta,
-        lamb=lamb,
-        compute_cond_density=compute_cond_density,
-    )
-    return t
+    prob_total = np.sum(probs * dataset.r).item()
+    if prob_total > unconditional_tolerance:
+        return False
+    else:
+        return True
 
 
-def get_alpha_convex_hulls(alpha, c_bar, cond_dists, min_transfer_function=None):
-    nonboundary_transfer_values = [
-        c_dist.get_nonboundary_alpha_valid_transfers(alpha, c_bar)
-        for c_dist in cond_dists
-    ]
+def get_convex_hulls(c_bar, cond_dists, transfer_amts, min_transfer_function=None):
     transfer_values = []
     min_transfer_values = np.zeros(len(cond_dists))
     if min_transfer_function is not None:
         min_transfer_values = min_transfer_function(cond_dists)
 
     for i in range(len(cond_dists)):
-        tv = list(nonboundary_transfer_values[i])
+        tv = list(transfer_amts[i])
         tv = [t for t in tv if t > min_transfer_values[i]]
         tv.append(min_transfer_values[i])
         transfer_values.append(np.array(sorted(tv)))
@@ -294,6 +296,72 @@ def get_alpha_convex_hulls(alpha, c_bar, cond_dists, min_transfer_function=None)
         cond_dists[i].get_convex_hull(tv, c_bar) for i, tv in enumerate(transfer_values)
     ]
     return cvx_hulls
+
+
+def compute_opt_policy_knapsack(
+    train_dataset,
+    cond_dists,
+    raw_min_transfer_function,
+    tolerance,
+    transfer_amts,
+    c_bar,
+    compute_cond_density,
+):
+
+    feasible = check_knapsack_feasibility(
+        train_dataset,
+        cond_dists,
+        tolerance,
+        raw_min_transfer_function,
+        c_bar,
+        max(transfer_amts),
+    )
+    if not feasible:
+        return False
+
+    else:
+        if raw_min_transfer_function is not None:
+
+            def min_transfer_function(cond_densities):
+                raw_min_transfer_values = raw_min_transfer_function(cond_densities)
+                if len(transfer_amts) == 2 and transfer_amts[0] == 0.0:
+                    min_transfer_values = (
+                        np.array(raw_min_transfer_values) > 0
+                    ).astype(float) * transfer_amts[1]
+                else:
+                    raise NotImplementedError
+                return min_transfer_values
+
+        else:
+            min_transfer_function = None
+
+        cvx_hulls = get_convex_hulls(
+            c_bar,
+            cond_dists,
+            [transfer_amts for i in range(len(train_dataset))],
+            min_transfer_function,
+        )
+        (opt_assignment, total_transfer, prob_below_line, eta, lamb) = (
+            solve_fractional_mc_knapsack_problem(train_dataset.r, cvx_hulls, tolerance)
+        )
+        t = get_transfer_function(
+            transfer_amts=transfer_amts,
+            c_bar=c_bar,
+            eta=eta,
+            lamb=lamb,
+            compute_cond_density=compute_cond_density,
+        )
+        return t, total_transfer
+
+
+def get_alpha_convex_hulls(alpha, c_bar, cond_dists, min_transfer_function=None):
+    nonboundary_transfer_values = [
+        c_dist.get_nonboundary_alpha_valid_transfers(alpha, c_bar)
+        for c_dist in cond_dists
+    ]
+    return get_convex_hulls(
+        c_bar, cond_dists, nonboundary_transfer_values, min_transfer_function
+    )
 
 
 def compute_alpha_opt_policies(

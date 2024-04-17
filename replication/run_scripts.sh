@@ -1,13 +1,13 @@
 #!/bin/bash
 
-rm -rf /zfs/gsb/intermediate-yens/rsahoo/poverty/replication/scripts
-mkdir /zfs/gsb/intermediate-yens/rsahoo/poverty/replication/scripts
+rm -rf /home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/replication/scripts
+mkdir /home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/replication/scripts
 python generate_sbatches.py
-rm -rf /zfs/gsb/intermediate-yens/rsahoo/poverty/replication/results
-mkdir /zfs/gsb/intermediate-yens/rsahoo/poverty/replication/results
+rm -rf /home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/replication/results
+mkdir /home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/replication/results
 
 
-for experiment in /zfs/gsb/intermediate-yens/rsahoo/poverty/replication/scripts/*.sh
+for experiment in /home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/replication/scripts/*.sh
 do
     echo $experiment
     chmod u+x $experiment
