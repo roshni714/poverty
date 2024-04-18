@@ -25,7 +25,7 @@ def generate_malawi_runs():
 
     uncondtols = [0.10]
     districts = ["mchinji"]
-    policies = ["oracle"]
+    policies = ["geographic"]
 
     for uncondtol in uncondtols:
         for district in districts:

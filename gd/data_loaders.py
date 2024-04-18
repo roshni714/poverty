@@ -4,6 +4,17 @@ import numpy as np
 PATH_TO_DATA = "/zfs/gsb/intermediate-yens/rsahoo/poverty/data/malawi_merged_2019.csv"
 CONVERSION_FACTORS = {"malawi": 0.003361735405}
 
+def get_num_tas_district(district):
+    df = pd.read_csv(PATH_TO_DATA)
+
+    # Drop rows of dataframe that missing outcome values
+    df.dropna(axis=0, subset="rexpagg", inplace=True)
+    df = df.reset_index()
+
+    # Filter data down to district level
+    df = df[df.district == district.capitalize()]
+
+    return len(df["hh_a02a"].unique())
 
 def get_dataset(district, covariates):
 
@@ -28,6 +39,8 @@ def get_dataset(district, covariates):
     df["outcome"] /= 365
     y = df["outcome"]
 
+    df["hh_a02a"] = df["hh_a02a"].astype("category")
+
     if covariates is not None:
         categorical_features = (
             covariates  # TODO: For now only assuming categorical features
@@ -41,7 +54,7 @@ def get_dataset(district, covariates):
             ).astype(float)
             for cat_feat in categorical_features
         ]
-        X = X_cat
+        X = X_cat[0].join(X_cat[1:])
     else:
         X = df[[]]
 

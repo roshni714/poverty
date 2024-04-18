@@ -24,13 +24,14 @@ def split_data(X, y, p, r=None):
 def aggregate_metrics(metrics1, metrics2):
 
     keynames = [
-        "unconditional_tolerance",
-        "conditional_tolerance",
         "initial_poverty_rate",
         "initial_poverty_gap",
         "post_transfer_poverty_gap",
         "post_transfer_poverty_rate",
         "policy_cost",
+        "d",
+        "unconditional_tolerance",
+        "conditional_tolerance",
     ]
     metrics = {}
     for key in keynames:

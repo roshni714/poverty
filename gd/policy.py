@@ -4,7 +4,7 @@ from opt_targeted_transfers import (
     BinaryTargetedTransfers,
     OracleTargetedTransfers,
 )
-from data_loaders import get_dataset
+from data_loaders import get_dataset, get_num_tas_district
 from data_utils import split_data, aggregate_metrics
 
 CBAR = 2.15
@@ -29,38 +29,48 @@ def saturation_policy(district, uncondtol):
     metrics1 = run(fold1, fold2)
     metrics2 = run(fold2, fold1)
     final_metrics = aggregate_metrics(metrics1, metrics2)
+    final_metrics["n"] = len(y)
     final_metrics["policy"] = "saturation"
     return final_metrics
 
 
 def geographic_policy(district, uncondtol):
+    
+    num_eas_district = get_num_tas_district(district)
 
-    X, y, r, features = get_dataset(district, covariates=["ea_id"])
+    if num_eas_district == 1:
+        sat_metrics = saturation_policy(district, uncondtol)
+        sat_metrics["policy"] = "geographic"
+        return sat_metrics
+    else:
+        X, y, r, features = get_dataset(district, covariates=["hh_a02a"])
+        print("d", X.shape)
 
-    fold1, fold2 = split_data(X=X, y=y, r=r, p=0.5)
+        fold1, fold2 = split_data(X=X, y=y, r=r, p=0.5)
 
-    def run(fold_fit, fold_opt):
-        tt = UnconditionalTargetedTransfers(
-            c_bar=CBAR, unconditional_tolerance=uncondtol
-        )
-        X_fit, y_fit, r_fit = fold_fit
-        X_opt, y_opt, r_opt = fold_opt
-        tt.fit(X_fit, y_fit, r_fit)
-        tt.run_opt(
-            X_opt,
-            r_opt,
-            path="results/{}_{}_uncondtol={}_opt.csv".format(
-                district, "geographic", uncondtol
-            ),
-        )
-        metrics = tt.evaluate(X_opt, y_opt, r_opt)
-        return metrics
+        def run(fold_fit, fold_opt):
+            tt = UnconditionalTargetedTransfers(
+                c_bar=CBAR, unconditional_tolerance=uncondtol
+            )
+            X_fit, y_fit, r_fit = fold_fit
+            X_opt, y_opt, r_opt = fold_opt
+            tt.fit(X_fit, y_fit, r_fit)
+            tt.run_opt(
+                X_opt,
+                r_opt,
+                path="results/{}_{}_uncondtol={}_opt.csv".format(
+                    district, "geographic", uncondtol
+                ),
+            )
+            metrics = tt.evaluate(X_opt, y_opt, r_opt)
+            return metrics
 
-    metrics1 = run(fold1, fold2)
-    metrics2 = run(fold2, fold1)
-    final_metrics = aggregate_metrics(metrics1, metrics2)
-    final_metrics["policy"] = "geographic"
-    return final_metrics
+        metrics1 = run(fold1, fold2)
+        metrics2 = run(fold2, fold1)
+        final_metrics = aggregate_metrics(metrics1, metrics2)
+        final_metrics["n"] = len(y)
+        final_metrics["policy"] = "geographic"
+        return final_metrics
 
 
 def binary_targeting_policy(district, uncondtol):
@@ -75,7 +85,7 @@ def binary_targeting_policy(district, uncondtol):
     X, y, r, features = get_dataset(
         district,
         covariates=[
-            "ea_id",
+            "hh_a02a",
             "hh_t10",
             "hh_f12",
             "hh_f41",
@@ -99,6 +109,7 @@ def binary_targeting_policy(district, uncondtol):
     metrics1 = run(fold1, fold2)
     metrics2 = run(fold2, fold1)
     final_metrics = aggregate_metrics(metrics1, metrics2)
+    final_metrics["n"] = len(y)
     final_metrics["policy"] = "binary_targeted"
     return final_metrics
 
@@ -109,7 +120,7 @@ def optimized_policy(district, uncondtol):
     X, y, r, features = get_dataset(
         district,
         covariates=[
-            "ea_id",
+            "hh_a02a",
             "hh_t10",
             "hh_f12",
             "hh_f41",
@@ -139,6 +150,7 @@ def optimized_policy(district, uncondtol):
     metrics1 = run(fold1, fold2)
     metrics2 = run(fold2, fold1)
     final_metrics = aggregate_metrics(metrics1, metrics2)
+    final_metrics["n"] = len(y)
     final_metrics["policy"] = "optimized"
     return final_metrics
 
@@ -149,8 +161,25 @@ def oracle_policy(district, uncondtol):
     tt = OracleTargetedTransfers(c_bar=CBAR, unconditional_tolerance=uncondtol)
     tt.run_opt(y, r)
     metrics = tt.evaluate(X, y, r)
-    del metrics["nclass"]
-    del metrics["d"]
-    del metrics["method"]
-    metrics["policy"] = "oracle"
-    return metrics
+
+    final_metrics = get_final_metrics(metrics)
+    final_metrics["n"] = len(y)
+    final_metrics["policy"] = "oracle"
+    return final_metrics
+
+
+def get_final_metrics(metrics):
+    keynames = [
+        "initial_poverty_rate",
+        "initial_poverty_gap",
+        "post_transfer_poverty_gap",
+        "post_transfer_poverty_rate",
+        "policy_cost",
+        "d",
+        "unconditional_tolerance",
+        "conditional_tolerance",
+    ]
+    final_metrics = {}
+    for key in keynames:
+        final_metrics[key] = metrics[key]
+    return final_metrics
