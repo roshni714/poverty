@@ -4,7 +4,6 @@ from opt_targeted_transfers.density_estimation import get_cond_density_estimator
 from opt_targeted_transfers.knapsack import (
     compute_alpha_opt_policies,
     compute_opt_policy_knapsack,
-    check_knapsack_feasibility,
 )
 from opt_targeted_transfers.oracle import run_oracle
 from opt_targeted_transfers.quantile_regression import get_quantile_regressor
@@ -78,6 +77,14 @@ class TargetedTransfers:
         """
 
         self.density_estimator = cond_density
+
+    def save_opt_policy(self, name):
+        if self.opt_policy is None:
+            assert False, "Need to run opt first"
+        pickle.dump(
+            self.opt_policy,
+            open("{}.pickle".format(name), "wb"),
+        )
 
     def evaluate(self, X_test, y_test, r_test=None):
         """
@@ -179,6 +186,7 @@ class ConditionalTargetedTransfers(TargetedTransfers):
         X_train,
         y_train,
         r_train=None,
+        low_dim=False,
         log_transform=True,
         knot_quantiles=None,
         n_epochs=300,
@@ -214,6 +222,7 @@ class ConditionalTargetedTransfers(TargetedTransfers):
         if self.method == "density":
             density_estimator = get_cond_density_estimator(
                 dataset,
+                low_dim=low_dim,
                 log_transform=log_transform,
                 knot_quantiles=knot_quantiles,
                 n_epochs=n_epochs,
@@ -226,7 +235,7 @@ class ConditionalTargetedTransfers(TargetedTransfers):
             self.density_estimator = density_estimator
         elif self.method == "qr":
             quantile_regressor = get_quantile_regressor(
-                dataset, self.conditional_tolerance, n_epochs=n_epochs
+                dataset, self.conditional_tolerance, low_dim=low_dim, n_epochs=n_epochs
             )
             self.quantile_regressor = quantile_regressor
 
@@ -321,6 +330,7 @@ class UnconditionalTargetedTransfers(TargetedTransfers):
         X_train,
         y_train,
         r_train=None,
+        low_dim=False,
         log_transform=True,
         knot_quantiles=None,
         n_epochs=300,
@@ -442,6 +452,7 @@ class HybridTargetedTransfers(TargetedTransfers):
         X_train,
         y_train,
         r_train=None,
+        low_dim=False,
         log_transform=True,
         knot_quantiles=None,
         n_epochs=300,
@@ -469,6 +480,7 @@ class HybridTargetedTransfers(TargetedTransfers):
 
         density_estimator = get_cond_density_estimator(
             dataset,
+            low_dim=low_dim,
             log_transform=log_transform,
             knot_quantiles=knot_quantiles,
             n_epochs=n_epochs,
@@ -658,6 +670,7 @@ class BinaryTargetedTransfers(TargetedTransfers):
         X_train,
         y_train,
         r_train=None,
+        low_dim=False,
         log_transform=True,
         knot_quantiles=None,
         n_epochs=300,
@@ -666,6 +679,7 @@ class BinaryTargetedTransfers(TargetedTransfers):
 
         density_estimator = get_cond_density_estimator(
             dataset,
+            low_dim=low_dim,
             log_transform=log_transform,
             knot_quantiles=knot_quantiles,
             n_epochs=n_epochs,
@@ -716,8 +730,9 @@ class BinaryTargetedTransfers(TargetedTransfers):
                 transfer_amts=np.array([0.0, T]),
                 c_bar=self.c_bar,
                 compute_cond_density=self.density_estimator,
+                deterministic=True,
             )
-            if res:
+            if res != False:
                 feasible_Ts.append(T)
                 policies.append(res[0])
                 costs.append(res[1])
@@ -743,8 +758,8 @@ class OracleTargetedTransfers(TargetedTransfers):
             "OracleTargetedTransfer can't handle conditional tolerances."
         )
 
-    def run_opt(self, X_test, y_test, r_test):
-        dataset = Dataset(X=X_test, y=y_test, r=r_test)
+    def run_opt(self, y_test, r_test):
+        dataset = Dataset(X=None, y=y_test, r=r_test)
 
         oracle_policy = run_oracle(
             dataset, c_bar=self.c_bar, tolerance=self.unconditional_tolerance

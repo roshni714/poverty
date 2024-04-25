@@ -46,7 +46,6 @@ def get_transfer_function(c_bar, eta, lamb):
 
 
 def run_oracle(dataset, tolerance, c_bar):
-    X = dataset.X
     y = dataset.y
     r = dataset.r
     transfers = np.maximum(c_bar - y, 0)

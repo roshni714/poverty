@@ -195,7 +195,9 @@ def get_alpha_transfer_function(
     return t
 
 
-def get_transfer_function(transfer_amts, c_bar, eta, lamb, compute_cond_density):
+def get_transfer_function(
+    transfer_amts, c_bar, eta, lamb, compute_cond_density, deterministic=False
+):
     """
     Compute the transfer function.
 
@@ -233,10 +235,15 @@ def get_transfer_function(transfer_amts, c_bar, eta, lamb, compute_cond_density)
             ):
                 assignments[j] = [(cvx_hull[idx - 1][1], 1.0)]
             elif idx < len(ratios) and ratios[idx] == eta:
-                assignments[j] = [
-                    (cvx_hull[idx - 1][1], lamb),
-                    (cvx_hull[idx][1], 1 - lamb),
-                ]
+                if deterministic:
+                    assignments[j] = [
+                        (max(cvx_hull[idx - 1][1], cvx_hull[idx][1]), 1.0)
+                    ]
+                else:
+                    assignments[j] = [
+                        (cvx_hull[idx - 1][1], lamb),
+                        (cvx_hull[idx][1], 1 - lamb),
+                    ]
             else:
                 assignments[j] = [(0.0, 1.0)]
 
@@ -298,6 +305,19 @@ def get_convex_hulls(c_bar, cond_dists, transfer_amts, min_transfer_function=Non
     return cvx_hulls
 
 
+def compute_cost(train_dataset, policy):
+    assignments = policy(train_dataset.X)
+
+    total_cost = 0.0
+    for i in range(len(train_dataset)):
+        cost = 0.0
+        for j in range(len(assignments[i])):
+            cost += assignments[i][j][1] * assignments[i][j][0]
+        total_cost += cost * train_dataset.r[i]
+
+    return total_cost
+
+
 def compute_opt_policy_knapsack(
     train_dataset,
     cond_dists,
@@ -306,6 +326,7 @@ def compute_opt_policy_knapsack(
     transfer_amts,
     c_bar,
     compute_cond_density,
+    deterministic=False,
 ):
 
     feasible = check_knapsack_feasibility(
@@ -350,8 +371,11 @@ def compute_opt_policy_knapsack(
             eta=eta,
             lamb=lamb,
             compute_cond_density=compute_cond_density,
+            deterministic=deterministic,
         )
-        return t, total_transfer
+
+        new_total_transfer = compute_cost(train_dataset, t)
+        return t, new_total_transfer
 
 
 def get_alpha_convex_hulls(alpha, c_bar, cond_dists, min_transfer_function=None):
@@ -400,9 +424,10 @@ def compute_alpha_opt_policies(
     total_transfers = []
     opt_policies = []
     if max_alpha is None:
-        max_alpha = max([dist.pdf(dist.mode) for dist in cond_dists]).item()
+        max_alpha = np.quantile([dist.pdf(dist.mode) for dist in cond_dists], 0.97)
     if min_alpha is None:
-        min_alpha = max([dist.pdf(dist.mode) for dist in cond_dists]).item() / 1000
+        min_alpha = max_alpha / 1000
+
     alphas = np.linspace(min_alpha, max_alpha, n_alpha)
     print("Alpha range: {}, {}".format(alphas[0], alphas[-1]))
     results_file = path

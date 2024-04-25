@@ -12,7 +12,7 @@ from opt_targeted_transfers.cond_dist import NonparametricConditionalDistributio
 
 
 def get_cond_density_estimator(
-    dataset, log_transform=True, knot_quantiles=None, n_epochs=300
+    dataset, low_dim=False, log_transform=True, knot_quantiles=None, n_epochs=300
 ):
     """
     Compute the conditional density estimator.
@@ -38,7 +38,7 @@ def get_cond_density_estimator(
 
     else:
         helper = lindsey_method_with_covariates(
-            dataset, log_transform, knot_quantiles, n_epochs
+            dataset, low_dim, log_transform, knot_quantiles, n_epochs
         )
     return helper
 
@@ -275,6 +275,9 @@ def lindsey_method(
             fill_value=(unscaled_bin_ends[1], unscaled_bin_ends[-1]),
         )
 
+        # assert np.isnan(cdf_matrix) is False
+        # assert np.isnan(pdf_matrix) is False
+
         for i in range(len(X_test)):
             cond_dists.append(
                 NonparametricConditionalDistribution(
@@ -293,7 +296,7 @@ def lindsey_method(
 
 
 def lindsey_method_with_covariates(
-    train_dataset, log_transform=True, knot_quantiles=None, n_epochs=300
+    train_dataset, low_dim=False, log_transform=True, knot_quantiles=None, n_epochs=300
 ):
     """
     Apply the Lindsey's method for marginal density estimation (Efron & Tibshirani 1996).
@@ -347,11 +350,19 @@ def lindsey_method_with_covariates(
     bin_basis_elements = torch.tensor(bin_basis_elements, dtype=torch.float64)
     bin_ends = torch.tensor(bin_ends, dtype=torch.float64)
     front = torch.tensor(front, dtype=torch.float64)
-    theta = torch.nn.Parameter(
-        torch.tensor(
-            np.random.uniform(-1.0, 1.0, k * d).reshape(k, d), dtype=torch.float64
+
+    if low_dim:
+        theta = torch.nn.Parameter(
+            torch.tensor(
+                np.random.uniform(-1.0, 1.0, k * d).reshape(k, d), dtype=torch.float64
+            )
         )
-    )
+    else:
+        theta = torch.nn.Parameter(
+            torch.tensor(
+                np.random.uniform(-1.0, 1.0, k * d).reshape(k, d), dtype=torch.float64
+            )
+        )
     if log_transform:
         unscaled_bin_ends = torch.exp(bin_ends * y_std + y_mean)
     else:
