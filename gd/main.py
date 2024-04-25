@@ -6,6 +6,7 @@ from policy import (
     binary_targeting_policy,
     oracle_policy,
     optimized_policy,
+    conditional_optimized_policy,
 )
 
 
@@ -15,10 +16,12 @@ POLICY_METHODS = {
     "binary": binary_targeting_policy,
     "oracle": oracle_policy,
     "optimized": optimized_policy,
+    "conditional_optimized": conditional_optimized_policy,
 }
 
 
 @argh.arg("--uncondtol", default=0.1)
+@argh.arg("--pool", default="central")
 @argh.arg("--district", default="malawi")
 @argh.arg("--policy", default="saturation")
 @argh.arg("--save", default="results")
@@ -26,12 +29,13 @@ def main(
     district="mchinji",
     policy="saturation",
     uncondtol=None,
+    pool="central",
     save="district_results",
 ):
 
     learning_method = POLICY_METHODS[policy]
-    metrics = learning_method(district=district, uncondtol=uncondtol)
-    write_result(save + "{}.csv".format(district), metrics)
+    metrics = learning_method(district=district, uncondtol=uncondtol, pool=pool)
+    write_result(save + "{}_pool={}.csv".format(district, pool), metrics)
 
 
 if __name__ == "__main__":

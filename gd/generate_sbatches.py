@@ -21,12 +21,41 @@ OUTPUT_PATH = "/home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/gd/sc
 SAVE_PATH = "/home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/gd/results/"
 
 
+def generate_malawi_district_runs():
+
+    uncondtols = [0.10, 0.20]
+    districts = ["mchinji", "dowa", "kasungu"]
+    policies = ["binary", "saturation", "optimized"]
+    pools = ["central"]
+
+    for pool in pools:
+        for uncondtol in uncondtols:
+            for district in districts:
+                for policy in policies:
+                    exp_id = "{}_policy={}_uncondtol={}_pool={}".format(
+                        district, policy, uncondtol, pool
+                    )
+                    script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
+                    with open(script_fn, "w") as f:
+                        print(
+                            SBATCH_PREFACE.format(
+                                exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
+                            ),
+                            file=f,
+                        )
+                        base_cmd = "python main.py main --policy {} --district {} --uncondtol {} --pool {} --save {}".format(
+                            policy, district, uncondtol, pool, SAVE_PATH
+                        )
+                        print(base_cmd, file=f)
+                        print("sleep 1", file=f)
+
+
 def generate_malawi_runs():
 
-    uncondtols = [0.10]
-    districts = ["mchinji"]
-    policies = ["geographic"]
-
+    uncondtols = [0.10, 0.20, 0.30, 0.40]
+    districts = ["all"]
+    policies = ["binary", "geographic", "saturation", "optimized"]
+    #    policies = ["optimized", "binary", "geographic", "saturation"]
     for uncondtol in uncondtols:
         for district in districts:
             for policy in policies:
