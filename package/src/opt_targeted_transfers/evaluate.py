@@ -1,9 +1,12 @@
 import numpy as np
 
 
-def expected_value_transfers(test_dataset, policy):
+def expected_value_transfers(test_dataset, policy, oracle=False):
     y_test = test_dataset.y
-    assignments = policy(test_dataset.X)
+    if oracle:
+        assignments = policy(test_dataset.y)
+    else:
+        assignments = policy(test_dataset.X)
 
     transfers = []
     for i in range(len(test_dataset)):
@@ -40,6 +43,8 @@ def post_transfer_metrics(test_dataset, policy, c_bar, oracle=False):
 
     y_test = test_dataset.y
     r_test = test_dataset.r
+    
+    np.testing.assert_almost_equal(r_test.sum(), 1.0)
 
     dic["initial_poverty_gap"] = np.sum(np.maximum(c_bar - y_test, 0) * r_test).item()
     dic["initial_poverty_rate"] = np.sum(r_test * (y_test < c_bar))

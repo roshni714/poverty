@@ -2,10 +2,10 @@ import pandas as pd
 import numpy as np
 from data_utils import split_data
 
-PATH_TO_DATA = "/zfs/gsb/intermediate-yens/rsahoo/poverty/data/malawi_merged_2019.csv"
+PATH_TO_DATA = "/zfs/gsb/intermediate-yens/rsahoo/poverty/data/malawi_cleaned_2019.parquet"
 CONVERSION_FACTORS = {"malawi": 0.003361735405}
 
-POOLED_DISTRICTS = [
+CENTRAL_POOLED_DISTRICTS = [
     "kasungu",
     "mchinji",
     "dowa",
@@ -17,24 +17,37 @@ POOLED_DISTRICTS = [
     "ntcheu",
 ]
 
+NORTHERN_POOLED_DISTRICTS = ["chitipa", 
+                             "karonga", 
+                             "mzimba", 
+                             "rumphi",
+                             "nkhatabay", 
+                             "lizoma"]
+
 CATEGORICAL_FEATURES = [
     "district",
     "hh_f12",
     "hh_f40",
     "area",
+    "hh_f11",
     "hh_g09",
     "hh_f26_2",
     "hh_f41_2",
     "hh_m00",
     "hh_f06",
     "hh_f43",
-    "hh_f41",
+    "hh_f41", 
+    "hh_f07", 
+    "hh_f12", 
+    "hh_f19",
+    "hh_t10",
+    "ag_s01", 
 ]
 
 
 def get_rural_minus_district_dataset(district, covariates):
-    df = pd.read_csv(PATH_TO_DATA)
-    district = district.capitalize()
+    df = pd.read_parquet(PATH_TO_DATA)
+    district = district.title()
 
     # Drop rows of dataframe that missing outcome values
     df.dropna(axis=0, subset="rexpaggpc", inplace=True)
@@ -67,7 +80,10 @@ def get_rural_minus_district_dataset(district, covariates):
             for cat_feat in covariates
             if cat_feat in CATEGORICAL_FEATURES
         ]
-        X = X_cat[0].join(X_cat[1:])
+        if len(X_cat) > 1:
+            X = X_cat[0].join(X_cat[1:])
+        else:
+            X = pd.DataFrame([])
 
         other_features = [
             feat for feat in covariates if feat not in CATEGORICAL_FEATURES
@@ -93,12 +109,16 @@ def get_rural_minus_district_dataset(district, covariates):
 
 
 def get_district_dataset(districts, covariates):
-    districts = [district.capitalize() for district in districts]
 
-    df = pd.read_csv(PATH_TO_DATA)
+    if districts == ["all"]:
+        return get_full_dataset(covariates)
+    
+    districts = [district.title() for district in districts]
+
+    df = pd.read_parquet(PATH_TO_DATA)
 
     # Drop rows of dataframe that missing outcome values
-    df.dropna(axis=0, subset="rexpagg", inplace=True)
+    df.dropna(axis=0, subset="rexpaggpc", inplace=True)
     df = df.reset_index()
 
     # Convert outcome to consumption per capita per day in terms of 2017 USD
@@ -128,7 +148,13 @@ def get_district_dataset(districts, covariates):
             for cat_feat in covariates
             if cat_feat in CATEGORICAL_FEATURES
         ]
-        X = X_cat[0].join(X_cat[1:])
+
+        if len(X_cat) > 0:
+            X = X_cat[0].join(X_cat[1:])
+        else:
+            X = pd.DataFrame([])
+        
+
 
         other_features = [
             feat for feat in covariates if feat not in CATEGORICAL_FEATURES
@@ -155,10 +181,10 @@ def get_district_dataset(districts, covariates):
 
 
 def get_full_dataset(covariates):
-    df = pd.read_csv(PATH_TO_DATA)
+    df = pd.read_parquet(PATH_TO_DATA)
 
     # Drop rows of dataframe that missing outcome values
-    df.dropna(axis=0, subset="rexpagg", inplace=True)
+    df.dropna(axis=0, subset="rexpaggpc", inplace=True)
     df = df.reset_index()
 
     # Convert outcome to consumption per capita per day in terms of 2017 USD
@@ -186,7 +212,10 @@ def get_full_dataset(covariates):
             for cat_feat in covariates
             if cat_feat in CATEGORICAL_FEATURES
         ]
-        X = X_cat[0].join(X_cat[1:])
+        if len(X_cat) > 0:
+            X = X_cat[0].join(X_cat[1:])
+        else:
+            X = pd.DataFrame([])
 
         other_features = [
             feat for feat in covariates if feat not in CATEGORICAL_FEATURES
@@ -210,7 +239,10 @@ def get_full_dataset(covariates):
 
 def get_pooled_dataset(district, pool, covariates):
     if pool == "central":
-        pooled = [d for d in POOLED_DISTRICTS if district != d]
+        pooled = [d for d in CENTRAL_POOLED_DISTRICTS if district != d]
+        X1, y1, r1, features1 = get_district_dataset(pooled, covariates=covariates)
+    elif pool == "north":
+        pooled = [d for d in NORTHERN_POOLED_DISTRICTS if district != d]
         X1, y1, r1, features1 = get_district_dataset(pooled, covariates=covariates)
     elif pool == "rural":
         X1, y1, r1, features1 = get_rural_minus_district_dataset(

@@ -25,16 +25,18 @@ POLICY_METHODS = {
 @argh.arg("--district", default="malawi")
 @argh.arg("--policy", default="saturation")
 @argh.arg("--save", default="results")
+@argh.arg("--numfeatures", default=2)
 def main(
     district="mchinji",
     policy="saturation",
     uncondtol=None,
     pool="central",
     save="district_results",
+    numfeatures=2,
 ):
 
     learning_method = POLICY_METHODS[policy]
-    metrics = learning_method(district=district, uncondtol=uncondtol, pool=pool)
+    metrics = learning_method(district=district, uncondtol=uncondtol, pool=pool, numfeatures=numfeatures)
     write_result(save + "{}_pool={}.csv".format(district, pool), metrics)
 
 

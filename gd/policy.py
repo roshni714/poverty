@@ -2,7 +2,7 @@ from opt_targeted_transfers import (
     ConditionalTargetedTransfers,
     UnconditionalTargetedTransfers,
     BinaryTargetedTransfers,
-    OracleTargetedTransfers,
+    OraclePovertyRateTargetedTransfers,
 )
 from data_loaders import get_datasets, get_district_dataset
 from data_utils import aggregate_metrics
@@ -10,38 +10,60 @@ from data_utils import aggregate_metrics
 CBAR = 2.15
 
 COVARIATE_LIST = [
-    # "hh_f25",  # How much did you last pay for electricity?
-    # "hh_f03a",  # Estimate the rent you could receive if you rented this property?
-    "hhsize",  # Household size
-    "hh_f12",  # What is your main source of cooking fuel?
-    # "hh_f32",  # Total cost for <u>MTL</u> telephone service in the HH over the last period?\
-    # "hh_f35_3", #Of the total cost of cellphone service for the household, how much was spent on airtime for all household members?
-    # "hh_f04a", #How much do you pay to rent this property?<br><br>MK
-    #    "hh_f40", #What is your main source of <u>drinking water in the <u>other season?
-    "area",  # Rural/Urban division by region
-    "hh_f06",  # what construction materials are used for dwelling
-    # "hh_f37", #What was the total cost of drinking water for your household last month?
-    #    "hh_h03b", #How many meals, including b/fast are taken per day in HH(Children 5-17yrs)
-    #    "hh_h03a", #How many meals, including b/fast are taken per day in household? (Adults)
-    # "hh_f26_2", #How satisfied are you with ESCOM?
-    # "hh_g09", #Over the past one week (7 days), did any people that you did nonlist as household members eat any meals in your household?
-    "af_bio_12_x",  # Annual Precipitation (mm)
-    #    "hh_f41_2", #The last time your toilet was emptied
-    #    "popdensity", #Pop density
-    #    "hh_m00", #Did your household own or rent any farm implements, machinery and/or structures, such as hand hoe, panga knife, treadle pump, ox cart, tractor, plough, generator, chicken house, storage house, barn, etc... in the last 12 months?
-]
+    "num_children", 
+    "durable_asset_Bed", 
+    "hh_f34", #num cellphones
+    "hhsize", #household size
+    "hh_f06", #construction materials categories
+    "hh_f12", #cooking fuel categories
+    "ag_asset_AXE",
+    "durable_asset_Television",
+    "hh_x07", #own any livestock?
+    "district",
+    "durable_asset_Radio with flash drive/micro CD",
+    "durable_asset_Motorcycle / Scooter",
+    "ag_asset_WATERING CAN",
+    "ag_asset_PANGA KNIFE",
+    "popdensity",
+    "hh_f11", #lighting fuel categories
+    "hh_f43", #rubbish disposal
+    "hh_x04",
+    "hh_f41", #toilet categories
+    "durable_asset_Bicycle",
+    "ag_asset_CHICKEN HOUSE",
+    "hh_f08", #roof materials categories
+    "hh_f01",
+    "ag_asset_HAND HOE",
+    "durable_asset_Refrigerator",
+    "durable_asset_Car",
+    "durable_asset_Radio ('wireless')",
+    "durable_asset_Iron (for pressing clothes)",
+    "ag_asset_GRANARY",
+    "ag_asset_SLASHER"
+    ]
 
-RURAL_COVARIATE_LIST = ["hhsize", "hh_f06", "hh_f43", "hh_f41"]
+RURAL_COVARIATE_LIST = [
+    "hh_h03b", #meals per day
+    "hh_t10", #what does HH head sleep on
+    "hhsize", #household size
+    "hh_f35_3", #how much money of cellphone cost spent on airtime usage
+    "district",
+    "durable_asset_Television",
+    'hh_f06',
+    "ag_asset_PANGA KNIFE",
+    "hh_f12",
+    ] 
 
 
-def get_covariates(district):
+def get_covariates(district, numfeatures):
     if district == "all":
-        return COVARIATE_LIST
+        return COVARIATE_LIST[:numfeatures]
     else:
-        return RURAL_COVARIATE_LIST
+        return RURAL_COVARIATE_LIST[:numfeatures]
+    
 
 
-def saturation_policy(district, uncondtol, pool):
+def saturation_policy(district, uncondtol, pool, numfeatures=None):
     fold1, fold2, features = get_datasets(district, pool, covariates=None)
 
     def run(fold_fit, fold_opt):
@@ -50,9 +72,10 @@ def saturation_policy(district, uncondtol, pool):
         )
         X_fit, y_fit, r_fit = fold_fit
         X_opt, y_opt, r_opt = fold_opt
-        tt.fit(X_fit, y_fit, r_fit)
-        tt.run_opt(X_opt, r_opt)
-        metrics = tt.evaluate(X_opt, y_opt, r_opt)
+        tt.fit(X_fit, y_fit, n_epochs=500, internal_knots=[min(y_fit), 1.0, 
+                                                           2.0, 5, max(y_fit)])
+        tt.run_opt(X_opt)
+        metrics = tt.evaluate(X_opt, y_opt)
         tt.evaluate_equity(
             X_opt,
             y_opt,
@@ -71,7 +94,7 @@ def saturation_policy(district, uncondtol, pool):
     return final_metrics
 
 
-def geographic_policy(district, uncondtol, pool=None):
+def geographic_policy(district, uncondtol, numfeatures=None, pool=None):
     fold1, fold2, features = get_datasets(
         district,
         pool,
@@ -86,15 +109,15 @@ def geographic_policy(district, uncondtol, pool=None):
         )
         X_fit, y_fit, r_fit = fold_fit
         X_opt, y_opt, r_opt = fold_opt
-        tt.fit(X_fit, y_fit, r_fit)
+        tt.fit(X_fit, y_fit, n_epochs=500, internal_knots=[min(y_fit), 1.0,
+                                                           2.0, 5, max(y_fit)])
         tt.run_opt(
             X_opt,
-            r_opt,
             path="results/{}_{}_uncondtol={}_opt.csv".format(
                 district, "geographic", uncondtol
             ),
         )
-        metrics = tt.evaluate(X_opt, y_opt, r_opt)
+        metrics = tt.evaluate(X_opt, y_opt)
         tt.evaluate_equity(
             X_opt,
             y_opt,
@@ -114,7 +137,7 @@ def geographic_policy(district, uncondtol, pool=None):
     return final_metrics
 
 
-def binary_targeting_policy(district, uncondtol, pool):
+def binary_targeting_policy(district, uncondtol, pool, numfeatures=None):
 
     # "hh_t10" - what does head of house sleep on (bed/mattress)
     # "hh_f12" - what is your main source of cooking fuel
@@ -124,16 +147,17 @@ def binary_targeting_policy(district, uncondtol, pool):
     # "hh_t04" - concerning the standard of health care you received
 
     fold1, fold2, features = get_datasets(
-        district, pool, covariates=get_covariates(district)
+        district, pool, covariates=get_covariates(district, numfeatures=numfeatures)
     )
 
     def run(fold_fit, fold_opt):
         tt = BinaryTargetedTransfers(c_bar=CBAR, unconditional_tolerance=uncondtol)
         X_fit, y_fit, r_fit = fold_fit
         X_opt, y_opt, r_opt = fold_opt
-        tt.fit(X_fit, y_fit, r_fit)
-        tt.run_opt(X_opt, r_opt)
-        metrics = tt.evaluate(X_opt, y_opt, r_opt)
+        tt.fit(X_fit, y_fit, n_epochs=500, internal_knots=[min(y_fit), 1.0, 
+                                                           2.0, 5, max(y_fit)])
+        tt.run_opt(X_opt)
+        metrics = tt.evaluate(X_opt, y_opt)
         tt.evaluate_equity(
             X_opt,
             y_opt,
@@ -152,10 +176,10 @@ def binary_targeting_policy(district, uncondtol, pool):
     return final_metrics
 
 
-def optimized_policy(district, uncondtol, pool):
+def optimized_policy(district, uncondtol, pool, numfeatures=None):
 
     fold1, fold2, features = get_datasets(
-        district, pool, covariates=get_covariates(district)
+        district, pool, covariates=get_covariates(district, numfeatures)
     )
 
     def run(fold_fit, fold_opt):
@@ -164,15 +188,16 @@ def optimized_policy(district, uncondtol, pool):
         )
         X_fit, y_fit, r_fit = fold_fit
         X_opt, y_opt, r_opt = fold_opt
-        tt.fit(X_fit, y_fit, r_fit)
+        tt.fit(X_fit, y_fit, n_epochs=500, internal_knots=[min(y_fit),  1.0, 
+                                                           2.0, 5, max(y_fit)])
         tt.run_opt(
             X_opt,
-            r_opt,
             path="results/{}_{}_uncondtol={}_opt.csv".format(
-                district, "optimized", uncondtol
+                district, "optimized", uncondtol, n_alpha=300
             ),
+            
         )
-        metrics = tt.evaluate(X_opt, y_opt, r_opt)
+        metrics = tt.evaluate(X_opt, y_opt)
         tt.evaluate_equity(
             X_opt,
             y_opt,
@@ -191,12 +216,12 @@ def optimized_policy(district, uncondtol, pool):
     return final_metrics
 
 
-def oracle_policy(district, uncondtol, pool=None):
+def oracle_policy(district, uncondtol, pool=None, numfeatures=None):
     X, y, r, features = get_district_dataset([district], covariates=None)
 
-    tt = OracleTargetedTransfers(c_bar=CBAR, unconditional_tolerance=uncondtol)
-    tt.run_opt(y, r)
-    metrics = tt.evaluate(X, y, r)
+    tt = OraclePovertyRateTargetedTransfers(c_bar=CBAR, unconditional_tolerance=uncondtol)
+    tt.run_opt(y)
+    metrics = tt.evaluate(X, y)
 
     final_metrics = get_final_metrics(metrics)
     final_metrics["n_opt"] = len(y)
@@ -204,13 +229,13 @@ def oracle_policy(district, uncondtol, pool=None):
     return final_metrics
 
 
-def conditional_optimized_policy(district, uncondtol, pool):
+def conditional_optimized_policy(district, uncondtol, pool, numfeatures=None):
 
     # pooled = [d for d in POOLED_DISTRICTS if district != d]
     # TODO ADD COVARIATES
     # pooled=POOLED_DISTRICTS
     fold1, fold2, features = get_datasets(
-        district, pool, covariates=get_covariates(district)
+        district, pool, covariates=get_covariates(district, numfeatures)
     )
 
     def run(fold_fit, fold_opt):
@@ -219,9 +244,9 @@ def conditional_optimized_policy(district, uncondtol, pool):
         )
         X_fit, y_fit, r_fit = fold_fit
         X_opt, y_opt, r_opt = fold_opt
-        tt.fit(X_fit, y_fit, r_fit, low_dim=True, n_epochs=100)
-        tt.run_opt(X_opt, r_opt)
-        metrics = tt.evaluate(X_opt, y_opt, r_opt)
+        tt.fit(X_fit, y_fit, low_dim=False, n_epochs=100)
+        tt.run_opt(X_opt)
+        metrics = tt.evaluate(X_opt, y_opt)
         return metrics
 
     metrics1 = run(fold1, fold2)

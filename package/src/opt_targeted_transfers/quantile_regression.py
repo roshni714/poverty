@@ -40,7 +40,7 @@ def get_quantile_regressor(dataset, tolerance, low_dim=False, n_epochs=300):
             q_hat = torch.nn.Sequential(torch.nn.Linear(d, 1))
         else:
             q_hat = torch.nn.Sequential(
-                torch.nn.Linear(d, 5), torch.nn.ReLU(), torch.nn.Linear(5, 1)
+                torch.nn.Linear(d, 64), torch.nn.ReLU(), torch.nn.Linear(64, 1)
             )
 
         def quantile_loss(q_hat, idx):

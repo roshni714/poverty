@@ -4,5 +4,5 @@ from opt_targeted_transfers.opt import (
     # UnconditionalDiscreteTransfers,
     HybridTargetedTransfers,
     BinaryTargetedTransfers,
-    OracleTargetedTransfers,
+    OraclePovertyRateTargetedTransfers,
 )

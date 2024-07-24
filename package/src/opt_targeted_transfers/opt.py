@@ -5,7 +5,7 @@ from opt_targeted_transfers.knapsack import (
     compute_alpha_opt_policies,
     compute_opt_policy_knapsack,
 )
-from opt_targeted_transfers.oracle import run_oracle
+from opt_targeted_transfers.oracle import run_oracle_poverty_rate #run_oracle_poverty_gap
 from opt_targeted_transfers.quantile_regression import get_quantile_regressor
 from opt_targeted_transfers.evaluate import (
     post_transfer_metrics,
@@ -104,7 +104,7 @@ class TargetedTransfers:
             assert False, "Need to first run optimization"
 
         dataset = Dataset(X_test, y_test, r_test)
-        if self.name == "oracle":
+        if "oracle" in self.name:
             result = post_transfer_metrics(
                 dataset, self.opt_policy, self.c_bar, oracle=True
             )
@@ -146,7 +146,12 @@ class TargetedTransfers:
         else:
             d = 0
 
-        all_transfers_ev = expected_value_transfers(dataset, self.opt_policy)
+        if self.name == "oracle":
+            oracle = True
+        else:
+            oracle=False
+
+        all_transfers_ev = expected_value_transfers(dataset, self.opt_policy, oracle=oracle)
 
         for i in range(len(all_transfers_ev)):
             write_result(
@@ -188,7 +193,7 @@ class ConditionalTargetedTransfers(TargetedTransfers):
         r_train=None,
         low_dim=False,
         log_transform=True,
-        knot_quantiles=None,
+        internal_knots=None,
         n_epochs=300,
     ):
         """
@@ -224,7 +229,7 @@ class ConditionalTargetedTransfers(TargetedTransfers):
                 dataset,
                 low_dim=low_dim,
                 log_transform=log_transform,
-                knot_quantiles=knot_quantiles,
+                internal_knots=internal_knots,
                 n_epochs=n_epochs,
             )
 
@@ -332,7 +337,7 @@ class UnconditionalTargetedTransfers(TargetedTransfers):
         r_train=None,
         low_dim=False,
         log_transform=True,
-        knot_quantiles=None,
+        internal_knots=None,
         n_epochs=300,
     ):
         """
@@ -359,7 +364,7 @@ class UnconditionalTargetedTransfers(TargetedTransfers):
         density_estimator = get_cond_density_estimator(
             dataset,
             log_transform=log_transform,
-            knot_quantiles=knot_quantiles,
+            internal_knots=internal_knots,
             n_epochs=n_epochs,
         )
 
@@ -454,7 +459,7 @@ class HybridTargetedTransfers(TargetedTransfers):
         r_train=None,
         low_dim=False,
         log_transform=True,
-        knot_quantiles=None,
+        internal_knots=None,
         n_epochs=300,
     ):
         """
@@ -482,7 +487,7 @@ class HybridTargetedTransfers(TargetedTransfers):
             dataset,
             low_dim=low_dim,
             log_transform=log_transform,
-            knot_quantiles=knot_quantiles,
+            internal_knots=internal_knots,
             n_epochs=n_epochs,
         )
 
@@ -562,6 +567,9 @@ class HybridTargetedTransfers(TargetedTransfers):
         t_joint_program_est = t_alpha_joint_programs[idx]
         self.opt_policy = t_joint_program_est
         return t_joint_program_est
+    
+
+
 
 
 # class UnconditionalDiscreteTransfers(TargetedTransfers):
@@ -672,7 +680,7 @@ class BinaryTargetedTransfers(TargetedTransfers):
         r_train=None,
         low_dim=False,
         log_transform=True,
-        knot_quantiles=None,
+        internal_knots=None,
         n_epochs=300,
     ):
         dataset = Dataset(X_train, y_train, r_train)
@@ -681,7 +689,7 @@ class BinaryTargetedTransfers(TargetedTransfers):
             dataset,
             low_dim=low_dim,
             log_transform=log_transform,
-            knot_quantiles=knot_quantiles,
+            internal_knots=internal_knots,
             n_epochs=n_epochs,
         )
         self.density_estimator = density_estimator
@@ -743,7 +751,7 @@ class BinaryTargetedTransfers(TargetedTransfers):
         return opt_binary_policy
 
 
-class OracleTargetedTransfers(TargetedTransfers):
+class OraclePovertyRateTargetedTransfers(TargetedTransfers):
     def __init__(self, c_bar=2.15, unconditional_tolerance=None):
 
         super().__init__(
@@ -751,18 +759,19 @@ class OracleTargetedTransfers(TargetedTransfers):
             unconditional_tolerance=unconditional_tolerance,
             conditional_tolerance=None,
         )
-        self.name = "oracle"
+        self.name = "oracle_poverty_rate"
 
     def set_conditional_tolerance(self, conditional_tolerance):
         raise NotImplementedError(
-            "OracleTargetedTransfer can't handle conditional tolerances."
+            "OraclePovertyRateTargetedTransfer can't handle conditional tolerances."
         )
 
-    def run_opt(self, y_test, r_test):
+    def run_opt(self, y_test, r_test=None):
         dataset = Dataset(X=None, y=y_test, r=r_test)
 
-        oracle_policy = run_oracle(
+        oracle_policy = run_oracle_poverty_rate(
             dataset, c_bar=self.c_bar, tolerance=self.unconditional_tolerance
         )
         self.opt_policy = oracle_policy
         return oracle_policy
+

@@ -16,7 +16,7 @@ def get_transfer_function(c_bar, eta, lamb):
 
         for j in range(len(y_test)):
             cvx_hull = get_lower_cvx_hull(
-                [(0, c_bar), (0, transfers[j]), (below_line[j], 0.0)]
+                [(0., transfers[j]), (below_line[j], 0.0)]
             )
             ratios = np.zeros(len(cvx_hull)).astype(np.float64)
             ratios[0] = -np.inf
@@ -34,10 +34,13 @@ def get_transfer_function(c_bar, eta, lamb):
             ):
                 assignments[j] = [(cvx_hull[idx - 1][1], 1.0)]
             elif idx < len(ratios) and ratios[idx] == eta:
-                assignments[j] = [
-                    (cvx_hull[idx - 1][1], lamb),
-                    (cvx_hull[idx][1], 1 - lamb),
-                ]
+                if lamb != 0:
+                    assignments[j] = [
+                        (cvx_hull[idx - 1][1], lamb),
+                        (cvx_hull[idx][1], 1 - lamb),
+                    ]
+                else:
+                    assignments[j] = [(cvx_hull[idx][1], 1 - lamb)]
             else:
                 assignments[j] = [(0.0, 1.0)]
         return assignments
@@ -45,14 +48,14 @@ def get_transfer_function(c_bar, eta, lamb):
     return t
 
 
-def run_oracle(dataset, tolerance, c_bar):
+def run_oracle_poverty_rate(dataset, tolerance, c_bar):
     y = dataset.y
     r = dataset.r
     transfers = np.maximum(c_bar - y, 0)
     below_line = y < c_bar
 
     convex_hulls = [
-        get_lower_cvx_hull([(0.0, c_bar), (0.0, transfers[i]), (below_line[i], 0.0)])
+        get_lower_cvx_hull([(0.0, transfers[i]), (below_line[i], 0.0)])
         for i in range(len(dataset))
     ]
 
