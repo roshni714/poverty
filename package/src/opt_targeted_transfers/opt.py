@@ -94,7 +94,7 @@ class TargetedTransfers:
         if self.opt_policy is None:
             assert False, "Need to first run optimization"
 
-        dataset = Dataset(X_test, y_test, r_test)
+        dataset = Dataset(X_test, y_test, r_test, normalize_weight_sum=False)
         result = post_transfer_metrics(dataset, self.opt_policy, self.c_bar)
         if len(X_test.shape) > 1:
             d = X_test.shape[1]

@@ -30,19 +30,23 @@ def post_transfer_metrics(test_dataset, policy, c_bar, oracle=False):
     :return: A dictionary of post-transfer metrics.
     :rtype: dict
     """
+
+    y_test = test_dataset.y
+    r_test = test_dataset.r
+
+    r_test_sum_to_1 = r_test / r_test.sum()
+    
     dic = {
         "initial_poverty_rate": 0.0,
         "initial_poverty_gap": 0.0,
         "post_transfer_poverty_gap": 0.0,
         "post_transfer_poverty_rate": 0.0,
-        "policy_cost": 0.0,
-    }
+        "policy_cost_per_capita": 0.0,
+        "weight_adjusted_population": r_test.sum(),
+    }    
 
-    y_test = test_dataset.y
-    r_test = test_dataset.r
-
-    dic["initial_poverty_gap"] = np.sum(np.maximum(c_bar - y_test, 0) * r_test).item()
-    dic["initial_poverty_rate"] = np.sum(r_test * (y_test < c_bar))
+    dic["initial_poverty_gap"] = np.sum(np.maximum(c_bar - y_test, 0) * r_test_sum_to_1).item()
+    dic["initial_poverty_rate"] = np.sum(r_test_sum_to_1 * (y_test < c_bar))
 
     if not oracle:
         assignments = policy(test_dataset.X)
@@ -62,8 +66,8 @@ def post_transfer_metrics(test_dataset, policy, c_bar, oracle=False):
             ).astype(float)
             cost += assignments[i][j][1] * assignments[i][j][0]
 
-        dic["post_transfer_poverty_gap"] += pov_gap * r_test[i]
-        dic["post_transfer_poverty_rate"] += prob * r_test[i]
-        dic["policy_cost"] += cost * r_test[i]
+        dic["post_transfer_poverty_gap"] += pov_gap * r_test_sum_to_1[i]
+        dic["post_transfer_poverty_rate"] += prob * r_test_sum_to_1[i]
+        dic["policy_cost_per_capita"] += cost * r_test_sum_to_1[i]
 
     return dic

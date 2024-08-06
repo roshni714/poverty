@@ -23,7 +23,7 @@ def standardize(z):
 
 
 class Dataset:
-    def __init__(self, X, y=None, r=None):
+    def __init__(self, X, y=None, r=None, normalize_weight_sum=True):
         """
         Initialize a Dataset object.
 
@@ -38,10 +38,15 @@ class Dataset:
         self.y = y
 
         if r is None:
-            self.r = np.ones(len(X)) / len(self.X)
-        else:
+            r = np.ones(len(X))
+
+        if normalize_weight_sum:
             self.r = r / r.sum()
 
+        else:
+            self.r = r
+
+            
     def __len__(self):
         """
         Return the number of samples in the dataset.
