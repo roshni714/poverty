@@ -3,7 +3,8 @@ import torch
 import tqdm
 from scipy.signal import argrelextrema
 from scipy.interpolate import interp1d
-import statsmodels.gam.smooth_basis as sb
+# import statsmodels.gam.smooth_basis as sb
+from scipy.interpolate import BSpline
 from statsmodels.nonparametric.kde import KDEUnivariate
 
 
@@ -12,7 +13,7 @@ from opt_targeted_transfers.cond_dist import NonparametricConditionalDistributio
 
 
 def get_cond_density_estimator(
-    dataset, log_transform=True, knot_quantiles=None, n_epochs=300
+    dataset, low_dim=False, log_transform=True, internal_knots=None, n_epochs=300
 ):
     """
     Compute the conditional density estimator.
@@ -34,11 +35,11 @@ def get_cond_density_estimator(
     :rtype: Callable[[np.ndarray], np.ndarray]
     """
     if dataset.X.shape[1] == 0:
-        helper = lindsey_method(dataset, log_transform, knot_quantiles, n_epochs)
+        helper = lindsey_method(dataset, log_transform, internal_knots, n_epochs)
 
     else:
         helper = lindsey_method_with_covariates(
-            dataset, log_transform, knot_quantiles, n_epochs
+            dataset, low_dim, log_transform, internal_knots, n_epochs
         )
     return helper
 
@@ -59,7 +60,7 @@ def fit_carrier_function(y, r):
     return kde
 
 
-def setup_bspline_basis(y, degree=3, knot_quantiles=None):
+def setup_bspline_basis(y, degree=3, internal_knots=None):
     """
     Set up a B-spline basis.
 
@@ -68,49 +69,38 @@ def setup_bspline_basis(y, degree=3, knot_quantiles=None):
     :param degree: The degree of the B-spline basis functions. Defaults to 3.
     :type degree: int
     :param knot_quantiles: The quantiles to use as knots for the B-spline basis functions.
-                           If None, quantiles [0.1, 0.2, 0.4, 0.6] will be used.
+                           If None, quantiles [0.05, 0.1, 0.15, 0.2, 0.4, 0.6] will be used.
                            Defaults to None.
     :type knot_quantiles: numpy.ndarray or None
-    :return: A function that evaluates the B-Spline basis.
+    :return: A function 
+    that evaluates the B-Spline basis.
     :rtype: Callable[[np.ndarray], np.ndarray]
     """
-    if knot_quantiles is None:
-        qs = [0.1, 0.20, 0.4, 0.6]
-    else:
-        qs = knot_quantiles
+    if internal_knots is None:
+        internal_knots= np.linspace(min(y), max(y), 8)
 
-    internal_knots = [np.quantile(y, q) for q in qs]
+    knots = np.concatenate(([internal_knots[0]] * degree, internal_knots, [internal_knots[-1]] * degree))
 
-    df = len(internal_knots) + degree + 1
-    spline_matrix = sb.BSplines(
-        y,
-        df=df,
-        degree=degree,
-        include_intercept=True,
-        knot_kwds=[{"knots": internal_knots}],
-    )
-
-    knots = spline_matrix.smoothers[0].knots
-    num_basis_elem = spline_matrix.basis.shape[1]
-    print("KNOTS:{}".format(knots))
+    basis_elems = []
+    num_basis_elem = len(internal_knots) + degree + 1
+    for i in range(num_basis_elem):
+        coef = np.zeros(num_basis_elem)
+        coef[i] = 1
+        basis_elem = BSpline(knots, coef, degree)
+        basis_elems.append(basis_elem)
 
     def get_basis(z):
-        spline_matrix = sb.BSplines(
-            z,
-            df=df,
-            degree=degree,
-            include_intercept=True,
-            knot_kwds=[{"all_knots": knots}],
-        )
-
-        basis = spline_matrix.basis.reshape(len(z), 1, num_basis_elem)
-        return basis
-
-    return get_basis, num_basis_elem
+        res = []
+        for basis_elem in basis_elems:
+            vec = basis_elem(z)
+            res.append(vec) 
+        res = np.array(res).T.reshape(len(z), 1, len(basis_elems))
+        return res
+    return get_basis, len(basis_elems)
 
 
 def lindsey_method(
-    train_dataset, log_transform=True, knot_quantiles=None, n_epochs=300
+    train_dataset, log_transform=True, internal_knots=None, n_epochs=300
 ):
     """
     Apply the Lindsey's method for marginal density estimation (Efron & Tibshirani 1996).
@@ -137,6 +127,12 @@ def lindsey_method(
         y = np.log(y)
     y, y_mean, y_std = standardize(y)
 
+    if internal_knots:
+        if log_transform:
+            internal_knots = np.log(internal_knots)
+        
+        internal_knots = (internal_knots - y_mean)/y_std
+
     n = y.shape[0]
     torch.manual_seed(123456)
     np.random.seed(123456)
@@ -147,7 +143,7 @@ def lindsey_method(
     front = kde.evaluate(bin_ends)
 
     get_basis_matrix, k = setup_bspline_basis(
-        y, degree=3, knot_quantiles=knot_quantiles
+        y, degree=3, internal_knots=internal_knots
     )
 
     bin_basis_elements = get_basis_matrix(bin_ends)
@@ -275,6 +271,9 @@ def lindsey_method(
             fill_value=(unscaled_bin_ends[1], unscaled_bin_ends[-1]),
         )
 
+        # assert np.isnan(cdf_matrix) is False
+        # assert np.isnan(pdf_matrix) is False
+
         for i in range(len(X_test)):
             cond_dists.append(
                 NonparametricConditionalDistribution(
@@ -293,7 +292,7 @@ def lindsey_method(
 
 
 def lindsey_method_with_covariates(
-    train_dataset, log_transform=True, knot_quantiles=None, n_epochs=300
+    train_dataset, low_dim=False, log_transform=True, internal_knots=None, n_epochs=300
 ):
     """
     Apply the Lindsey's method for marginal density estimation (Efron & Tibshirani 1996).
@@ -324,6 +323,12 @@ def lindsey_method_with_covariates(
         y = np.log(y)
     y, y_mean, y_std = standardize(y)
 
+    if internal_knots:
+        if log_transform:
+            internal_knots = np.log(internal_knots)
+        
+        internal_knots = (internal_knots - y_mean)/y_std
+
     n = X.shape[0]
     d = X.shape[1]
     torch.manual_seed(123456)
@@ -335,10 +340,13 @@ def lindsey_method_with_covariates(
     front = kde.evaluate(bin_ends)
 
     get_basis_matrix, k = setup_bspline_basis(
-        y, degree=3, knot_quantiles=knot_quantiles
+        y, degree=3, internal_knots=internal_knots
     )
     bin_basis_elements = get_basis_matrix(bin_ends)
     basis_matrix = get_basis_matrix(y)  # n x 1 x k
+
+    # import pdb
+    # pdb.set_trace()
 
     X = torch.tensor(X, dtype=torch.float64).reshape(n, d, 1)
     r = torch.tensor(r, dtype=torch.float64)
@@ -347,11 +355,19 @@ def lindsey_method_with_covariates(
     bin_basis_elements = torch.tensor(bin_basis_elements, dtype=torch.float64)
     bin_ends = torch.tensor(bin_ends, dtype=torch.float64)
     front = torch.tensor(front, dtype=torch.float64)
-    theta = torch.nn.Parameter(
-        torch.tensor(
-            np.random.uniform(-1.0, 1.0, k * d).reshape(k, d), dtype=torch.float64
+
+    if low_dim:
+        theta = torch.nn.Parameter(
+            torch.tensor(
+                np.random.uniform(-1.0, 1.0, k * d).reshape(k, d), dtype=torch.float64
+            )
         )
-    )
+    else:
+        theta = torch.nn.Parameter(
+            torch.tensor(
+                np.random.uniform(-1.0, 1.0, k * d).reshape(k, d), dtype=torch.float64
+            )
+        )
     if log_transform:
         unscaled_bin_ends = torch.exp(bin_ends * y_std + y_mean)
     else:

@@ -5,6 +5,7 @@ from opt_targeted_transfers.knapsack import (
     compute_alpha_opt_policies,
     compute_opt_policy_knapsack,
 )
+from opt_targeted_transfers.oracle import run_oracle_poverty_rate #run_oracle_poverty_gap
 from opt_targeted_transfers.quantile_regression import get_quantile_regressor
 from opt_targeted_transfers.evaluate import (
     post_transfer_metrics,
@@ -77,6 +78,14 @@ class TargetedTransfers:
 
         self.density_estimator = cond_density
 
+    def save_opt_policy(self, name):
+        if self.opt_policy is None:
+            assert False, "Need to run opt first"
+        pickle.dump(
+            self.opt_policy,
+            open("{}.pickle".format(name), "wb"),
+        )
+
     def evaluate(self, X_test, y_test, r_test=None):
         """
         Evaluate optimal policy.
@@ -95,7 +104,13 @@ class TargetedTransfers:
             assert False, "Need to first run optimization"
 
         dataset = Dataset(X_test, y_test, r_test, normalize_weight_sum=False)
-        result = post_transfer_metrics(dataset, self.opt_policy, self.c_bar)
+        if "oracle" in self.name:
+            result = post_transfer_metrics(
+                dataset, self.opt_policy, self.c_bar, oracle=True
+            )
+        else:
+            result = post_transfer_metrics(dataset, self.opt_policy, self.c_bar)
+
         if len(X_test.shape) > 1:
             d = X_test.shape[1]
         else:
@@ -132,7 +147,12 @@ class TargetedTransfers:
         else:
             d = 0
 
-        all_transfers_ev = expected_value_transfers(dataset, self.opt_policy)
+        if self.name == "oracle":
+            oracle = True
+        else:
+            oracle=False
+
+        all_transfers_ev = expected_value_transfers(dataset, self.opt_policy, oracle=oracle)
 
         for i in range(len(all_transfers_ev)):
             write_result(
@@ -172,8 +192,9 @@ class ConditionalTargetedTransfers(TargetedTransfers):
         X_train,
         y_train,
         r_train=None,
+        low_dim=False,
         log_transform=True,
-        knot_quantiles=None,
+        internal_knots=None,
         n_epochs=300,
     ):
         """
@@ -207,8 +228,9 @@ class ConditionalTargetedTransfers(TargetedTransfers):
         if self.method == "density":
             density_estimator = get_cond_density_estimator(
                 dataset,
+                low_dim=low_dim,
                 log_transform=log_transform,
-                knot_quantiles=knot_quantiles,
+                internal_knots=internal_knots,
                 n_epochs=n_epochs,
             )
 
@@ -219,7 +241,7 @@ class ConditionalTargetedTransfers(TargetedTransfers):
             self.density_estimator = density_estimator
         elif self.method == "qr":
             quantile_regressor = get_quantile_regressor(
-                dataset, self.conditional_tolerance, n_epochs=n_epochs
+                dataset, self.conditional_tolerance, low_dim=low_dim, n_epochs=n_epochs
             )
             self.quantile_regressor = quantile_regressor
 
@@ -314,8 +336,9 @@ class UnconditionalTargetedTransfers(TargetedTransfers):
         X_train,
         y_train,
         r_train=None,
+        low_dim=False,
         log_transform=True,
-        knot_quantiles=None,
+        internal_knots=None,
         n_epochs=300,
     ):
         """
@@ -342,7 +365,7 @@ class UnconditionalTargetedTransfers(TargetedTransfers):
         density_estimator = get_cond_density_estimator(
             dataset,
             log_transform=log_transform,
-            knot_quantiles=knot_quantiles,
+            internal_knots=internal_knots,
             n_epochs=n_epochs,
         )
 
@@ -435,8 +458,9 @@ class HybridTargetedTransfers(TargetedTransfers):
         X_train,
         y_train,
         r_train=None,
+        low_dim=False,
         log_transform=True,
-        knot_quantiles=None,
+        internal_knots=None,
         n_epochs=300,
     ):
         """
@@ -462,8 +486,9 @@ class HybridTargetedTransfers(TargetedTransfers):
 
         density_estimator = get_cond_density_estimator(
             dataset,
+            low_dim=low_dim,
             log_transform=log_transform,
-            knot_quantiles=knot_quantiles,
+            internal_knots=internal_knots,
             n_epochs=n_epochs,
         )
 
@@ -543,69 +568,134 @@ class HybridTargetedTransfers(TargetedTransfers):
         t_joint_program_est = t_alpha_joint_programs[idx]
         self.opt_policy = t_joint_program_est
         return t_joint_program_est
+    
 
 
-class UnconditionalDiscreteTransfers(TargetedTransfers):
+
+
+# class UnconditionalDiscreteTransfers(TargetedTransfers):
+
+#     def __init__(
+#         self, method="lindsey", nclass=None, c_bar=2.15, unconditional_tolerance=None
+#     ):
+#         super().__init__(
+#             c_bar=c_bar,
+#             unconditional_tolerance=unconditional_tolerance,
+#             conditional_tolerance=None,
+#         )
+#         self.nclass = nclass
+#         if nclass is not None:
+#             self.class_thresholds = np.linspace(0.0, self.c_bar, self.nclass)
+#         self.method = method
+#         self.name = "unconditional_discrete_{}".format(method)
+
+#     def fit(
+#         self,
+#         X_train,
+#         y_train,
+#         r_train=None,
+#         log_transform=True,
+#         knot_quantiles=None,
+#         n_epochs=300,
+#     ):
+
+#         if self.method == "nn":
+#             if self.nclass is None:
+#                 assert False, "Method is nn and nclass not set"
+#             y_trainclasses = np.searchsorted(self.class_thresholds, y_train) - 1.0
+#             dataset = Dataset(X=X_train, y=y_trainclasses, r=r_train)
+#             density_estimator = get_prediction_function(
+#                 dataset, self.nclass, self.class_thresholds, n_epochs=n_epochs
+#             )
+#         elif self.method == "lindsey":
+#             dataset = Dataset(X_train, y_train, r_train)
+
+#             density_estimator = get_cond_density_estimator(
+#                 dataset,
+#                 log_transform=log_transform,
+#                 knot_quantiles=knot_quantiles,
+#                 n_epochs=n_epochs,
+#             )
+#         self.density_estimator = density_estimator
+
+#     def set_nclass(self, nclass):
+#         """
+#         Set number of classes.
+#         Note that setting the number of classes to a new value will clear the
+#         existing optimal policy.
+
+#         """
+#         if nclass != self.nclass:
+#             self.opt_policy = None
+#             if self.method == "nn":
+#                 self.density_estimator = None
+
+#         self.nclass = nclass
+#         self.class_thresholds = np.linspace(0.0, self.c_bar, self.nclass)
+
+#     def run_opt(self, X_test, r_test=None):
+#         """
+#         Run the optimization algorithm.
+
+#         :param X_test: The input features of the test data.
+#         :type X_test: numpy.ndarray
+#         :param r_test: The sampling weight variable of the test data. Defaults to None.
+#         :type r_test: numpy.ndarray or None
+#         """
+#         if self.density_estimator is None:
+#             assert False, "Need to first set predictor"
+#         if self.unconditional_tolerance is None:
+#             assert False, "Need to first set tolerance"
+#         if self.nclass is None:
+#             assert False, "Need to first set nclass"
+#         dataset = Dataset(X_test, y=None, r=r_test)
+
+#         t_opt = compute_opt_policy_knapsack(
+#             dataset,
+#             self.density_estimator,
+#             tolerance=self.unconditional_tolerance,
+#             transfer_amts=self.c_bar - self.class_thresholds,
+#             c_bar=self.c_bar,
+#         )
+#         self.opt_policy = t_opt
+#         return t_opt
+
+
+class BinaryTargetedTransfers(TargetedTransfers):
 
     def __init__(
-        self, method="lindsey", nclass=None, c_bar=2.15, unconditional_tolerance=None
+        self, c_bar=2.15, unconditional_tolerance=None, conditional_tolerance=None
     ):
+
         super().__init__(
             c_bar=c_bar,
             unconditional_tolerance=unconditional_tolerance,
-            conditional_tolerance=None,
+            conditional_tolerance=conditional_tolerance,
         )
-        self.nclass = nclass
-        if nclass is not None:
-            self.class_thresholds = np.linspace(0.0, self.c_bar, self.nclass)
-        self.method = method
-        self.name = "unconditional_discrete_{}".format(method)
+        self.name = "binary"
 
     def fit(
         self,
         X_train,
         y_train,
         r_train=None,
+        low_dim=False,
         log_transform=True,
-        knot_quantiles=None,
+        internal_knots=None,
         n_epochs=300,
     ):
+        dataset = Dataset(X_train, y_train, r_train)
 
-        if self.method == "nn":
-            if self.nclass is None:
-                assert False, "Method is nn and nclass not set"
-            y_trainclasses = np.searchsorted(self.class_thresholds, y_train) - 1.0
-            dataset = Dataset(X=X_train, y=y_trainclasses, r=r_train)
-            density_estimator = get_prediction_function(
-                dataset, self.nclass, self.class_thresholds, n_epochs=n_epochs
-            )
-        elif self.method == "lindsey":
-            dataset = Dataset(X_train, y_train, r_train)
-
-            density_estimator = get_cond_density_estimator(
-                dataset,
-                log_transform=log_transform,
-                knot_quantiles=knot_quantiles,
-                n_epochs=n_epochs,
-            )
+        density_estimator = get_cond_density_estimator(
+            dataset,
+            low_dim=low_dim,
+            log_transform=log_transform,
+            internal_knots=internal_knots,
+            n_epochs=n_epochs,
+        )
         self.density_estimator = density_estimator
 
-    def set_nclass(self, nclass):
-        """
-        Set number of classes.
-        Note that setting the number of classes to a new value will clear the
-        existing optimal policy.
-
-        """
-        if nclass != self.nclass:
-            self.opt_policy = None
-            if self.method == "nn":
-                self.density_estimator = None
-
-        self.nclass = nclass
-        self.class_thresholds = np.linspace(0.0, self.c_bar, self.nclass)
-
-    def run_opt(self, X_test, r_test=None):
+    def run_opt(self, X_test, r_test=None, n_T=100):
         """
         Run the optimization algorithm.
 
@@ -618,16 +708,71 @@ class UnconditionalDiscreteTransfers(TargetedTransfers):
             assert False, "Need to first set predictor"
         if self.unconditional_tolerance is None:
             assert False, "Need to first set tolerance"
-        if self.nclass is None:
-            assert False, "Need to first set nclass"
         dataset = Dataset(X_test, y=None, r=r_test)
 
-        t_opt = compute_opt_policy_knapsack(
-            dataset,
-            self.density_estimator,
-            tolerance=self.unconditional_tolerance,
-            transfer_amts=self.c_bar - self.class_thresholds,
-            c_bar=self.c_bar,
+        if self.conditional_tolerance is not None:
+
+            def raw_min_transfer_function(cond_densities):
+                raw_min_transfer_values = [
+                    np.maximum(
+                        self.c_bar - cond_dist.ppf(self.conditional_tolerance), 0
+                    ).item()
+                    for cond_dist in cond_densities
+                ]
+                return raw_min_transfer_values
+
+        else:
+            raw_min_transfer_function = None
+
+        Ts = np.linspace(0.50, 2.15, n_T)
+        feasible_Ts = []
+        policies = []
+        costs = []
+        cond_dists = self.density_estimator(dataset.X)
+
+        for T in Ts:
+            res = compute_opt_policy_knapsack(
+                dataset,
+                cond_dists=cond_dists,
+                raw_min_transfer_function=raw_min_transfer_function,
+                tolerance=self.unconditional_tolerance,
+                transfer_amts=np.array([0.0, T]),
+                c_bar=self.c_bar,
+                compute_cond_density=self.density_estimator,
+                deterministic=True,
+            )
+            if res != False:
+                feasible_Ts.append(T)
+                policies.append(res[0])
+                costs.append(res[1])
+
+        idx = np.argmin(costs)
+        opt_binary_policy = policies[idx]
+        self.opt_policy = opt_binary_policy
+        return opt_binary_policy
+
+
+class OraclePovertyRateTargetedTransfers(TargetedTransfers):
+    def __init__(self, c_bar=2.15, unconditional_tolerance=None):
+
+        super().__init__(
+            c_bar=c_bar,
+            unconditional_tolerance=unconditional_tolerance,
+            conditional_tolerance=None,
         )
-        self.opt_policy = t_opt
-        return t_opt
+        self.name = "oracle_poverty_rate"
+
+    def set_conditional_tolerance(self, conditional_tolerance):
+        raise NotImplementedError(
+            "OraclePovertyRateTargetedTransfer can't handle conditional tolerances."
+        )
+
+    def run_opt(self, y_test, r_test=None):
+        dataset = Dataset(X=None, y=y_test, r=r_test)
+
+        oracle_policy = run_oracle_poverty_rate(
+            dataset, c_bar=self.c_bar, tolerance=self.unconditional_tolerance
+        )
+        self.opt_policy = oracle_policy
+        return oracle_policy
+

@@ -1,9 +1,12 @@
 import numpy as np
 
 
-def expected_value_transfers(test_dataset, policy):
+def expected_value_transfers(test_dataset, policy, oracle=False):
     y_test = test_dataset.y
-    assignments = policy(test_dataset.X)
+    if oracle:
+        assignments = policy(test_dataset.y)
+    else:
+        assignments = policy(test_dataset.X)
 
     transfers = []
     for i in range(len(test_dataset)):
@@ -51,7 +54,7 @@ def post_transfer_metrics(test_dataset, policy, c_bar, oracle=False):
     if not oracle:
         assignments = policy(test_dataset.X)
     else:
-        assignments = policy(test_dataset.X, test_dataset.y)
+        assignments = policy(test_dataset.y)
 
     for i in range(len(test_dataset)):
         pov_gap = 0.0

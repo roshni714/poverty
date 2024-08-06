@@ -7,7 +7,7 @@ import copy
 from opt_targeted_transfers.dataset_utils import standardize
 
 
-def get_quantile_regressor(dataset, tolerance, n_epochs=300):
+def get_quantile_regressor(dataset, tolerance, low_dim=False, n_epochs=300):
     """
     Get a quantile regressor for a given dataset.
 
@@ -35,9 +35,13 @@ def get_quantile_regressor(dataset, tolerance, n_epochs=300):
         final_q_hat = wq.quantile(tolerance).item()
     else:
         d = X.shape[1]
-        q_hat = torch.nn.Sequential(
-            torch.nn.Linear(d, 5), torch.nn.ReLU(), torch.nn.Linear(5, 1)
-        )
+
+        if low_dim:
+            q_hat = torch.nn.Sequential(torch.nn.Linear(d, 1))
+        else:
+            q_hat = torch.nn.Sequential(
+                torch.nn.Linear(d, 64), torch.nn.ReLU(), torch.nn.Linear(64, 1)
+            )
 
         def quantile_loss(q_hat, idx):
             sub_n = len(idx)
@@ -92,6 +96,6 @@ def get_quantile_regressor(dataset, tolerance, n_epochs=300):
                 .detach()
                 .numpy()
             )
-        return quantile
+        return np.maximum(quantile, 0)
 
     return quantile_regressor

@@ -1,7 +1,8 @@
 from opt_targeted_transfers import (
     ConditionalTargetedTransfers,
     UnconditionalTargetedTransfers,
-    HybridTargetedTransfers
+    HybridTargetedTransfers,
+    BinaryTargetedTransfers,
 )
 from data_loaders import get_dataset
 from data_utils import split_data
@@ -13,18 +14,19 @@ import argh
 @argh.arg("--condtol", nargs="+", type=float)
 @argh.arg("--d", default=2)
 @argh.arg("--country", default="malawi")
-@argh.arg("--constraint", default="unconditional")
+@argh.arg("--policytype", default="unconditional")
 @argh.arg(
     "--method", default="qr"
-)  # refers to quantile method if constraint = conditional
+)  # refers to quantile method if policytype = conditional
 @argh.arg("--save", default="results")
 def main(
     country="malawi",
     d=2,
-    constraint="unconditional",
+    policytype="unconditional",
     method="qr",
     condtol=None,
     uncondtol=None,
+    binary=False,
     save="malawi_results.csv",
 ):
     X, y, r, features = get_dataset(country)
@@ -33,17 +35,39 @@ def main(
         X=X[:, :d], y=y, r=None, p=0.6
     )  # for now not using sampling weights r
 
-    if constraint == "unconditional":
+    if policytype == "binary":
+        tt = BinaryTargetedTransfers(c_bar=2.15)
+        tt.fit(X_train, y_train, r_train)
+
+        for tol1 in uncondtol:
+            if condtol is None:
+                condtol = [1.0]
+            for tol2 in condtol:
+                tt.set_conditional_tolerance(tol2)
+                tt.set_unconditional_tolerance(tol1)
+                tt.run_opt(X_test=X_test, r_test=r_test)
+                res = tt.evaluate(X_test, y_test, r_test)
+                write_result(save + "{}.csv".format(country), res)
+                tt.evaluate_equity(
+                    X_test,
+                    y_test,
+                    path=save
+                    + "equity_{}_{}_d={}_uncondtol={}_condtol={}.csv".format(
+                        country, tt.name, d, tol1, tol2
+                    ),
+                )
+
+    elif policytype == "unconditional":
         tt = UnconditionalTargetedTransfers(c_bar=2.15)
-        
+
         tt.fit(X_train, y_train, r_train)
         for tol in uncondtol:
             tt.set_unconditional_tolerance(tol)
             tt.run_opt(
-                    X_test,
-                    r_test,
-                    path=save + "{}_d={}_uncondtol={}_opt.csv".format(country, d, tol),
-                )
+                X_test,
+                r_test,
+                path=save + "{}_d={}_uncondtol={}_opt.csv".format(country, d, tol),
+            )
             res = tt.evaluate(X_test, y_test, r_test)
             write_result(save + "{}.csv".format(country), res)
             tt.evaluate_equity(
@@ -53,61 +77,71 @@ def main(
                 + "equity_{}_{}_d={}_uncondtol={}.csv".format(country, tt.name, d, tol),
             )
 
-    elif constraint == "conditional":
+    elif policytype == "conditional":
         tt = ConditionalTargetedTransfers(method=method, c_bar=2.15)
 
         if method == "density":
             tt.fit(X_train, y_train, r_train)
             for tol in condtol:
                 tt.set_conditional_tolerance(tol)
-                tt.run_opt(
-                        X_test,
-                        r_test,
-                    )
+                tt.run_opt(X_test=X_test, r_test=r_test)
                 res = tt.evaluate(X_test, y_test, r_test)
                 write_result(save + "{}.csv".format(country), res)
                 tt.evaluate_equity(
                     X_test,
                     y_test,
                     path=save
-                    + "equity_{}_{}_d={}_uncondtol={}_condtol={}.csv".format(country, tt.name, d, tol, tol),
+                    + "equity_{}_{}_d={}_uncondtol={}_condtol={}.csv".format(
+                        country, tt.name, d, tol, tol
+                    ),
                 )
         elif method == "qr":
             for tol in condtol:
                 tt.set_conditional_tolerance(tol)
                 tt.fit(X_train, y_train, r_train)
                 tt.run_opt(
-                        X_test,
-                        r_test,
-                    )
+                    X_test,
+                    r_test,
+                )
                 res = tt.evaluate(X_test, y_test, r_test)
                 write_result(save + "{}.csv".format(country), res)
                 tt.evaluate_equity(
                     X_test,
                     y_test,
                     path=save
-                    + "equity_{}_{}_d={}_uncondtol={}_condtol={}.csv".format(country, tt.name, d, tol, tol),
+                    + "equity_{}_{}_d={}_uncondtol={}_condtol={}.csv".format(
+                        country, tt.name, d, tol, tol
+                    ),
                 )
-    elif constraint == "hybrid":
+    elif policytype == "hybrid":
 
         tt = HybridTargetedTransfers(c_bar=2.15)
         tt.fit(X_train, y_train, r_train)
-        
-        for tol1 in uncondtol:
-            for tol2 in condtol:
-                tt.set_conditional_tolerance(tol2)
-                tt.set_unconditional_tolerance(tol1)
-                tt.run_opt(X_test,r_test, path=save + "{}_d={}_uncondtol={}_condtol={}_opt.csv".format(country, d, tol1, tol2))
-                res = tt.evaluate(X_test, y_test, r_test)
-                write_result(save + "{}.csv".format(country), res)
-                tt.evaluate_equity(
-                    X_test,
-                    y_test,
-                    path=save
-                    + "equity_{}_{}_d={}_uncondtol={}_condtol={}.csv".format(country, tt.name, d, tol1, tol2),
-                )
 
-        
+        for tol1 in uncondtol:
+            if condtol is None:
+                condtol = [1.0]
+                for tol2 in condtol:
+                    tt.set_conditional_tolerance(tol2)
+                    tt.set_unconditional_tolerance(tol1)
+                    tt.run_opt(
+                        X_test,
+                        r_test,
+                        path=save
+                        + "{}_d={}_uncondtol={}_condtol={}_opt.csv".format(
+                            country, d, tol1, tol2
+                        ),
+                    )
+                    res = tt.evaluate(X_test, y_test, r_test)
+                    write_result(save + "{}.csv".format(country), res)
+                    tt.evaluate_equity(
+                        X_test,
+                        y_test,
+                        path=save
+                        + "equity_{}_{}_d={}_uncondtol={}_condtol={}.csv".format(
+                            country, tt.name, d, tol1, tol2
+                        ),
+                    )
 
 
 if __name__ == "__main__":
