@@ -1,0 +1,42 @@
+import numpy as np
+
+
+def split_data(X, y, p, r=None):
+    rng = np.random.RandomState(123456)
+    permutation = rng.permutation(X.shape[0])
+    index_train = permutation[: int(p * X.shape[0])]
+    index_test = permutation[int(p * X.shape[0]) :]
+    X_train = X[index_train]
+    X_test = X[index_test]
+    y_train = y[index_train]
+    y_test = y[index_test]
+
+    if r is not None:
+        r_train = r[index_train] / r[index_train].sum()
+        r_test = r[index_test] / r[index_test].sum()
+    else:
+        r_train = np.ones(y_train.shape) / len(y_train)
+        r_test = np.ones(y_test.shape) / len(y_test)
+
+    return (X_train, y_train, r_train), (X_test, y_test, r_test)
+
+
+def aggregate_metrics(metrics1, metrics2):
+
+    keynames = [
+        "initial_poverty_rate",
+        "initial_poverty_gap",
+        "post_transfer_poverty_gap",
+        "post_transfer_poverty_rate",
+        "policy_cost",
+        "d",
+        "unconditional_tolerance",
+        "conditional_tolerance",
+    ]
+    metrics = {}
+    for key in keynames:
+        if metrics1[key] is None and metrics2[key] is None:
+            metrics[key] = None
+        else:
+            metrics[key] = (metrics1[key] + metrics2[key]) / 2
+    return metrics
