@@ -104,6 +104,7 @@ class TargetedTransfers:
             assert False, "Need to first run optimization"
 
         dataset = Dataset(X_test, y_test, r_test, normalize_weight_sum=False)
+
         if "oracle" in self.name:
             result = post_transfer_metrics(
                 dataset, self.opt_policy, self.c_bar, oracle=True

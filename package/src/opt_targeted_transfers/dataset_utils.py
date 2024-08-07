@@ -23,7 +23,9 @@ def standardize(z):
 
 
 class Dataset:
+
     def __init__(self, X, y=None, r=None, normalize_weight_sum=True):
+
         """
         Initialize a Dataset object.
 
