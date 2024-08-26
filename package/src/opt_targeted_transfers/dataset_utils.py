@@ -14,9 +14,9 @@ def standardize(z):
     z_std = z.std(axis=0)
 
     if isinstance(z_std, np.ndarray):
-        z_std[np.where(z_std == 0.0)[0]] = 1e-5
+        z_std[np.where(z_std == 0.0)[0]] = 1.
     elif z_std == 0.0:
-        z_std = 1e-5
+        z_std = 1.
 
     data = (z - z_mean) / z_std
     return data, z_mean, z_std

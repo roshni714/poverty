@@ -3,7 +3,7 @@ import torch
 import tqdm
 from scipy.signal import argrelextrema
 from scipy.interpolate import interp1d
-# import statsmodels.gam.smooth_basis as sb
+import statsmodels.gam.smooth_basis as sb
 from scipy.interpolate import BSpline
 from statsmodels.nonparametric.kde import KDEUnivariate
 
@@ -69,34 +69,43 @@ def setup_bspline_basis(y, degree=3, internal_knots=None):
     :param degree: The degree of the B-spline basis functions. Defaults to 3.
     :type degree: int
     :param knot_quantiles: The quantiles to use as knots for the B-spline basis functions.
-                           If None, quantiles [0.05, 0.1, 0.15, 0.2, 0.4, 0.6] will be used.
+                           If None, quantiles [0.1, 0.2, 0.4, 0.6] will be used.
                            Defaults to None.
     :type knot_quantiles: numpy.ndarray or None
-    :return: A function 
-    that evaluates the B-Spline basis.
+    :return: A function that evaluates the B-Spline basis.
     :rtype: Callable[[np.ndarray], np.ndarray]
     """
     if internal_knots is None:
-        internal_knots= np.linspace(min(y), max(y), 8)
+        internal_knots = [np.quantile(y, q) for q in [0.1, 0.2, 0.4, 0.6]]
 
-    knots = np.concatenate(([internal_knots[0]] * degree, internal_knots, [internal_knots[-1]] * degree))
+    
+    df = len(internal_knots) + degree + 1
+    spline_matrix = sb.BSplines(
+        y,
+        df=df,
+        degree=degree,
+        include_intercept=True,
+        knot_kwds=[{"knots": internal_knots}],
+    )
 
-    basis_elems = []
-    num_basis_elem = len(internal_knots) + degree + 1
-    for i in range(num_basis_elem):
-        coef = np.zeros(num_basis_elem)
-        coef[i] = 1
-        basis_elem = BSpline(knots, coef, degree)
-        basis_elems.append(basis_elem)
+    knots = spline_matrix.smoothers[0].knots
+    num_basis_elem = spline_matrix.basis.shape[1]
+    print("KNOTS:{}".format(knots))
 
     def get_basis(z):
-        res = []
-        for basis_elem in basis_elems:
-            vec = basis_elem(z)
-            res.append(vec) 
-        res = np.array(res).T.reshape(len(z), 1, len(basis_elems))
-        return res
-    return get_basis, len(basis_elems)
+        spline_matrix = sb.BSplines(
+            z,
+            df=df,
+            degree=degree,
+            include_intercept=True,
+            knot_kwds=[{"all_knots": knots}],
+        )
+
+        basis = spline_matrix.basis.reshape(len(z), 1, num_basis_elem)
+        return basis
+
+    return get_basis, num_basis_elem
+
 
 
 def lindsey_method(
@@ -461,6 +470,9 @@ def lindsey_method_with_covariates(
 
         best_idx = torch.argmax(pdf_matrix, axis=1)
         modes = unscaled_bin_ends[best_idx]
+
+        import pdb
+        pdb.set_trace()
 
         for i in range(len(X_test)):
             idx_extrema = np.sort(

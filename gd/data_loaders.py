@@ -17,6 +17,9 @@ CENTRAL_POOLED_DISTRICTS = [
     "ntcheu",
 ]
 
+INDIVIDUAL_POOLED_DISTRICTS = ["kasungu"]
+
+
 NORTHERN_POOLED_DISTRICTS = ["chitipa", 
                              "karonga", 
                              "mzimba", 
@@ -41,7 +44,8 @@ CATEGORICAL_FEATURES = [
     "hh_f12", 
     "hh_f19",
     "hh_t10",
-    "ag_s01", 
+    "ag_s01",
+    "hh_x07"
 ]
 
 
@@ -248,6 +252,8 @@ def get_pooled_dataset(district, pool, covariates):
         X1, y1, r1, features1 = get_rural_minus_district_dataset(
             district, covariates=covariates
         )
+    else:
+        X1, y1, r1, features1 = get_district_dataset([pool], covariates=covariates)
     return X1, y1, r1, features1
 
 
@@ -263,6 +269,9 @@ def get_datasets(district, pool, covariates):
         fold1 = (X1, y1, r1)
         fold2 = (X2, y2, r2)
         assert list(features1) == list(features2)
+    
+    print("Conditional Density Dataset Size:", len(y1))
+    print("Conditional Density Dataset Size:", len(y2))
 
     print(features1)
 
