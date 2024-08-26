@@ -7,7 +7,7 @@ import copy
 from opt_targeted_transfers.dataset_utils import standardize
 
 
-def get_quantile_regressor(dataset, tolerance, low_dim=False, n_epochs=300):
+def get_quantile_regressor(dataset, tolerance, log_transform=True, low_dim=False, n_epochs=300):
     """
     Get a quantile regressor for a given dataset.
 
@@ -25,6 +25,8 @@ def get_quantile_regressor(dataset, tolerance, low_dim=False, n_epochs=300):
     r = dataset.r
 
     X, X_mean, X_std = standardize(X)
+    if log_transform:
+        y = np.log(y)
     y, y_mean, y_std = standardize(y)
 
     np.random.seed(123456)
@@ -40,7 +42,9 @@ def get_quantile_regressor(dataset, tolerance, low_dim=False, n_epochs=300):
             q_hat = torch.nn.Sequential(torch.nn.Linear(d, 1))
         else:
             q_hat = torch.nn.Sequential(
-                torch.nn.Linear(d, 64), torch.nn.ReLU(), torch.nn.Linear(64, 1)
+                torch.nn.Linear(d, 64), 
+                torch.nn.ReLU(), 
+                torch.nn.Linear(64, 1), 
             )
 
         def quantile_loss(q_hat, idx):
@@ -52,33 +56,35 @@ def get_quantile_regressor(dataset, tolerance, low_dim=False, n_epochs=300):
                 y_pred - torch.Tensor(y[idx])
             )
 
-        optimizer = torch.optim.Adam(q_hat.parameters(), lr=1e-2)
+        optimizer = torch.optim.Adam(q_hat.parameters(), lr=5e-3)
         train_prop = 0.7
         idx_train_set, idx_val_set = list(range(int(train_prop * len(X)))), list(
             range(int(train_prop * len(X)), len(X))
         )
 
-        batch_size = int(len(idx_train_set) / 3)
+        batch_size = int(len(idx_train_set) / 5)
         print("Fitting conditional program - QR method via nonparametric regression...")
         pbar = tqdm.tqdm(list(range(n_epochs)))
         val_losses = []
         models = []
 
         for epoch in pbar:
-            if epoch % 25 == 0:
+            if epoch % 10 == 0:
+                q_hat.eval()
                 val_loss = torch.sum(
                     quantile_loss(q_hat, idx_val_set) * torch.Tensor(r[idx_val_set])
                 )
                 val_losses.append(val_loss.detach().item())
                 models.append(copy.deepcopy(q_hat))
 
+            q_hat.train()
             idx = np.random.choice(idx_train_set, size=batch_size)
             optimizer.zero_grad()
             loss = torch.sum(quantile_loss(q_hat, idx) * torch.Tensor(r[idx]))
             loss.backward()
             optimizer.step()
 
-            pbar.set_postfix({"loss": loss.item()})
+            pbar.set_postfix({"val loss": val_losses[-1]})
         best_model_idx = np.argmin(val_losses)
         final_q_hat = models[best_model_idx]
 
@@ -96,6 +102,9 @@ def get_quantile_regressor(dataset, tolerance, low_dim=False, n_epochs=300):
                 .detach()
                 .numpy()
             )
-        return np.maximum(quantile, 0)
+        if log_transform:
+            return np.maximum(np.exp(quantile), 0)
+        else:
+            return np.maximum(quantile, 0)
 
     return quantile_regressor

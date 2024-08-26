@@ -3,6 +3,7 @@ from opt_targeted_transfers import (
     UnconditionalTargetedTransfers,
     BinaryTargetedTransfers,
     OraclePovertyRateTargetedTransfers,
+    BinaryConditionalTargetedTransfers
 )
 from data_loaders import get_datasets, get_district_dataset
 from data_utils import aggregate_metrics
@@ -12,19 +13,19 @@ CBAR = 2.15
 COVARIATE_LIST = [
     "num_children", 
     "durable_asset_Bed", 
+    "hh_f12",
     "hh_f34", #num cellphones
     "hhsize", #household size
     "hh_f06", #construction materials categories
-    "hh_f12", #cooking fuel categories
     "ag_asset_AXE",
     "durable_asset_Television",
     "hh_x07", #own any livestock?
-    "district",
     "durable_asset_Radio with flash drive/micro CD",
     "durable_asset_Motorcycle / Scooter",
     "ag_asset_WATERING CAN",
     "ag_asset_PANGA KNIFE",
     "popdensity",
+    "district",
     "hh_f11", #lighting fuel categories
     "hh_f43", #rubbish disposal
     "hh_x04",
@@ -91,6 +92,8 @@ def saturation_policy(district, uncondtol, pool, numfeatures=None):
     final_metrics = get_final_metrics(metrics1)
     final_metrics["n_opt"] = len(fold2[0])
     final_metrics["policy"] = "saturation"
+
+    final_metrics["numfeatures"] = 0
     return final_metrics
 
 
@@ -134,6 +137,8 @@ def geographic_policy(district, uncondtol, numfeatures=None, pool=None):
     final_metrics = aggregate_metrics(metrics1, metrics2)
     final_metrics["n_opt"] = len(fold2[0])
     final_metrics["policy"] = "geographic"
+    final_metrics["numfeatures"] = 1
+
     return final_metrics
 
 
@@ -162,7 +167,7 @@ def binary_targeting_policy(district, uncondtol, pool, numfeatures=None):
             X_opt,
             y_opt,
             path="results/"
-            + "{}_equity_{}_uncondtol={}.csv".format(district, "binary", uncondtol),
+            + "{}_equity_{}_uncondtol={}_numfeatures={}.csv".format(district, "binary", uncondtol, numfeatures),
         )
         tt.save_opt_policy(
             "policies/{}_binary_uncondtol={}".format(district, uncondtol)
@@ -173,6 +178,8 @@ def binary_targeting_policy(district, uncondtol, pool, numfeatures=None):
     final_metrics = get_final_metrics(metrics1)
     final_metrics["n_opt"] = len(fold2[0])
     final_metrics["policy"] = "binary"
+    final_metrics["numfeatures"] = numfeatures
+
     return final_metrics
 
 
@@ -188,8 +195,7 @@ def optimized_policy(district, uncondtol, pool, numfeatures=None):
         )
         X_fit, y_fit, r_fit = fold_fit
         X_opt, y_opt, r_opt = fold_opt
-        tt.fit(X_fit, y_fit, n_epochs=500, internal_knots=[min(y_fit),  1.0, 
-                                                           2.0, 5, max(y_fit)])
+        tt.fit(X_fit, y_fit, n_epochs=500)
         tt.run_opt(
             X_opt,
             path="results/{}_{}_uncondtol={}_opt.csv".format(
@@ -202,7 +208,7 @@ def optimized_policy(district, uncondtol, pool, numfeatures=None):
             X_opt,
             y_opt,
             path="results/"
-            + "{}_equity_{}_uncondtol={}.csv".format(district, "optimized", uncondtol),
+            + "{}_equity_{}_uncondtol={}_numfeatures={}.csv".format(district, "optimized", uncondtol, numfeatures),
         )
         tt.save_opt_policy(
             "policies/{}_optimized_uncondtol={}".format(district, uncondtol)
@@ -213,6 +219,8 @@ def optimized_policy(district, uncondtol, pool, numfeatures=None):
     final_metrics = get_final_metrics(metrics)
     final_metrics["n_opt"] = len(fold2[0])
     final_metrics["policy"] = "optimized"
+    final_metrics["numfeatures"] = numfeatures
+
     return final_metrics
 
 
@@ -220,12 +228,20 @@ def oracle_policy(district, uncondtol, pool=None, numfeatures=None):
     X, y, r, features = get_district_dataset([district], covariates=None)
 
     tt = OraclePovertyRateTargetedTransfers(c_bar=CBAR, unconditional_tolerance=uncondtol)
-    tt.run_opt(y)
+    tt.run_opt(y, r)
     metrics = tt.evaluate(X, y)
+    tt.evaluate_equity(
+            X,
+            y,
+            path="results/"
+            + "{}_equity_{}_uncondtol={}.csv".format(district, "oracle", uncondtol),
+        )
 
     final_metrics = get_final_metrics(metrics)
     final_metrics["n_opt"] = len(y)
     final_metrics["policy"] = "oracle"
+    final_metrics["numfeatures"] = None
+
     return final_metrics
 
 
@@ -244,16 +260,58 @@ def conditional_optimized_policy(district, uncondtol, pool, numfeatures=None):
         )
         X_fit, y_fit, r_fit = fold_fit
         X_opt, y_opt, r_opt = fold_opt
-        tt.fit(X_fit, y_fit, low_dim=False, n_epochs=100)
+        tt.fit(X_fit, y_fit, log_transform=True, low_dim=False, n_epochs=500)
         tt.run_opt(X_opt)
         metrics = tt.evaluate(X_opt, y_opt)
+        tt.evaluate_equity(
+            X_opt,
+            y_opt,
+            path="results/"
+            + "{}_equity_{}_uncondtol={}_numfeatures={}.csv".format(district, "conditional_optimized", uncondtol, numfeatures),
+        )
         return metrics
 
     metrics1 = run(fold1, fold2)
     final_metrics = get_final_metrics(metrics1)
     final_metrics["n_opt"] = len(fold2[0])
     final_metrics["policy"] = "conditional_optimized"
+    final_metrics["numfeatures"] = numfeatures
     return final_metrics
+
+
+def binary_conditional_optimized_policy(district, uncondtol, pool, numfeatures=None):
+
+    # pooled = [d for d in POOLED_DISTRICTS if district != d]
+    # TODO ADD COVARIATES
+    # pooled=POOLED_DISTRICTS
+    fold1, fold2, features = get_datasets(
+        district, pool, covariates=get_covariates(district, numfeatures)
+    )
+
+    def run(fold_fit, fold_opt):
+        tt = BinaryConditionalTargetedTransfers(
+            c_bar=CBAR, conditional_tolerance=uncondtol, method="qr"
+        )
+        X_fit, y_fit, r_fit = fold_fit
+        X_opt, y_opt, r_opt = fold_opt
+        tt.fit(X_fit, y_fit, log_transform=True, low_dim=False, n_epochs=500)
+        tt.run_opt(X_opt)
+        metrics = tt.evaluate(X_opt, y_opt)
+        tt.evaluate_equity(
+            X_opt,
+            y_opt,
+            path="results/"
+            + "{}_equity_{}_uncondtol={}_numfeatures={}.csv".format(district, "binary_conditional_optimized", uncondtol, numfeatures),
+        )
+        return metrics
+
+    metrics1 = run(fold1, fold2)
+    final_metrics = get_final_metrics(metrics1)
+    final_metrics["n_opt"] = len(fold2[0])
+    final_metrics["policy"] = "binary_conditional_optimized"
+    final_metrics["numfeatures"] = numfeatures
+    return final_metrics
+
 
 
 def get_final_metrics(metrics):

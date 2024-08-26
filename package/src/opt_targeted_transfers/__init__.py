@@ -6,4 +6,5 @@ from opt_targeted_transfers.opt import (
     BinaryTargetedTransfers,
     OraclePovertyRateTargetedTransfers,
     GapTargetedTransfers
+    BinaryConditionalTargetedTransfers
 )

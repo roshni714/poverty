@@ -7,6 +7,7 @@ from policy import (
     oracle_policy,
     optimized_policy,
     conditional_optimized_policy,
+    binary_conditional_optimized_policy
 )
 
 
@@ -17,6 +18,7 @@ POLICY_METHODS = {
     "oracle": oracle_policy,
     "optimized": optimized_policy,
     "conditional_optimized": conditional_optimized_policy,
+    "binary_conditional_optimized": binary_conditional_optimized_policy
 }
 
 
