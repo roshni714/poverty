@@ -15,7 +15,7 @@ from opt_targeted_transfers.reporting import write_result
 
 import dill as pickle
 import numpy as np
-from bisect import bisect
+from bisect import bisect_left
 
 
 class TargetedTransfers:
@@ -569,9 +569,132 @@ class HybridTargetedTransfers(TargetedTransfers):
         t_joint_program_est = t_alpha_joint_programs[idx]
         self.opt_policy = t_joint_program_est
         return t_joint_program_est
-    
 
 
+class GapTargetedTransfers(TargetedTransfers):
+    """
+    Poverty-gap targeting
+
+    For now, sweeps out a cost-gap curve.
+    """
+
+    def __init__(self, c_bar=2.15):
+        """
+        Initialize a new instance of the UnconditionalTargetedTransfers class.
+        :param method: The method used for fitting the nuisance parameter. Either "qr" or "density."
+        :type method: str
+        :type name: str
+        :param c_bar: The minimum threshold value (poverty line). Defaults to 2.15.
+        :type c_bar: float
+        """
+
+        super().__init__(
+            c_bar=c_bar,
+            conditional_tolerance=None,
+            unconditional_tolerance=None,
+        )
+        self.name = "gap"
+        self.quantile_regressors = None
+
+    def fit(
+        self,
+        X_train,
+        y_train,
+        r_train=None,
+        low_dim=False,
+        n_epochs=300,
+        n_quantiles=20
+    ):
+        """
+        Fitting the quantile regression.
+
+        :param X_train: The input features of the training data.
+        :type X_train: numpy.ndarray
+        :param y_train: The target values of the training data.
+        :type y_train: numpy.ndarray
+        :param r_train: The sampling weight variable of the training data. Defaults to None.
+        :type r_train: numpy.ndarray or None
+        :type log_transform: bool
+        :param n_epochs: The number of epochs to train the model. Defaults to 300.
+        :type n_epochs: int
+        """
+
+        self.quantiles = np.linspace(0, 1, n_quantiles, endpoint=False)
+
+        dataset = Dataset(X_train, y_train, r_train)
+
+        self.quantile_regressors = dict()
+
+        for quantile in self.quantiles:
+            self.quantile_regressors[quantile] = get_quantile_regressor(
+                dataset, quantile, low_dim=low_dim, n_epochs=n_epochs
+            )
+
+    def run_opt(self, X_test, lambda_):
+        """
+        Run the optimization algorithm.
+
+        :param X_test: The input features of the test data.
+        :type X_test: numpy.ndarray
+        """
+
+        if self.quantile_regressors is None:
+            assert False, "Need to fit quantile regressors"
+
+        quantile_index = bisect_left(self.quantiles, lambda_)
+
+        # if quantile_index == len(self.quantiles), then lambda_ is > all evaluated quantiles.
+        # if quantile_index == 0 then lambda_ is <= all evaluated quantiles.
+        # In that case for now I don't attempt to fake interpolation.
+        if (
+            (lambda_ == self.quantiles[quantile_index])
+            or (quantile_index == len(self.quantiles))
+            or (quantile_index == 0)
+        ):
+            baseline_lambda_quantile_wealth_level = (
+                self.quantile_regressors[self.quantiles[quantile_index]](X_test)
+            )
+
+        else:
+            quantile_index_low = quantile_index - 1
+            quantile_index_high = quantile_index 
+
+            if not (
+                (lambda_ > self.quantiles[quantile_index_low])
+                & (lambda_ < self.quantiles[quantile_index_high])
+            ):
+                from IPython import embed
+                embed()
+            assert lambda_ > self.quantiles[quantile_index_low]
+            assert lambda_ < self.quantiles[quantile_index_high]
+            
+            interpolation_factor = (
+                (lambda_ - self.quantiles[quantile_index_low]) 
+                / (self.quantiles[quantile_index_high] - self.quantiles[quantile_index_low])
+            )
+
+            baseline_lambda_quantile_wealth_level_low = (
+                self.quantile_regressors[self.quantiles[quantile_index_low]](X_test)
+            )
+            baseline_lambda_quantile_wealth_level_high = (
+                self.quantile_regressors[self.quantiles[quantile_index_high]](X_test)
+            )
+
+            baseline_lambda_quantile_wealth_level = (
+                (1 - interpolation_factor) * baseline_lambda_quantile_wealth_level_low
+                + interpolation_factor * baseline_lambda_quantile_wealth_level_high
+            )
+
+        transfer = np.maximum(self.c_bar - baseline_lambda_quantile_wealth_level, 0)
+
+        def t(X_test):
+            assignments = {x_idx: [] for x_idx in range(len(X_test))}
+            for i in range(len(X_test)):
+                assignments[i].append((transfer[i].item(), 1.0))
+            return assignments
+
+        self.opt_policy = t
+        return t
 
 
 # class UnconditionalDiscreteTransfers(TargetedTransfers):
