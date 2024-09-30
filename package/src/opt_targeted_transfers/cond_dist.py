@@ -308,11 +308,7 @@ class NonparametricConditionalDistribution(ConditionalDistribution):
         domains = []
         for i in range(len(self.extrema) + 1):
             if i == 0:
-                try:
-                    zs = np.linspace(self.outcome_range[0], self.extrema[i], 1000)
-                except:
-                    print(len(self.outcome_range), len(self.extrema))
-                    raise
+                zs = np.linspace(self.outcome_range[0], self.extrema[i], 1000)
             elif i == len(self.extrema):
                 zs = np.linspace(self.extrema[-1], self.outcome_range[1], 1000)
             else:
