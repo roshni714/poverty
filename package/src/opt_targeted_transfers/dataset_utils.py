@@ -35,12 +35,22 @@ class Dataset:
         :type y: numpy.ndarray or None
         :param r: The weights. Defaults to uniform weights if r is None.
         :type r: numpy.ndarray or None
+        :param normalize_weight_sum: Whether to normalize the weights to sum to 1.
+        :type normalize_weight_sum: bool
         """
         self.X = X
         self.y = y
 
+        if X is None:
+            if y is None:
+                raise ValueError('Need at least one of X and y')
+
+            length = len(y)
+        else:
+            length = len(X)
+
         if r is None:
-            r = np.ones(len(X))
+            r = np.ones(length)
 
         if normalize_weight_sum:
             self.r = r / r.sum()

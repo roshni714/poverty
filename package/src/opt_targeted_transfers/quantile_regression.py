@@ -7,7 +7,9 @@ import copy
 from opt_targeted_transfers.dataset_utils import standardize
 
 
-def get_quantile_regressor(dataset, tolerance, log_transform=True, low_dim=False, n_epochs=300):
+def get_quantile_regressor(
+    dataset, tolerance, log_transform=True, low_dim=False, n_epochs=300, hidden_layer_size=64
+):
     """
     Get a quantile regressor for a given dataset.
 
@@ -17,6 +19,8 @@ def get_quantile_regressor(dataset, tolerance, log_transform=True, low_dim=False
     :type tolerance: float
     :param n_epochs: The number of epochs for training the regressor. Defaults to 300.
     :type n_epochs: int
+    :param hidden_layer_size: size of the hidden layer in the neural net.
+    :type hidden_layer_size: int
     :return: The quantile regressor.
     :rtype: Callable[[np.ndarray], np.ndarray]
     """
@@ -42,9 +46,9 @@ def get_quantile_regressor(dataset, tolerance, log_transform=True, low_dim=False
             q_hat = torch.nn.Sequential(torch.nn.Linear(d, 1))
         else:
             q_hat = torch.nn.Sequential(
-                torch.nn.Linear(d, 64), 
+                torch.nn.Linear(d, hidden_layer_size),
                 torch.nn.ReLU(), 
-                torch.nn.Linear(64, 1), 
+                torch.nn.Linear(hidden_layer_size, 1), 
             )
 
         def quantile_loss(q_hat, idx):

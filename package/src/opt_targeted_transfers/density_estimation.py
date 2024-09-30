@@ -471,9 +471,6 @@ def lindsey_method_with_covariates(
         best_idx = torch.argmax(pdf_matrix, axis=1)
         modes = unscaled_bin_ends[best_idx]
 
-        import pdb
-        pdb.set_trace()
-
         for i in range(len(X_test)):
             idx_extrema = np.sort(
                 np.hstack(

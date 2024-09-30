@@ -5,7 +5,11 @@ from opt_targeted_transfers.knapsack import (
     compute_alpha_opt_policies,
     compute_opt_policy_knapsack,
 )
-from opt_targeted_transfers.oracle import run_oracle_poverty_rate #run_oracle_poverty_gap
+from opt_targeted_transfers.oracle import (
+    run_oracle_poverty_rate,
+    run_oracle_poverty_gap_floor_scheme,
+    run_oracle_poverty_gap_lift_to_line_scheme
+)
 from opt_targeted_transfers.quantile_regression import get_quantile_regressor
 from opt_targeted_transfers.evaluate import (
     post_transfer_metrics,
@@ -573,17 +577,11 @@ class HybridTargetedTransfers(TargetedTransfers):
 
 class GapTargetedTransfers(TargetedTransfers):
     """
-    Poverty-gap targeting
-
-    For now, sweeps out a cost-gap curve.
+    Poverty-gap targeting.
     """
 
     def __init__(self, c_bar=2.15):
         """
-        Initialize a new instance of the UnconditionalTargetedTransfers class.
-        :param method: The method used for fitting the nuisance parameter. Either "qr" or "density."
-        :type method: str
-        :type name: str
         :param c_bar: The minimum threshold value (poverty line). Defaults to 2.15.
         :type c_bar: float
         """
@@ -591,10 +589,43 @@ class GapTargetedTransfers(TargetedTransfers):
         super().__init__(
             c_bar=c_bar,
             conditional_tolerance=None,
-            unconditional_tolerance=None,
+            unconditional_tolerance=None
         )
         self.name = "gap"
         self.quantile_regressors = None
+
+    def _fit_quantile_regressors(
+        self,
+        train_dataset,
+        low_dim=False,
+        n_epochs=300,
+        n_quantiles=20,
+        hidden_layer_size=64
+    ):
+    
+        quantiles = np.linspace(0, 1, n_quantiles, endpoint=False)
+
+        quantile_regressors = dict()
+
+        for quantile in quantiles:
+            quantile_regressors[quantile] = get_quantile_regressor(
+                train_dataset, quantile, low_dim=low_dim, 
+                n_epochs=n_epochs, hidden_layer_size=hidden_layer_size
+            )
+
+        return quantile_regressors
+
+
+    def set_conditional_tolerance(self, conditional_tolerance):
+        raise NotImplementedError(
+            "Gap targeting can't use conditional tolerances."
+        )
+
+    
+    def set_conditional_tolerance(self, unconditional_tolerance):
+        raise NotImplementedError(
+            "Not yet"
+        )
 
     def fit(
         self,
@@ -603,7 +634,8 @@ class GapTargetedTransfers(TargetedTransfers):
         r_train=None,
         low_dim=False,
         n_epochs=300,
-        n_quantiles=20
+        n_quantiles=20,
+        hidden_layer_size=64
     ):
         """
         Fitting the quantile regression.
@@ -617,86 +649,159 @@ class GapTargetedTransfers(TargetedTransfers):
         :type log_transform: bool
         :param n_epochs: The number of epochs to train the model. Defaults to 300.
         :type n_epochs: int
+        :param n_quantiles: The number of quantiles to fit.
+        :type n_quantiles: int
+        :param hidden_layer_size: The size of the hidden layer in the quantile-fitting neural net
+        :type hidden_layer_size: int
         """
 
-        self.quantiles = np.linspace(0, 1, n_quantiles, endpoint=False)
+        self.train_dataset = Dataset(X_train, y_train, r_train)
 
-        dataset = Dataset(X_train, y_train, r_train)
+        self.quantile_regressors = self._fit_quantile_regressors(
+            self.train_dataset,
+            low_dim=low_dim,
+            n_epochs=n_epochs,
+            n_quantiles=n_quantiles,
+            hidden_layer_size=hidden_layer_size
+        )
 
-        self.quantile_regressors = dict()
+        # TODO: Remove. For now, needed for directly checking quantile fits.
+        return self.quantile_regressors.keys(), self.quantile_regressors, self.train_dataset
 
-        for quantile in self.quantiles:
-            self.quantile_regressors[quantile] = get_quantile_regressor(
-                dataset, quantile, low_dim=low_dim, n_epochs=n_epochs
+    def _get_baseline_wealth_at_quantile(self, X, quantile, quantile_regressors):
+        """
+        Evaluates the expected wealth of each household at the given quantile, given its
+        predictors.
+        """            
+
+        quantiles = list(quantile_regressors.keys())
+        quantiles.sort()
+        
+        quantile_index = bisect_left(quantiles, quantile)
+
+        # if quantile_index == len(quantiles), then quantile is > all evaluated quantiles.
+        # if quantile_index == 0 then quantile is <= all evaluated quantiles.
+        # In that case for now I don't attempt to fake interpolation. This means
+        # it's important to fit a quantile near or at zero.
+        if quantile_index == len(quantiles):
+
+            baseline_quantile_wealth_level = (
+                quantile_regressors[quantiles[quantile_index - 1]](X)
             )
 
-    def run_opt(self, X_test, lambda_):
-        """
-        Run the optimization algorithm.
-
-        :param X_test: The input features of the test data.
-        :type X_test: numpy.ndarray
-        """
-
-        if self.quantile_regressors is None:
-            assert False, "Need to fit quantile regressors"
-
-        quantile_index = bisect_left(self.quantiles, lambda_)
-
-        # if quantile_index == len(self.quantiles), then lambda_ is > all evaluated quantiles.
-        # if quantile_index == 0 then lambda_ is <= all evaluated quantiles.
-        # In that case for now I don't attempt to fake interpolation.
-        if (
-            (lambda_ == self.quantiles[quantile_index])
-            or (quantile_index == len(self.quantiles))
+        elif (
+            (quantile == quantiles[quantile_index])
             or (quantile_index == 0)
         ):
-            baseline_lambda_quantile_wealth_level = (
-                self.quantile_regressors[self.quantiles[quantile_index]](X_test)
+
+            baseline_quantile_wealth_level = (
+                quantile_regressors[quantiles[quantile_index]](X)
             )
 
+        # interpolate
         else:
             quantile_index_low = quantile_index - 1
             quantile_index_high = quantile_index 
-
-            if not (
-                (lambda_ > self.quantiles[quantile_index_low])
-                & (lambda_ < self.quantiles[quantile_index_high])
-            ):
-                from IPython import embed
-                embed()
-            assert lambda_ > self.quantiles[quantile_index_low]
-            assert lambda_ < self.quantiles[quantile_index_high]
+           
+            assert quantile > quantiles[quantile_index_low]
+            assert quantile < quantiles[quantile_index_high]
             
             interpolation_factor = (
-                (lambda_ - self.quantiles[quantile_index_low]) 
-                / (self.quantiles[quantile_index_high] - self.quantiles[quantile_index_low])
+                (quantile - quantiles[quantile_index_low]) 
+                / (quantiles[quantile_index_high] - quantiles[quantile_index_low])
             )
 
-            baseline_lambda_quantile_wealth_level_low = (
-                self.quantile_regressors[self.quantiles[quantile_index_low]](X_test)
+            baseline_quantile_wealth_level_low = (
+                quantile_regressors[quantiles[quantile_index_low]](X)
             )
-            baseline_lambda_quantile_wealth_level_high = (
-                self.quantile_regressors[self.quantiles[quantile_index_high]](X_test)
-            )
-
-            baseline_lambda_quantile_wealth_level = (
-                (1 - interpolation_factor) * baseline_lambda_quantile_wealth_level_low
-                + interpolation_factor * baseline_lambda_quantile_wealth_level_high
+            baseline_quantile_wealth_level_high = (
+                quantile_regressors[quantiles[quantile_index_high]](X)
             )
 
+            baseline_quantile_wealth_level = (
+                (1 - interpolation_factor) * baseline_quantile_wealth_level_low
+                + interpolation_factor * baseline_quantile_wealth_level_high
+            )
+
+        return baseline_quantile_wealth_level
+
+
+    def _get_policy_for_lambda(self, X, lambda_, quantile_regressors=None):
+
+        if quantile_regressors is None:
+            quantile_regressors = self.quantile_regressors
+        
+        if quantile_regressors is None:
+            raise ValueError("Missing quantile regressors.")
+
+        baseline_lambda_quantile_wealth_level = self._get_baseline_wealth_at_quantile(
+            X, lambda_, quantile_regressors
+        )
+        
         transfer = np.maximum(self.c_bar - baseline_lambda_quantile_wealth_level, 0)
 
-        def t(X_test):
-            assignments = {x_idx: [] for x_idx in range(len(X_test))}
-            for i in range(len(X_test)):
+        def t(X):
+            assignments = {x_idx: [] for x_idx in range(len(X))}
+            for i in range(len(X)):
                 assignments[i].append((transfer[i].item(), 1.0))
             return assignments
 
-        self.opt_policy = t
         return t
 
 
+    def run_opt(self, X_test, lambda_):
+
+        t = self._get_policy_for_lambda(X_test, lambda_, quantile_regressors=self.quantile_regressors)
+        self.opt_policy = t
+
+
+class OracleGapTargetedTransfers(TargetedTransfers):
+    """
+    There is not one well-defined optimal policy to minimize the post-transfer poverty gap: As long as 
+    every dollar goes to households below the poverty line, the reduction in poverty gap will be the optimal. 
+    This class implements two policies: 
+      * lifting as many households as possible to the poverty line, with the restriction that a less-poor 
+        household does not receive more than a poorer household: this amounts to iteratively raising households
+        to the poverty line, starting from the poorest, until the desired tolerance is reached.
+      * raising a poverty "floor" until the desired tolerance is reached.
+    """
+
+    def __init__(self, c_bar=2.15, unconditional_tolerance=None, scheme='lift_to_line'):
+
+        assert scheme in ('lift_to_line', 'floor')
+        
+        super().__init__(
+            c_bar=c_bar,
+            unconditional_tolerance=unconditional_tolerance,
+            conditional_tolerance=None,
+        )
+        self.name = "oracle_poverty_gap"
+        self.scheme = scheme
+
+
+    def set_conditional_tolerance(self, conditional_tolerance):
+        raise NotImplementedError(
+            "OraclePovertyGapTargetedTransfer can't use conditional tolerances."
+        )
+
+
+    def run_opt(self, y_test, r_test=None):
+
+        dataset = Dataset(X=None, y=y_test, r=r_test)
+
+        if self.scheme == 'lift_to_line':
+
+            self.opt_policy = run_oracle_poverty_gap_lift_to_line_scheme(
+                dataset, tolerance=self.unconditional_tolerance, c_bar=self.c_bar
+            )
+
+        else:
+            self.opt_policy = run_oracle_poverty_gap_floor_scheme(
+                dataset, tolerance=self.unconditional_tolerance, c_bar=self.c_bar
+            )
+
+        return self.opt_policy
+    
 # class UnconditionalDiscreteTransfers(TargetedTransfers):
 
 #     def __init__(
