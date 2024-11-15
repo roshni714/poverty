@@ -77,7 +77,7 @@ def run_oracle_poverty_rate(dataset, tolerance, c_bar):
 def run_oracle_poverty_gap_lift_to_line_scheme(dataset, tolerance, c_bar):
     # Behaves slightly wrong if multiple households have identical income and they
     # happen to fall right on the border between those receiving and not receiving 
-    # transfers. Identical incomes are unlikelygiven how consumption aggregates are 
+    # transfers. Identical incomes are unlikely given how consumption aggregates are 
     # calculated. Will fix eventually.
     
     gaps = np.maximum(c_bar - np.array(dataset.y), 0)
@@ -88,6 +88,8 @@ def run_oracle_poverty_gap_lift_to_line_scheme(dataset, tolerance, c_bar):
     sorting_indices = np.argsort(gaps)
 
     tolerance_remaining = tolerance
+
+    wealth_receiving_partial_transfer = 0
     
     for i in sorting_indices:
 
@@ -117,6 +119,7 @@ def run_oracle_poverty_gap_lift_to_line_scheme(dataset, tolerance, c_bar):
         return assignments
         
     return t
+
 
 def run_oracle_poverty_gap_floor_scheme(dataset, tolerance, c_bar):
     

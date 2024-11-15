@@ -21,6 +21,14 @@ import dill as pickle
 import numpy as np
 from bisect import bisect_left
 
+import torch
+import numpy as np
+import tqdm
+import copy
+
+from opt_targeted_transfers.dataset_utils import standardize
+
+
 
 class TargetedTransfers:
     """
@@ -122,7 +130,7 @@ class TargetedTransfers:
             d = 0
         result.update(
             {
-                "method": self.name,
+                "policy_type": self.name,
                 "unconditional_tolerance": self.unconditional_tolerance,
                 "conditional_tolerance": self.conditional_tolerance,
                 "d": d,
@@ -187,7 +195,7 @@ class ConditionalTargetedTransfers(TargetedTransfers):
             conditional_tolerance=conditional_tolerance,
             unconditional_tolerance=conditional_tolerance,
         )
-        self.name = "conditional_{}".format(method)
+        self.name = "conditional_{}_rate".format(method)
         self.method = method
         self.quantile_regressor = None
         self.density_estimator = None
@@ -332,7 +340,7 @@ class UnconditionalTargetedTransfers(TargetedTransfers):
             unconditional_tolerance=unconditional_tolerance,
             conditional_tolerance=None,
         )
-        self.name = "unconditional"
+        self.name = "unconditional_rate"
         self.density_estimator = None
         self.opt_policy = None
 
@@ -454,7 +462,7 @@ class HybridTargetedTransfers(TargetedTransfers):
             unconditional_tolerance=unconditional_tolerance,
             conditional_tolerance=conditional_tolerance,
         )
-        self.name = "hybrid"
+        self.name = "hybrid_rate"
         self.density_estimator = None
         self.opt_policy = None
 
@@ -603,7 +611,7 @@ class GapTargetedTransfers(TargetedTransfers):
         hidden_layer_size=64
     ):
     
-        quantiles = np.linspace(0, 1, n_quantiles, endpoint=False)
+        quantiles = np.linspace(0, 1, n_quantiles, endpoint=True)
 
         quantile_regressors = dict()
 
@@ -622,7 +630,7 @@ class GapTargetedTransfers(TargetedTransfers):
         )
 
     
-    def set_conditional_tolerance(self, unconditional_tolerance):
+    def set_unconditional_tolerance(self, unconditional_tolerance):
         raise NotImplementedError(
             "Not yet"
         )
@@ -646,7 +654,6 @@ class GapTargetedTransfers(TargetedTransfers):
         :type y_train: numpy.ndarray
         :param r_train: The sampling weight variable of the training data. Defaults to None.
         :type r_train: numpy.ndarray or None
-        :type log_transform: bool
         :param n_epochs: The number of epochs to train the model. Defaults to 300.
         :type n_epochs: int
         :param n_quantiles: The number of quantiles to fit.
@@ -668,12 +675,17 @@ class GapTargetedTransfers(TargetedTransfers):
         # TODO: Remove. For now, needed for directly checking quantile fits.
         return self.quantile_regressors.keys(), self.quantile_regressors, self.train_dataset
 
-    def _get_baseline_wealth_at_quantile(self, X, quantile, quantile_regressors):
+
+    def _get_baseline_wealth_at_quantile(self, X, quantile):
         """
         Evaluates the expected wealth of each household at the given quantile, given its
         predictors.
-        """            
+        """
 
+        quantile_regressors = self.quantile_regressors
+        if quantile_regressors is None:
+            raise ValueError('Missing quantile regressors - run fit first.')
+    
         quantiles = list(quantile_regressors.keys())
         quantiles.sort()
         
@@ -726,16 +738,14 @@ class GapTargetedTransfers(TargetedTransfers):
         return baseline_quantile_wealth_level
 
 
-    def _get_policy_for_lambda(self, X, lambda_, quantile_regressors=None):
+    def _get_policy_for_lambda(self, X, lambda_):
 
+        quantile_regressors = self.quantile_regressors
         if quantile_regressors is None:
-            quantile_regressors = self.quantile_regressors
-        
-        if quantile_regressors is None:
-            raise ValueError("Missing quantile regressors.")
+            raise ValueError('Missing quantile regressors - run fit first.')
 
         baseline_lambda_quantile_wealth_level = self._get_baseline_wealth_at_quantile(
-            X, lambda_, quantile_regressors
+            X, lambda_
         )
         
         transfer = np.maximum(self.c_bar - baseline_lambda_quantile_wealth_level, 0)
@@ -751,8 +761,223 @@ class GapTargetedTransfers(TargetedTransfers):
 
     def run_opt(self, X_test, lambda_):
 
-        t = self._get_policy_for_lambda(X_test, lambda_, quantile_regressors=self.quantile_regressors)
+        t = self._get_policy_for_lambda(X_test, lambda_)
         self.opt_policy = t
+
+
+class BinaryGapTargetedTransfers(TargetedTransfers):
+
+    # TODO: Hit expected budget exactly by having one stochastic transfer 
+
+    def __init__(self, c_bar=2.15, budget=None):
+        super().__init__(
+            c_bar=c_bar,
+            unconditional_tolerance=None,
+            conditional_tolerance=None
+        )
+    
+        self.name = 'binary_gap'
+        assert budget is not None
+        self.budget = budget
+
+    def fit(        
+        self,
+        X_train,
+        y_train,
+        r_train=None,
+        low_dim=False,
+        n_epochs=300,
+        hidden_layer_size=64,
+        num_t_values=20
+    ):
+
+        candidate_t_values = np.linspace(0, self.c_bar, num_t_values, endpoint=True)
+
+        best_t = 0
+        lowest_post_transfer_gap = None
+        household_benefit_estimator_for_best_t = None
+
+        train_dataset = Dataset(X_train, y_train, r_train, normalize_weight_sum=True)
+        inner_train, inner_test = train_dataset.split(p=0.6)
+
+        for t in candidate_t_values:
+
+            household_benefit_estimator = self._fit_household_benefit_estimator(
+                inner_train.X, 
+                inner_train.y, 
+                inner_train.r, 
+                t, low_dim=low_dim, 
+                n_epochs=n_epochs, 
+                hidden_layer_size=hidden_layer_size
+            )
+
+            indices_to_receive_transfers = self._get_indices_to_receive_transfers(
+                inner_test.X, inner_test.r, t, household_benefit_estimator
+            )
+
+            post_transfer_outcomes = inner_test.y.copy()
+            np.add.at(post_transfer_outcomes, indices_to_receive_transfers, t)
+            
+            post_transfer_gaps = np.maximum(
+                self.c_bar - post_transfer_outcomes, 0
+            )
+
+            # this isn't actually the mean gap - we'd need to divide by r.sum(), because
+            # these weights weren't normalized across the inner test subset. But we're using
+            # the same test set for all values of t so this improper normalization doesn't matter. 
+            # So for efficiency, we don't correct it.
+            mean_gap = np.sum(post_transfer_gaps * inner_test.r)
+            if (lowest_post_transfer_gap is None) or (mean_gap < lowest_post_transfer_gap):
+                lowest_post_transfer_gap = mean_gap
+                best_t = t
+                household_benefit_estimator_for_best_t = household_benefit_estimator
+        
+        self.t = best_t
+        self.household_benefit_estimator = household_benefit_estimator_for_best_t
+
+    
+    def run_opt(self, X_test, r_test=None):
+        
+        if (self.t is None) or (self.household_benefit_estimator is None):
+            raise ValueError('Need to run fit before a policy can be computed')
+        
+        if r_test is None:
+            r_test = np.ones(len(X_test))
+
+        r_test = r_test / np.sum(r_test)
+
+        indices_to_receive_transfers = self._get_indices_to_receive_transfers(
+            X_test, r_test, self.t, self.household_benefit_estimator
+        )
+
+        def transfer_function(X):
+            # X and X_test should match. I'd like to revisit this system at some point.
+            assert len(X) == len(X_test)
+            t = self.t
+
+            assignments = {i: [(0, 1.0)] for i in range(len(X))}
+            for i in indices_to_receive_transfers:
+                assignments[i] = [(t, 1.0)]
+            return assignments
+
+        self.opt_policy = transfer_function
+        return transfer_function
+
+
+    def _get_indices_to_receive_transfers(self, X, r, t, household_benefit_estimator):
+        
+        estimated_benefits = household_benefit_estimator(X)
+
+        sorting_indices = np.argsort(estimated_benefits)[::-1]
+        budget_remaining = self.budget
+
+        r = r / r.sum()
+
+        number_of_transfers = len(sorting_indices)
+
+        for count, sorting_index in enumerate(sorting_indices):
+
+            cost = r[sorting_index] * t
+            if budget_remaining < cost:
+                number_of_transfers = count
+                break
+            budget_remaining -= cost
+        
+        return sorting_indices[:number_of_transfers]
+
+
+    def _fit_household_benefit_estimator(
+            self, X, y, r, t, low_dim=False, n_epochs=300, hidden_layer_size=64
+    ):
+
+        X, X_mean, X_std = standardize(X)
+
+        current_gaps = np.maximum(self.c_bar - y, 0)
+        gaps_after_transfer = np.maximum(self.c_bar - t - y, 0)
+
+        benefits = current_gaps - gaps_after_transfer
+        assert np.min(benefits) >= 0
+
+        benefits, benefits_mean, benefits_std = standardize(benefits)
+
+        np.random.seed(123456)
+        torch.manual_seed(123456)
+
+        if X.shape[1] != 0:
+
+            d = X.shape[1]
+
+            if low_dim:
+                predictor = torch.nn.Sequential(torch.nn.Linear(d, 1))
+            else:
+                predictor = torch.nn.Sequential(
+                    torch.nn.Linear(d, hidden_layer_size),
+                    torch.nn.ReLU(), 
+                    torch.nn.Linear(hidden_layer_size, 1), 
+                )
+
+            def loss_function(predictor, idx):
+
+                predicted_benefits = predictor(torch.Tensor(X[idx, :]))
+                return torch.sum(
+                    (predicted_benefits - torch.Tensor(benefits[idx]) ** 2)
+                )
+
+            optimizer = torch.optim.Adam(predictor.parameters(), lr=5e-3)
+            train_prop = 0.7
+            idx_train_set, idx_val_set = list(range(int(train_prop * len(X)))), list(
+                range(int(train_prop * len(X)), len(X))
+            )
+
+            batch_size = int(len(idx_train_set) / 5)
+            print(f'Fitting estimator for household benefit from transfer of size {t}')
+            pbar = tqdm.tqdm(list(range(n_epochs)))
+            val_losses = []
+            models = []
+
+            for epoch in pbar:
+                if epoch % 10 == 0:
+                    predictor.eval()
+                    val_loss = torch.sum(
+                        loss_function(predictor, idx_val_set) * torch.Tensor(r[idx_val_set])
+                    )
+                    val_losses.append(val_loss.detach().item())
+                    models.append(copy.deepcopy(predictor))
+
+                predictor.train()
+                idx = np.random.choice(idx_train_set, size=batch_size)
+                optimizer.zero_grad()
+
+                unweighted_loss = loss_function(predictor, idx)
+                weights =  torch.Tensor(r[idx])
+                loss = torch.sum(unweighted_loss * weights)
+                loss.backward()
+                optimizer.step()
+
+                pbar.set_postfix({"val loss": val_losses[-1]})
+
+            best_model_idx = np.argmin(val_losses)
+            final_predictor = models[best_model_idx]
+
+        def estimator(X_test):
+            if X_test.shape[1] == 0:
+                predicted_benefits = benefits_mean * np.ones((X_test.shape[0], 1))
+            else:
+                X_test = (X_test - X_mean) / X_std
+                predicted_benefits = (
+                    (
+                        final_predictor(torch.Tensor(X_test)).reshape(X_test.shape[0], 1)
+                        * benefits_std
+                        + benefits_mean
+                    )
+                    .detach()
+                    .numpy()
+                    .flatten()
+                )
+
+            return np.maximum(predicted_benefits, 0)
+
+        return estimator
 
 
 class OracleGapTargetedTransfers(TargetedTransfers):
@@ -762,8 +987,10 @@ class OracleGapTargetedTransfers(TargetedTransfers):
     This class implements two policies: 
       * lifting as many households as possible to the poverty line, with the restriction that a less-poor 
         household does not receive more than a poorer household: this amounts to iteratively raising households
-        to the poverty line, starting from the poorest, until the desired tolerance is reached.
-      * raising a poverty "floor" until the desired tolerance is reached.
+        to the poverty line, starting from the poorest, until the specified tolerance is reached.
+      * raising a poverty "floor" until the desired tolerance is reached: a floor is a wealth level below which no
+        household is permitted to be. Any household below that floor receives a transfer of the appropriate size
+        to raise them to the floor. The floor is set to minimally satisfy the specified tolerance.
     """
 
     def __init__(self, c_bar=2.15, unconditional_tolerance=None, scheme='lift_to_line'):
@@ -775,7 +1002,7 @@ class OracleGapTargetedTransfers(TargetedTransfers):
             unconditional_tolerance=unconditional_tolerance,
             conditional_tolerance=None,
         )
-        self.name = "oracle_poverty_gap"
+        self.name = "oracle_gap"
         self.scheme = scheme
 
 
@@ -902,7 +1129,7 @@ class BinaryTargetedTransfers(TargetedTransfers):
             unconditional_tolerance=unconditional_tolerance,
             conditional_tolerance=conditional_tolerance,
         )
-        self.name = "binary"
+        self.name = "binary_rate"
 
     def fit(
         self,
@@ -1004,7 +1231,7 @@ class BinaryConditionalTargetedTransfers(TargetedTransfers):
             conditional_tolerance=conditional_tolerance,
             unconditional_tolerance=conditional_tolerance,
         )
-        self.name = "conditional_{}".format(method)
+        self.name = "conditional_{}_rate".format(method)
         self.method = method
         self.quantile_regressor = None
         self.density_estimator = None
@@ -1154,7 +1381,7 @@ class OraclePovertyRateTargetedTransfers(TargetedTransfers):
             unconditional_tolerance=unconditional_tolerance,
             conditional_tolerance=None,
         )
-        self.name = "oracle_poverty_rate"
+        self.name = "oracle_rate"
 
     def set_conditional_tolerance(self, conditional_tolerance):
         raise NotImplementedError(
