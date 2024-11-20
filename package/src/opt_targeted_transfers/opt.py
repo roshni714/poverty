@@ -610,6 +610,20 @@ class GapTargetedTransfers(TargetedTransfers):
         n_quantiles=20,
         hidden_layer_size=64
     ):
+        """
+        :param train_dataset: The dataset used for training the regressors
+        :type train_dataset: Dataset
+        :param low_dim: Whether to use a single-layered nn for regression
+        :type low_dim: bool
+        :param n_epochs: The number of epochs for training the regressors
+        :type n_epochs: int
+        :param n_quantiles: The number of (evenly spaced) quantiles to fit
+        :type n_quantils: int
+        :param hidden_layer_size: size of the hidden layer in the neural net
+        :type hidden_layer_size: int
+        :return: The quantile regressors.
+        :rtype: Dict[int, Callable[[np.ndarray], np.ndarray]]
+        """
     
         quantiles = np.linspace(0, 1, n_quantiles, endpoint=True)
 
@@ -685,7 +699,7 @@ class GapTargetedTransfers(TargetedTransfers):
         quantile_regressors = self.quantile_regressors
         if quantile_regressors is None:
             raise ValueError('Missing quantile regressors - run fit first.')
-    
+
         quantiles = list(quantile_regressors.keys())
         quantiles.sort()
         
@@ -767,7 +781,7 @@ class GapTargetedTransfers(TargetedTransfers):
 
 class BinaryGapTargetedTransfers(TargetedTransfers):
 
-    # TODO: Hit expected budget exactly by having one stochastic transfer 
+    # TODO: Hit expected budget exactly by having one stochastic transfer
 
     def __init__(self, c_bar=2.15, budget=None):
         super().__init__(
@@ -775,12 +789,12 @@ class BinaryGapTargetedTransfers(TargetedTransfers):
             unconditional_tolerance=None,
             conditional_tolerance=None
         )
-    
+
         self.name = 'binary_gap'
         assert budget is not None
         self.budget = budget
 
-    def fit(        
+    def fit(
         self,
         X_train,
         y_train,
@@ -803,11 +817,11 @@ class BinaryGapTargetedTransfers(TargetedTransfers):
         for t in candidate_t_values:
 
             household_benefit_estimator = self._fit_household_benefit_estimator(
-                inner_train.X, 
-                inner_train.y, 
-                inner_train.r, 
-                t, low_dim=low_dim, 
-                n_epochs=n_epochs, 
+                inner_train.X,
+                inner_train.y,
+                inner_train.r,
+                t, low_dim=low_dim,
+                n_epochs=n_epochs,
                 hidden_layer_size=hidden_layer_size
             )
 
