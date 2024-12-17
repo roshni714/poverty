@@ -23,7 +23,9 @@ def standardize(z):
 
 
 class Dataset:
-    def __init__(self, X=None, y=None, r=None):
+
+    def __init__(self, X, y=None, r=None, normalize_weight_sum=True):
+
         """
         Initialize a Dataset object.
 
@@ -33,15 +35,30 @@ class Dataset:
         :type y: numpy.ndarray or None
         :param r: The weights. Defaults to uniform weights if r is None.
         :type r: numpy.ndarray or None
+        :param normalize_weight_sum: Whether to normalize the weights to sum to 1.
+        :type normalize_weight_sum: bool
         """
         self.X = X
         self.y = y
 
-        if r is None:
-            self.r = np.ones(len(X)) / len(self.X)
+        if X is None:
+            if y is None:
+                raise ValueError('Need at least one of X and y')
+
+            length = len(y)
         else:
+            length = len(X)
+
+        if r is None:
+            r = np.ones(length)
+
+        if normalize_weight_sum:
             self.r = r / r.sum()
 
+        else:
+            self.r = r
+
+            
     def __len__(self):
         """
         Return the number of samples in the dataset.

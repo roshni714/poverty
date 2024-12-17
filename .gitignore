@@ -1,0 +1,11 @@
+**/*.ipynb_checkpoints/
+**/*.pyc
+**/*.parquet
+**/*.cpg
+**/*.dbf
+**/*.shp
+**/*.shx
+**/*.pickle
+**/*.csv
+**/*.pdf
+**/*.egg-info

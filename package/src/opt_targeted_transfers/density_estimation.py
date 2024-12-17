@@ -354,9 +354,6 @@ def lindsey_method_with_covariates(
     bin_basis_elements = get_basis_matrix(bin_ends)
     basis_matrix = get_basis_matrix(y)  # n x 1 x k
 
-    # import pdb
-    # pdb.set_trace()
-
     X = torch.tensor(X, dtype=torch.float64).reshape(n, d, 1)
     r = torch.tensor(r, dtype=torch.float64)
     y = torch.tensor(y, dtype=torch.float64)
@@ -470,9 +467,6 @@ def lindsey_method_with_covariates(
 
         best_idx = torch.argmax(pdf_matrix, axis=1)
         modes = unscaled_bin_ends[best_idx]
-
-        import pdb
-        pdb.set_trace()
 
         for i in range(len(X_test)):
             idx_extrema = np.sort(
