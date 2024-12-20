@@ -780,19 +780,22 @@ class GapTargetedTransfers(TargetedTransfers):
 
 
 class BinaryGapTargetedTransfers(TargetedTransfers):
-
     # TODO: Hit expected budget exactly by having one stochastic transfer
 
-    def __init__(self, c_bar=2.15, budget=None):
+    def __init__(self, c_bar=2.15, num_t_values=20):
+
         super().__init__(
             c_bar=c_bar,
             unconditional_tolerance=None,
-            conditional_tolerance=None
+            conditional_tolerance=None,
         )
 
         self.name = 'binary_gap'
-        assert budget is not None
-        self.budget = budget
+        self.candidate_t_values = np.linspace(0, self.c_bar, num_t_values, endpoint=True)
+
+        self.t_to_household_estimator_map = None
+        self.t = None
+
 
     def fit(
         self,
@@ -802,92 +805,124 @@ class BinaryGapTargetedTransfers(TargetedTransfers):
         low_dim=False,
         n_epochs=300,
         hidden_layer_size=64,
-        num_t_values=20
     ):
 
-        candidate_t_values = np.linspace(0, self.c_bar, num_t_values, endpoint=True)
+        dataset = Dataset(X_train, y_train, r_train)
 
-        best_t = 0
-        lowest_post_transfer_gap = None
-        household_benefit_estimator_for_best_t = None
+        # For each transfer size t, fit benefit estimator using training data
+        self.t_to_household_estimator_map = dict()
 
-        train_dataset = Dataset(X_train, y_train, r_train, normalize_weight_sum=True)
-        inner_train, inner_test = train_dataset.split(p=0.6)
+        for t in self.candidate_t_values:
 
-        for t in candidate_t_values:
-
-            household_benefit_estimator = self._fit_household_benefit_estimator(
-                inner_train.X,
-                inner_train.y,
-                inner_train.r,
-                t, low_dim=low_dim,
+            self.t_to_household_estimator_map[t] = self._fit_household_benefit_estimator(
+                dataset.X,
+                dataset.y,
+                dataset.r,
+                t, 
+                low_dim=low_dim,
                 n_epochs=n_epochs,
                 hidden_layer_size=hidden_layer_size
             )
 
-            indices_to_receive_transfers = self._get_indices_to_receive_transfers(
-                inner_test.X, inner_test.r, t, household_benefit_estimator
-            )
 
-            post_transfer_outcomes = inner_test.y.copy()
-            np.add.at(post_transfer_outcomes, indices_to_receive_transfers, t)
-            
-            post_transfer_gaps = np.maximum(
-                self.c_bar - post_transfer_outcomes, 0
-            )
+    def optimize_transfers_for_budget_grid(self, X_test, r_test=None, budgets=None):
+        """
+        Computes transfers for each budget in the list of budgets. Enables calling
+        run_opt for each budget in the list.
+        """
 
-            # this isn't actually the mean gap - we'd need to divide by r.sum(), because
-            # these weights weren't normalized across the inner test subset. But we're using
-            # the same test set for all values of t so this improper normalization doesn't matter. 
-            # So for efficiency, we don't correct it.
-            mean_gap = np.sum(post_transfer_gaps * inner_test.r)
-            if (lowest_post_transfer_gap is None) or (mean_gap < lowest_post_transfer_gap):
-                lowest_post_transfer_gap = mean_gap
-                best_t = t
-                household_benefit_estimator_for_best_t = household_benefit_estimator
-        
-        self.t = best_t
-        self.household_benefit_estimator = household_benefit_estimator_for_best_t
-
-    
-    def run_opt(self, X_test, r_test=None):
-        
-        if (self.t is None) or (self.household_benefit_estimator is None):
+        if self.t_to_household_estimator_map is None:
             raise ValueError('Need to run fit before a policy can be computed')
-        
+    
         if r_test is None:
             r_test = np.ones(len(X_test))
 
         r_test = r_test / np.sum(r_test)
 
-        indices_to_receive_transfers = self._get_indices_to_receive_transfers(
-            X_test, r_test, self.t, self.household_benefit_estimator
-        )
+        # for each t, order the households in the test set
+        t_to_ordered_households_map = dict()
+        t_to_estimated_benefits_map = dict()
+
+        for t, household_benefit_estimator in self.t_to_household_estimator_map.items():
+
+            estimated_benefits = household_benefit_estimator(X_test)
+            t_to_estimated_benefits_map[t] = estimated_benefits
+
+            sorting_indices = np.argsort(estimated_benefits)[::-1]
+            t_to_ordered_households_map[t] = sorting_indices
+
+
+        # For each budget, select optimal transfers on the test set
+        self.budget_to_households_map = dict()
+        self.budget_to_t_map = dict()
+
+        for budget in budgets:
+            
+            highest_estimated_benefits = -1
+            best_household_list = []
+            best_t = None
+
+            for t in self.candidate_t_values:
+
+                ordered_households = t_to_ordered_households_map[t]
+                estimated_benefits = t_to_estimated_benefits_map[t]
+
+                indices_to_receive_transfers = self._get_indices_to_receive_transfers(
+                    r_test, t, ordered_households, budget
+                )
+                total_estimated_benefits = estimated_benefits[indices_to_receive_transfers].sum()
+
+                # sanity check
+                assert total_estimated_benefits >= 0
+
+                if total_estimated_benefits > highest_estimated_benefits:
+                    highest_estimated_benefits = total_estimated_benefits
+                    best_household_list = indices_to_receive_transfers
+                    best_t = t
+
+            assert best_household_list is not None
+            assert best_t is not None
+
+            self.budget_to_households_map[budget] = best_household_list
+            self.budget_to_t_map[budget] = best_t
+
+        return t_to_estimated_benefits_map, t_to_ordered_households_map
+
+    def run_opt(self, X_test=None, r_test=None, budget=None):
+
+        if self.budget_to_households_map is None:
+            raise ValueError(
+                'Must run optimize_transfers_for_budget_grid before run_opt for '
+                'binary gap targeting'
+                )
+        
+        assert budget is not None
+
+        if budget not in self.budget_to_households_map.keys():
+            raise ValueError(
+                f'budget {budget} was not included in list provided to '
+                'optimize_transfers_for_budget_grid.'
+            )
+        
+        indices_to_receive_transfers = self.budget_to_households_map[budget]
+        self.t = self.budget_to_t_map[budget]
 
         def transfer_function(X):
-            # X and X_test should match. I'd like to revisit this system at some point.
-            assert len(X) == len(X_test)
-            t = self.t
 
             assignments = {i: [(0, 1.0)] for i in range(len(X))}
             for i in indices_to_receive_transfers:
-                assignments[i] = [(t, 1.0)]
+                assignments[i] = [(self.t, 1.0)]
             return assignments
 
         self.opt_policy = transfer_function
         return transfer_function
 
-
-    def _get_indices_to_receive_transfers(self, X, r, t, household_benefit_estimator):
-        
-        estimated_benefits = household_benefit_estimator(X)
-
-        sorting_indices = np.argsort(estimated_benefits)[::-1]
-        budget_remaining = self.budget
-
+    def _get_indices_to_receive_transfers(self, r, t, sorting_indices, budget):
+            
         r = r / r.sum()
 
         number_of_transfers = len(sorting_indices)
+        budget_remaining = budget
 
         for count, sorting_index in enumerate(sorting_indices):
 
@@ -901,9 +936,10 @@ class BinaryGapTargetedTransfers(TargetedTransfers):
 
 
     def _fit_household_benefit_estimator(
-            self, X, y, r, t, low_dim=False, n_epochs=300, hidden_layer_size=64
+        self, X, y, r, t, low_dim=False, n_epochs=300, hidden_layer_size=64, lr=5e-3
     ):
 
+        # shuffle the data
         X, X_mean, X_std = standardize(X)
 
         current_gaps = np.maximum(self.c_bar - y, 0)
@@ -932,16 +968,22 @@ class BinaryGapTargetedTransfers(TargetedTransfers):
 
             def loss_function(predictor, idx):
 
-                predicted_benefits = predictor(torch.Tensor(X[idx, :]))
-                return torch.sum(
-                    (predicted_benefits - torch.Tensor(benefits[idx]) ** 2)
+                predicted_benefits = predictor(torch.Tensor(X[idx, :])).squeeze()
+                actual_benefits = torch.Tensor(benefits[idx])
+
+                return (
+                    (predicted_benefits - actual_benefits) ** 2
                 )
 
-            optimizer = torch.optim.Adam(predictor.parameters(), lr=5e-3)
+
+            optimizer = torch.optim.Adam(predictor.parameters(), lr=lr)
             train_prop = 0.7
-            idx_train_set, idx_val_set = list(range(int(train_prop * len(X)))), list(
-                range(int(train_prop * len(X)), len(X))
+            
+            idx_train_set, idx_val_set = (
+                list(range(int(train_prop * len(X)))), 
+                list(range(int(train_prop * len(X)), len(X)))
             )
+            print(f'val weight sum: {r[idx_val_set].sum()}')
 
             batch_size = int(len(idx_train_set) / 5)
             print(f'Fitting estimator for household benefit from transfer of size {t}')
@@ -956,6 +998,8 @@ class BinaryGapTargetedTransfers(TargetedTransfers):
                         loss_function(predictor, idx_val_set) * torch.Tensor(r[idx_val_set])
                     )
                     val_losses.append(val_loss.detach().item())
+                    # ideally do torch.save to save checkpoints. Google it. Avoid saving so many models
+                    # in memory. And more correct.
                     models.append(copy.deepcopy(predictor))
 
                 predictor.train()
@@ -963,7 +1007,7 @@ class BinaryGapTargetedTransfers(TargetedTransfers):
                 optimizer.zero_grad()
 
                 unweighted_loss = loss_function(predictor, idx)
-                weights =  torch.Tensor(r[idx])
+                weights = torch.Tensor(r[idx])
                 loss = torch.sum(unweighted_loss * weights)
                 loss.backward()
                 optimizer.step()
