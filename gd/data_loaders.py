@@ -2,7 +2,9 @@ import pandas as pd
 import numpy as np
 from data_utils import split_data
 
-PATH_TO_DATA = "/zfs/gsb/intermediate-yens/rsahoo/poverty/data/malawi_cleaned_2019.parquet"
+PATH_TO_DATA = (
+    "/zfs/gsb/intermediate-yens/rsahoo/poverty/data/malawi_cleaned_2019.parquet"
+)
 CONVERSION_FACTORS = {"malawi": 0.003361735405}
 
 CENTRAL_POOLED_DISTRICTS = [
@@ -20,12 +22,14 @@ CENTRAL_POOLED_DISTRICTS = [
 INDIVIDUAL_POOLED_DISTRICTS = ["kasungu"]
 
 
-NORTHERN_POOLED_DISTRICTS = ["chitipa", 
-                             "karonga", 
-                             "mzimba", 
-                             "rumphi",
-                             "nkhatabay", 
-                             "lizoma"]
+NORTHERN_POOLED_DISTRICTS = [
+    "chitipa",
+    "karonga",
+    "mzimba",
+    "rumphi",
+    "nkhatabay",
+    "lizoma",
+]
 
 CATEGORICAL_FEATURES = [
     "district",
@@ -39,13 +43,13 @@ CATEGORICAL_FEATURES = [
     "hh_m00",
     "hh_f06",
     "hh_f43",
-    "hh_f41", 
-    "hh_f07", 
-    "hh_f12", 
+    "hh_f41",
+    "hh_f07",
+    "hh_f12",
     "hh_f19",
     "hh_t10",
     "ag_s01",
-    "hh_x07"
+    "hh_x07",
 ]
 
 
@@ -116,7 +120,7 @@ def get_district_dataset(districts, covariates):
 
     if districts == ["all"]:
         return get_full_dataset(covariates)
-    
+
     districts = [district.title() for district in districts]
 
     df = pd.read_parquet(PATH_TO_DATA)
@@ -157,8 +161,6 @@ def get_district_dataset(districts, covariates):
             X = X_cat[0].join(X_cat[1:])
         else:
             X = pd.DataFrame([])
-        
-
 
         other_features = [
             feat for feat in covariates if feat not in CATEGORICAL_FEATURES
@@ -269,9 +271,9 @@ def get_datasets(district, pool, covariates):
         fold1 = (X1, y1, r1)
         fold2 = (X2, y2, r2)
         assert list(features1) == list(features2)
-    
-    print("Conditional Density Dataset Size:", len(y1))
-    print("Conditional Density Dataset Size:", len(y2))
+
+        print("Conditional Density Dataset Size:", len(y1))
+        print("Conditional Density Dataset Size:", len(y2))
 
     print(features1)
 

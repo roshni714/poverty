@@ -15,9 +15,7 @@ def get_transfer_function(c_bar, eta, lamb):
         below_line = y_test < c_bar
 
         for j in range(len(y_test)):
-            cvx_hull = get_lower_cvx_hull(
-                [(0., transfers[j]), (below_line[j], 0.0)]
-            )
+            cvx_hull = get_lower_cvx_hull([(0.0, transfers[j]), (below_line[j], 0.0)])
             ratios = np.zeros(len(cvx_hull)).astype(np.float64)
             ratios[0] = -np.inf
             for i in range(len(cvx_hull) - 1):

@@ -7,7 +7,9 @@ import copy
 from opt_targeted_transfers.dataset_utils import standardize
 
 
-def get_quantile_regressor(dataset, tolerance, log_transform=True, low_dim=False, n_epochs=300):
+def get_quantile_regressor(
+    dataset, tolerance, log_transform=True, low_dim=False, n_epochs=300
+):
     """
     Get a quantile regressor for a given dataset.
 
@@ -42,9 +44,9 @@ def get_quantile_regressor(dataset, tolerance, log_transform=True, low_dim=False
             q_hat = torch.nn.Sequential(torch.nn.Linear(d, 1))
         else:
             q_hat = torch.nn.Sequential(
-                torch.nn.Linear(d, 64), 
-                torch.nn.ReLU(), 
-                torch.nn.Linear(64, 1), 
+                torch.nn.Linear(d, 64),
+                torch.nn.ReLU(),
+                torch.nn.Linear(64, 1),
             )
 
         def quantile_loss(q_hat, idx):

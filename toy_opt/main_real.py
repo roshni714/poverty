@@ -3,7 +3,7 @@ from conditional_program import (
     solve_conditional_program_quantile_regression,
     solve_conditional_program,
 )
-from oracle import run_oracle
+from package.src.opt_targeted_transfers.oracle import run_oracle
 from evaluate import post_transfer_metrics
 from utils import (
     make_estimated_density_plot,

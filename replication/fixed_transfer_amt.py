@@ -26,9 +26,13 @@ def main(
         X=X[:, :d], y=y, r=None, p=0.6
     )  # for now not using sampling weights r
 
-    tt = UnconditionalTargetedTransfers(name=country, unconditional_tolerance=uncondtol, c_bar=2.15)
+    tt = UnconditionalTargetedTransfers(
+        name=country, unconditional_tolerance=uncondtol, c_bar=2.15
+    )
     tt.fit(X_train, y_train, r_train)
-    tt.run_opt(X_test, r_test, path="{}_d={}_uncondtol={}.csv".format(country, d, uncondtol))
+    tt.run_opt(
+        X_test, r_test, path="{}_d={}_uncondtol={}.csv".format(country, d, uncondtol)
+    )
     res = tt.evaluate(X_test, y_test, r_test)
     write_result(save + "{}.csv".format(country), res)
 

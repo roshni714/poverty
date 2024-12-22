@@ -43,10 +43,11 @@ def generate_malawi_n_class_runs():
 
 
 def generate_malawi_runs():
-    ds = [20]
+    ds = [3, 12, 16, 23]
 
-    policytypes = ["binary", "unconditional", "oracle"]
-    quantile_methods = ["density"]
+    policytypes = ["conditional", "unconditional", "oracle"]
+    quantile_methods = ["qr"]
+
 
     for d in ds:
         for policytype in policytypes:
@@ -63,7 +64,7 @@ def generate_malawi_runs():
                             ),
                             file=f,
                         )
-                        base_cmd = "python main.py main --d {} --policytype {} --method {} --country malawi --condtol 0.05 0.075 0.10 0.15 0.20 --save {}".format(
+                        base_cmd = "python main.py main --d {} --policytype {} --method {} --country malawi --condtol 0.05 0.10 0.15 0.20 0.25 0.40 0.50 0.60 0.70 --save {}".format(
                             d, policytype, quantile_method, SAVE_PATH
                         )
                         print(base_cmd, file=f)
@@ -79,7 +80,7 @@ def generate_malawi_runs():
                         ),
                         file=f,
                     )
-                    base_cmd = "python main.py main --d {} --policytype {} --country malawi --uncondtol 0.05 0.075 0.10 0.15 0.20 --save {}".format(
+                    base_cmd = "python main.py main --d {} --policytype {} --country malawi --uncondtol 0.05 0.10 0.15 0.20 0.25 0.40 0.50 0.60 0.70 --save {}".format(
                         d, policytype, SAVE_PATH
                     )
                     print(base_cmd, file=f)
@@ -95,13 +96,13 @@ def generate_malawi_runs():
                         ),
                         file=f,
                     )
-                    base_cmd = "python main.py main --d {} --policytype {} --country malawi --uncondtol 0.05 0.075 0.10 0.15 0.20 --condtol 0.25 --save {}".format(
+                    base_cmd = "python main.py main --d {} --policytype {} --country malawi --uncondtol 0.05 0.10 0.15 0.20 0.25 0.40 0.50 0.60 0.70 --condtol 0.25 --save {}".format(
                         d, policytype, SAVE_PATH
                     )
                     print(base_cmd, file=f)
                     print("sleep 1", file=f)
 
-            elif policytype == "binary":
+            elif policytype == "oracle":
                 exp_id = "malawi_d={}_policytype={}".format(d, policytype)
                 script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
                 with open(script_fn, "w") as f:
@@ -111,8 +112,7 @@ def generate_malawi_runs():
                         ),
                         file=f,
                     )
-                    base_cmd = "python main.py main --d {} --policytype {} --country malawi --uncondtol 0.05 0.075 0.10 0.15 0.20 --save {}".format(
-                        d, policytype, SAVE_PATH
+                    base_cmd = "python main.py main --d {} --policytype {} --country malawi --uncondtol 0.05 0.10 0.15 0.20 0.25 0.40 0.50 0.60 0.70 --save {}".format(d, policytype, SAVE_PATH
                     )
                     print(base_cmd, file=f)
                     print("sleep 1", file=f)

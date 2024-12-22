@@ -5,7 +5,9 @@ from opt_targeted_transfers.knapsack import (
     compute_alpha_opt_policies,
     compute_opt_policy_knapsack,
 )
-from opt_targeted_transfers.oracle import run_oracle_poverty_rate #run_oracle_poverty_gap
+from opt_targeted_transfers.oracle import (
+    run_oracle_poverty_rate,
+)  # run_oracle_poverty_gap
 from opt_targeted_transfers.quantile_regression import get_quantile_regressor
 from opt_targeted_transfers.evaluate import (
     post_transfer_metrics,
@@ -149,9 +151,11 @@ class TargetedTransfers:
         if "oracle" in self.name:
             oracle = True
         else:
-            oracle=False
+            oracle = False
 
-        all_transfers_ev = expected_value_transfers(dataset, self.opt_policy, oracle=oracle)
+        all_transfers_ev = expected_value_transfers(
+            dataset, self.opt_policy, oracle=oracle
+        )
 
         for i in range(len(all_transfers_ev)):
             write_result(
@@ -567,9 +571,6 @@ class HybridTargetedTransfers(TargetedTransfers):
         t_joint_program_est = t_alpha_joint_programs[idx]
         self.opt_policy = t_joint_program_est
         return t_joint_program_est
-    
-
-
 
 
 # class UnconditionalDiscreteTransfers(TargetedTransfers):
@@ -658,7 +659,6 @@ class HybridTargetedTransfers(TargetedTransfers):
 #         )
 #         self.opt_policy = t_opt
 #         return t_opt
-
 
 
 class BinaryTargetedTransfers(TargetedTransfers):
@@ -897,12 +897,13 @@ class BinaryConditionalTargetedTransfers(TargetedTransfers):
                         assignments[i] = [(0.0, 1.0)]
                 return assignments
 
-        
         def binary_policy(X_test):
             assignments = t_unconstrained(X_test)
-            max_transfer_val = max([assignments[key][0][0]  for key in assignments.keys()])
+            max_transfer_val = max(
+                [assignments[key][0][0] for key in assignments.keys()]
+            )
             binary_assignments = {x_idx: [] for x_idx in range(len(X_test))}
-            
+
             for key in assignments.keys():
                 l = assignments[key]
                 transfer_amt = l[0][0]
@@ -911,7 +912,7 @@ class BinaryConditionalTargetedTransfers(TargetedTransfers):
                 else:
                     binary_assignments[key] = [(0.0, 1.0)]
             return binary_assignments
-        
+
         self.opt_policy = binary_policy
         return binary_policy
 
@@ -939,4 +940,3 @@ class OraclePovertyRateTargetedTransfers(TargetedTransfers):
         )
         self.opt_policy = oracle_policy
         return oracle_policy
-

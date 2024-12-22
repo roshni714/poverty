@@ -20,24 +20,22 @@ SBATCH_PREFACE = """#!/bin/bash
 OUTPUT_PATH = "/home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/gd/scripts"
 SAVE_PATH = "/home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/gd/results/"
 
+
 def generate_malawi_test():
 
     district = "chitipa"
     policy = "optimized"
     uncondtol = 0.10
-    pools=["karonga"]
-    
+    pools = ["karonga"]
 
     for pool in pools:
         exp_id = "{}_policy={}_uncondtol={}_pool={}".format(
-                            district, policy, uncondtol, pool
-                        )
+            district, policy, uncondtol, pool
+        )
         script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
         with open(script_fn, "w") as f:
             print(
-                SBATCH_PREFACE.format(
-                    exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
-                ),
+                SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id),
                 file=f,
             )
             base_cmd = "python main.py main --policy {} --district {} --uncondtol {} --pool {} --save {}".format(
@@ -46,12 +44,13 @@ def generate_malawi_test():
             print(base_cmd, file=f)
             print("sleep 1", file=f)
 
+
 def generate_malawi_northern_district_runs():
 
     uncondtols = [0.10, 0.05, 0.20]
     districts = ["chitipa", "karonga"]
-    policies = ["saturation",  "binary", "optimized", "oracle"]
-    #policies = ["optimized", "oracle"]
+    policies = ["saturation", "binary", "optimized", "oracle"]
+    # policies = ["optimized", "oracle"]
     pools = ["rural"]
 
     for pool in pools:
@@ -81,7 +80,7 @@ def generate_malawi_central_district_runs():
     uncondtols = [0.1]
     districts = ["mchinji", "dowa", "kasungu"]
     policies = ["saturation", "binary", "optimized", "oracle"]
-    #policies = ["optimized", "oracle"]
+    # policies = ["optimized", "oracle"]
     pools = ["central"]
 
     for pool in pools:
@@ -110,14 +109,16 @@ def generate_malawi_runs():
 
     uncondtols = [0.05, 0.10, 0.20, 0.30, 0.40, 0.50, 0.55]
     districts = ["all"]
-    policies = ["conditional_optimized", "binary_conditional_optimized"]
-    num_features = [1, 3, 5, 7, 9]
-    #policies = ["optimized", "oracle"]
+    policies = ["conditional_optimized", "optimized"]
+    num_features = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    # policies = ["optimized", "oracle"]
     for num_feat in num_features:
         for uncondtol in uncondtols:
             for district in districts:
                 for policy in policies:
-                    exp_id = "{}_policy={}_uncondtol={}_numfeatures={}".format(district, policy, uncondtol, num_feat)
+                    exp_id = "{}_policy={}_uncondtol={}_numfeatures={}".format(
+                        district, policy, uncondtol, num_feat
+                    )
                     script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
                     with open(script_fn, "w") as f:
                         print(
@@ -132,4 +133,5 @@ def generate_malawi_runs():
                         print(base_cmd, file=f)
                         print("sleep 1", file=f)
 
-generate_malawi_test()
+
+generate_malawi_runs()

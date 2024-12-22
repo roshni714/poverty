@@ -78,7 +78,6 @@ def setup_bspline_basis(y, degree=3, internal_knots=None):
     if internal_knots is None:
         internal_knots = [np.quantile(y, q) for q in [0.1, 0.2, 0.4, 0.6]]
 
-    
     df = len(internal_knots) + degree + 1
     spline_matrix = sb.BSplines(
         y,
@@ -105,7 +104,6 @@ def setup_bspline_basis(y, degree=3, internal_knots=None):
         return basis
 
     return get_basis, num_basis_elem
-
 
 
 def lindsey_method(
@@ -139,8 +137,8 @@ def lindsey_method(
     if internal_knots:
         if log_transform:
             internal_knots = np.log(internal_knots)
-        
-        internal_knots = (internal_knots - y_mean)/y_std
+
+        internal_knots = (internal_knots - y_mean) / y_std
 
     n = y.shape[0]
     torch.manual_seed(123456)
@@ -335,8 +333,8 @@ def lindsey_method_with_covariates(
     if internal_knots:
         if log_transform:
             internal_knots = np.log(internal_knots)
-        
-        internal_knots = (internal_knots - y_mean)/y_std
+
+        internal_knots = (internal_knots - y_mean) / y_std
 
     n = X.shape[0]
     d = X.shape[1]
@@ -470,9 +468,6 @@ def lindsey_method_with_covariates(
 
         best_idx = torch.argmax(pdf_matrix, axis=1)
         modes = unscaled_bin_ends[best_idx]
-
-        import pdb
-        pdb.set_trace()
 
         for i in range(len(X_test)):
             idx_extrema = np.sort(

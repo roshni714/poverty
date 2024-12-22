@@ -43,7 +43,7 @@ def post_transfer_metrics(test_dataset, policy, c_bar, oracle=False):
 
     y_test = test_dataset.y
     r_test = test_dataset.r
-    
+
     np.testing.assert_almost_equal(r_test.sum(), 1.0)
 
     dic["initial_poverty_gap"] = np.sum(np.maximum(c_bar - y_test, 0) * r_test).item()

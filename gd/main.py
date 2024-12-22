@@ -7,7 +7,7 @@ from policy import (
     oracle_policy,
     optimized_policy,
     conditional_optimized_policy,
-    binary_conditional_optimized_policy
+    binary_conditional_optimized_policy,
 )
 
 
@@ -18,7 +18,7 @@ POLICY_METHODS = {
     "oracle": oracle_policy,
     "optimized": optimized_policy,
     "conditional_optimized": conditional_optimized_policy,
-    "binary_conditional_optimized": binary_conditional_optimized_policy
+    "binary_conditional_optimized": binary_conditional_optimized_policy,
 }
 
 
@@ -38,7 +38,9 @@ def main(
 ):
 
     learning_method = POLICY_METHODS[policy]
-    metrics = learning_method(district=district, uncondtol=uncondtol, pool=pool, numfeatures=numfeatures)
+    metrics = learning_method(
+        district=district, uncondtol=uncondtol, pool=pool, numfeatures=numfeatures
+    )
     write_result(save + "{}_pool={}.csv".format(district, pool), metrics)
 
 

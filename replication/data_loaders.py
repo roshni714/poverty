@@ -53,6 +53,9 @@ def _load_malawi_data():
 
     categorical_features = ["dwelling_type", "wall_type"]
     other_features = [
+        "precipitation",
+        "latitude",
+        "longitude",
         "num_kids",
         "num_adults",
         "dist_admarc",

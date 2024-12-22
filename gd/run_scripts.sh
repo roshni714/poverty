@@ -1,6 +1,7 @@
 #!/bin/bash
 
 rm -rf /home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/gd/scripts
+rm -rf /home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/gd/policies
 mkdir /home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/gd/scripts
 mkdir /home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/gd/policies
 python generate_sbatches.py

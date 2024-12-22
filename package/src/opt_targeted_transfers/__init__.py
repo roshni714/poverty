@@ -5,5 +5,5 @@ from opt_targeted_transfers.opt import (
     HybridTargetedTransfers,
     BinaryTargetedTransfers,
     OraclePovertyRateTargetedTransfers,
-    BinaryConditionalTargetedTransfers
+    BinaryConditionalTargetedTransfers,
 )

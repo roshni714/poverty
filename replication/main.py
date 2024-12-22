@@ -3,6 +3,7 @@ from opt_targeted_transfers import (
     UnconditionalTargetedTransfers,
     HybridTargetedTransfers,
     BinaryTargetedTransfers,
+    OracleTargetedTransfers
 )
 from data_loaders import get_dataset
 from data_utils import split_data
@@ -30,6 +31,7 @@ def main(
     save="malawi_results.csv",
 ):
     X, y, r, features = get_dataset(country)
+    print(features)
 
     (X_train, y_train, r_train), (X_test, y_test, r_test) = split_data(
         X=X[:, :d], y=y, r=None, p=0.6
@@ -75,6 +77,19 @@ def main(
                 y_test,
                 path=save
                 + "equity_{}_{}_d={}_uncondtol={}.csv".format(country, tt.name, d, tol),
+            )
+    elif policytype == "oracle":
+        tt = OracleTargetedTransfers(c_bar=2.15)
+        for tol in uncondtol:
+            tt.set_unconditional_tolerance(tol)
+            tt.run_opt(y_test, r_test)
+            res = tt.evaluate(X_test, y_test, r_test)
+            write_result(save + "{}.csv".format(country), res)
+            tt.evaluate_equity(
+                X_test,
+                y_test,
+                path=save
+                + "equity_{}_{}_uncondtol={}.csv".format(country, tt.name, tol),
             )
 
     elif policytype == "conditional":

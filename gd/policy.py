@@ -3,7 +3,7 @@ from opt_targeted_transfers import (
     UnconditionalTargetedTransfers,
     BinaryTargetedTransfers,
     OraclePovertyRateTargetedTransfers,
-    BinaryConditionalTargetedTransfers
+    BinaryConditionalTargetedTransfers,
 )
 from data_loaders import get_datasets, get_district_dataset
 from data_utils import aggregate_metrics
@@ -11,28 +11,28 @@ from data_utils import aggregate_metrics
 CBAR = 2.15
 
 COVARIATE_LIST = [
-    "num_children", 
-    "durable_asset_Bed", 
+    "num_children",
+    "durable_asset_Bed",
     "hh_f12",
-    "hh_f34", #num cellphones
-    "hhsize", #household size
-    "hh_f06", #construction materials categories
+    "hh_f34",  # num cellphones
+    "hhsize",  # household size
+    "hh_f06",  # construction materials categories
     "ag_asset_AXE",
     "durable_asset_Television",
-    "hh_x07", #own any livestock?
+    "hh_x07",  # own any livestock?
     "durable_asset_Radio with flash drive/micro CD",
     "durable_asset_Motorcycle / Scooter",
     "ag_asset_WATERING CAN",
     "ag_asset_PANGA KNIFE",
     "popdensity",
     "district",
-    "hh_f11", #lighting fuel categories
-    "hh_f43", #rubbish disposal
+    "hh_f11",  # lighting fuel categories
+    "hh_f43",  # rubbish disposal
     "hh_x04",
-    "hh_f41", #toilet categories
+    "hh_f41",  # toilet categories
     "durable_asset_Bicycle",
     "ag_asset_CHICKEN HOUSE",
-    "hh_f08", #roof materials categories
+    "hh_f08",  # roof materials categories
     "hh_f01",
     "ag_asset_HAND HOE",
     "durable_asset_Refrigerator",
@@ -40,20 +40,20 @@ COVARIATE_LIST = [
     "durable_asset_Radio ('wireless')",
     "durable_asset_Iron (for pressing clothes)",
     "ag_asset_GRANARY",
-    "ag_asset_SLASHER"
-    ]
+    "ag_asset_SLASHER",
+]
 
 RURAL_COVARIATE_LIST = [
-    "hh_h03b", #meals per day
-    "hh_t10", #what does HH head sleep on
-    "hhsize", #household size
-    "hh_f35_3", #how much money of cellphone cost spent on airtime usage
+    "hh_h03b",  # meals per day
+    "hh_t10",  # what does HH head sleep on
+    "hhsize",  # household size
+    "hh_f35_3",  # how much money of cellphone cost spent on airtime usage
     "district",
     "durable_asset_Television",
-    'hh_f06',
+    "hh_f06",
     "ag_asset_PANGA KNIFE",
     "hh_f12",
-    ] 
+]
 
 
 def get_covariates(district, numfeatures):
@@ -61,7 +61,6 @@ def get_covariates(district, numfeatures):
         return COVARIATE_LIST[:numfeatures]
     else:
         return RURAL_COVARIATE_LIST[:numfeatures]
-    
 
 
 def saturation_policy(district, uncondtol, pool, numfeatures=None):
@@ -73,8 +72,12 @@ def saturation_policy(district, uncondtol, pool, numfeatures=None):
         )
         X_fit, y_fit, r_fit = fold_fit
         X_opt, y_opt, r_opt = fold_opt
-        tt.fit(X_fit, y_fit, n_epochs=500, internal_knots=[min(y_fit), 1.0, 
-                                                           2.0, 5, max(y_fit)])
+        tt.fit(
+            X_fit,
+            y_fit,
+            n_epochs=500,
+            internal_knots=[min(y_fit), 1.0, 2.0, 5, max(y_fit)],
+        )
         tt.run_opt(X_opt)
         metrics = tt.evaluate(X_opt, y_opt)
         tt.evaluate_equity(
@@ -112,8 +115,12 @@ def geographic_policy(district, uncondtol, numfeatures=None, pool=None):
         )
         X_fit, y_fit, r_fit = fold_fit
         X_opt, y_opt, r_opt = fold_opt
-        tt.fit(X_fit, y_fit, n_epochs=500, internal_knots=[min(y_fit), 1.0,
-                                                           2.0, 5, max(y_fit)])
+        tt.fit(
+            X_fit,
+            y_fit,
+            n_epochs=500,
+            internal_knots=[min(y_fit), 1.0, 2.0, 5, max(y_fit)],
+        )
         tt.run_opt(
             X_opt,
             path="results/{}_{}_uncondtol={}_opt.csv".format(
@@ -159,15 +166,21 @@ def binary_targeting_policy(district, uncondtol, pool, numfeatures=None):
         tt = BinaryTargetedTransfers(c_bar=CBAR, unconditional_tolerance=uncondtol)
         X_fit, y_fit, r_fit = fold_fit
         X_opt, y_opt, r_opt = fold_opt
-        tt.fit(X_fit, y_fit, n_epochs=500, internal_knots=[min(y_fit), 1.0, 
-                                                           2.0, 5, max(y_fit)])
+        tt.fit(
+            X_fit,
+            y_fit,
+            n_epochs=500,
+            internal_knots=[min(y_fit), 1.0, 2.0, 5, max(y_fit)],
+        )
         tt.run_opt(X_opt)
         metrics = tt.evaluate(X_opt, y_opt)
         tt.evaluate_equity(
             X_opt,
             y_opt,
             path="results/"
-            + "{}_equity_{}_uncondtol={}_numfeatures={}.csv".format(district, "binary", uncondtol, numfeatures),
+            + "{}_equity_{}_uncondtol={}_numfeatures={}.csv".format(
+                district, "binary", uncondtol, numfeatures
+            ),
         )
         tt.save_opt_policy(
             "policies/{}_binary_uncondtol={}".format(district, uncondtol)
@@ -201,14 +214,15 @@ def optimized_policy(district, uncondtol, pool, numfeatures=None):
             path="results/{}_{}_uncondtol={}_opt.csv".format(
                 district, "optimized", uncondtol, n_alpha=300
             ),
-            
         )
         metrics = tt.evaluate(X_opt, y_opt)
         tt.evaluate_equity(
             X_opt,
             y_opt,
             path="results/"
-            + "{}_equity_{}_uncondtol={}_numfeatures={}.csv".format(district, "optimized", uncondtol, numfeatures),
+            + "{}_equity_{}_uncondtol={}_numfeatures={}.csv".format(
+                district, "optimized", uncondtol, numfeatures
+            ),
         )
         tt.save_opt_policy(
             "policies/{}_optimized_uncondtol={}".format(district, uncondtol)
@@ -227,15 +241,17 @@ def optimized_policy(district, uncondtol, pool, numfeatures=None):
 def oracle_policy(district, uncondtol, pool=None, numfeatures=None):
     X, y, r, features = get_district_dataset([district], covariates=None)
 
-    tt = OraclePovertyRateTargetedTransfers(c_bar=CBAR, unconditional_tolerance=uncondtol)
+    tt = OraclePovertyRateTargetedTransfers(
+        c_bar=CBAR, unconditional_tolerance=uncondtol
+    )
     tt.run_opt(y, r)
     metrics = tt.evaluate(X, y)
     tt.evaluate_equity(
-            X,
-            y,
-            path="results/"
-            + "{}_equity_{}_uncondtol={}.csv".format(district, "oracle", uncondtol),
-        )
+        X,
+        y,
+        path="results/"
+        + "{}_equity_{}_uncondtol={}.csv".format(district, "oracle", uncondtol),
+    )
 
     final_metrics = get_final_metrics(metrics)
     final_metrics["n_opt"] = len(y)
@@ -267,7 +283,9 @@ def conditional_optimized_policy(district, uncondtol, pool, numfeatures=None):
             X_opt,
             y_opt,
             path="results/"
-            + "{}_equity_{}_uncondtol={}_numfeatures={}.csv".format(district, "conditional_optimized", uncondtol, numfeatures),
+            + "{}_equity_{}_uncondtol={}_numfeatures={}.csv".format(
+                district, "conditional_optimized", uncondtol, numfeatures
+            ),
         )
         return metrics
 
@@ -301,7 +319,9 @@ def binary_conditional_optimized_policy(district, uncondtol, pool, numfeatures=N
             X_opt,
             y_opt,
             path="results/"
-            + "{}_equity_{}_uncondtol={}_numfeatures={}.csv".format(district, "binary_conditional_optimized", uncondtol, numfeatures),
+            + "{}_equity_{}_uncondtol={}_numfeatures={}.csv".format(
+                district, "binary_conditional_optimized", uncondtol, numfeatures
+            ),
         )
         return metrics
 
@@ -311,7 +331,6 @@ def binary_conditional_optimized_policy(district, uncondtol, pool, numfeatures=N
     final_metrics["policy"] = "binary_conditional_optimized"
     final_metrics["numfeatures"] = numfeatures
     return final_metrics
-
 
 
 def get_final_metrics(metrics):
