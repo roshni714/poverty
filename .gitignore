@@ -2,6 +2,7 @@
 **/scripts/
 clean/
 data/
+**/data/
 **/figs
 opt/
 **/results
