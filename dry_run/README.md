@@ -7,8 +7,8 @@ The datasets for reproducing the results from the Malawi dry-run are available i
 # Installation
 Here are the installation instructions for the dry-run.
 
-"""
+```
 python3 -m venv dryrun
 source dryrun/bin/activate
 pip install git+https://github.com/gsbDBI/ds-wgan
-"""
+```
