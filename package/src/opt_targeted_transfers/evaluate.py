@@ -38,7 +38,7 @@ def post_transfer_metrics(test_dataset, policy, c_bar, oracle=False):
     r_test = test_dataset.r
 
     normalized_r_test = r_test / r_test.sum()
-    
+
     dic = {
         "initial_poverty_rate": 0.0,
         "initial_poverty_gap": 0.0,
@@ -46,9 +46,11 @@ def post_transfer_metrics(test_dataset, policy, c_bar, oracle=False):
         "post_transfer_poverty_rate": 0.0,
         "policy_cost_per_capita": 0.0,
         "weight_adjusted_population": r_test.sum(),
-    }    
+    }
 
-    dic["initial_poverty_gap"] = np.sum(np.maximum(c_bar - y_test, 0) * normalized_r_test).item()
+    dic["initial_poverty_gap"] = np.sum(
+        np.maximum(c_bar - y_test, 0) * normalized_r_test
+    ).item()
     dic["initial_poverty_rate"] = np.sum(normalized_r_test * (y_test < c_bar))
 
     if not oracle:

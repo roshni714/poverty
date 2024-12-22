@@ -9,5 +9,5 @@ from opt_targeted_transfers.opt import (
     GapTargetedTransfers,
     OracleGapTargetedTransfers,
     BinaryConditionalTargetedTransfers,
-    BinaryGapTargetedTransfers
+    BinaryGapTargetedTransfers,
 )

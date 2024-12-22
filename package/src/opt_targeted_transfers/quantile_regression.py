@@ -8,11 +8,7 @@ from opt_targeted_transfers.dataset_utils import standardize
 
 
 def get_quantile_regressor(
-<<<<<<< HEAD
-    dataset, tolerance, log_transform=True, low_dim=False, n_epochs=300
-=======
     dataset, tolerance, log_transform=True, low_dim=False, n_epochs=300, hidden_layer_size=64
->>>>>>> b8645a3b5030d3e79bd6cb3b67a2f0b862742dab
 ):
     """
     Get a quantile regressor for a given dataset.

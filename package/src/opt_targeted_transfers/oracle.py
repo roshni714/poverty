@@ -74,21 +74,21 @@ def run_oracle_poverty_rate(dataset, tolerance, c_bar):
 
 def run_oracle_poverty_gap_lift_to_line_scheme(dataset, tolerance, c_bar):
     # Behaves slightly wrong if multiple households have identical income and they
-    # happen to fall right on the border between those receiving and not receiving 
-    # transfers. Identical incomes are unlikely given how consumption aggregates are 
+    # happen to fall right on the border between those receiving and not receiving
+    # transfers. Identical incomes are unlikely given how consumption aggregates are
     # calculated. Will fix eventually.
-    
+
     gaps = np.maximum(c_bar - np.array(dataset.y), 0)
 
     r = dataset.r
     assert r.sum() == 1
-    
+
     sorting_indices = np.argsort(gaps)
 
     tolerance_remaining = tolerance
 
     wealth_receiving_partial_transfer = 0
-    
+
     for i in sorting_indices:
 
         if gaps[i] == 0:
@@ -103,7 +103,7 @@ def run_oracle_poverty_gap_lift_to_line_scheme(dataset, tolerance, c_bar):
             wealth_receiving_partial_transfer = dataset.y[i]
             partial_transfer = gaps[i] - tolerance_remaining / r[i]
             break
-        
+
     def t(y_test):
 
         assignments = dict()
@@ -113,29 +113,29 @@ def run_oracle_poverty_gap_lift_to_line_scheme(dataset, tolerance, c_bar):
             elif y_test[i] < wealth_receiving_partial_transfer:
                 assignments[i] = [(c_bar - y_test[i], 1.0)]
             else:
-                assignments[i] = ([(0.0, 1.0)])
+                assignments[i] = [(0.0, 1.0)]
         return assignments
-        
+
     return t
 
 
 def run_oracle_poverty_gap_floor_scheme(dataset, tolerance, c_bar):
-    
+
     gaps = np.maximum(c_bar - np.array(dataset.y), 0)
     r = dataset.r
-    
+
     assert r.sum() == 1
-    
+
     sorting_indices = np.argsort(gaps)
     tolerance_remaining = tolerance
 
     running_weight = 0
     max_poverty_gap = 0
-    
+
     for i in sorting_indices:
         if gaps[i] > 0:
             running_weight += r[i]
-    
+
     for i in sorting_indices:
 
         if gaps[i] == 0:
@@ -156,9 +156,7 @@ def run_oracle_poverty_gap_floor_scheme(dataset, tolerance, c_bar):
 
         gaps_possibly_negative = c_bar - np.array(y_test)
         transfers = np.maximum(gaps_possibly_negative - max_poverty_gap, 0)
-        assignments = {
-            i: [(transfer, 1.0)] for i, transfer in enumerate(transfers)
-        }
+        assignments = {i: [(transfer, 1.0)] for i, transfer in enumerate(transfers)}
         return assignments
-        
+
     return t

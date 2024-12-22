@@ -25,7 +25,6 @@ def standardize(z):
 class Dataset:
 
     def __init__(self, X, y=None, r=None, normalize_weight_sum=True):
-
         """
         Initialize a Dataset object.
 
@@ -43,7 +42,7 @@ class Dataset:
 
         if X is None:
             if y is None:
-                raise ValueError('Need at least one of X and y')
+                raise ValueError("Need at least one of X and y")
 
             length = len(y)
         else:
@@ -58,7 +57,6 @@ class Dataset:
         else:
             self.r = r
 
-            
     def __len__(self):
         """
         Return the number of samples in the dataset.

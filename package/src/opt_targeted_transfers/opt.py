@@ -8,7 +8,7 @@ from opt_targeted_transfers.knapsack import (
 from opt_targeted_transfers.oracle import (
     run_oracle_poverty_rate,
     run_oracle_poverty_gap_floor_scheme,
-    run_oracle_poverty_gap_lift_to_line_scheme
+    run_oracle_poverty_gap_lift_to_line_scheme,
 )
 
 from opt_targeted_transfers.quantile_regression import get_quantile_regressor
@@ -28,6 +28,7 @@ import tqdm
 import copy
 
 from opt_targeted_transfers.dataset_utils import standardize
+
 
 class TargetedTransfers:
     """
@@ -596,9 +597,7 @@ class GapTargetedTransfers(TargetedTransfers):
         """
 
         super().__init__(
-            c_bar=c_bar,
-            conditional_tolerance=None,
-            unconditional_tolerance=None
+            c_bar=c_bar, conditional_tolerance=None, unconditional_tolerance=None
         )
         self.name = "gap"
         self.quantile_regressors = None
@@ -609,7 +608,7 @@ class GapTargetedTransfers(TargetedTransfers):
         low_dim=False,
         n_epochs=300,
         n_quantiles=20,
-        hidden_layer_size=64
+        hidden_layer_size=64,
     ):
         """
         :param train_dataset: The dataset used for training the regressors
@@ -625,30 +624,27 @@ class GapTargetedTransfers(TargetedTransfers):
         :return: The quantile regressors.
         :rtype: Dict[int, Callable[[np.ndarray], np.ndarray]]
         """
-    
+
         quantiles = np.linspace(0, 1, n_quantiles, endpoint=True)
 
         quantile_regressors = dict()
 
         for quantile in quantiles:
             quantile_regressors[quantile] = get_quantile_regressor(
-                train_dataset, quantile, low_dim=low_dim, 
-                n_epochs=n_epochs, hidden_layer_size=hidden_layer_size
+                train_dataset,
+                quantile,
+                low_dim=low_dim,
+                n_epochs=n_epochs,
+                hidden_layer_size=hidden_layer_size,
             )
 
         return quantile_regressors
 
-
     def set_conditional_tolerance(self, conditional_tolerance):
-        raise NotImplementedError(
-            "Gap targeting can't use conditional tolerances."
-        )
+        raise NotImplementedError("Gap targeting can't use conditional tolerances.")
 
-    
     def set_unconditional_tolerance(self, unconditional_tolerance):
-        raise NotImplementedError(
-            "Not yet"
-        )
+        raise NotImplementedError("Not yet")
 
     def fit(
         self,
@@ -658,7 +654,7 @@ class GapTargetedTransfers(TargetedTransfers):
         low_dim=False,
         n_epochs=300,
         n_quantiles=20,
-        hidden_layer_size=64
+        hidden_layer_size=64,
     ):
         """
         Fitting the quantile regression.
@@ -684,11 +680,16 @@ class GapTargetedTransfers(TargetedTransfers):
             low_dim=low_dim,
             n_epochs=n_epochs,
             n_quantiles=n_quantiles,
-            hidden_layer_size=hidden_layer_size
+            hidden_layer_size=hidden_layer_size,
         )
 
         # TODO: Remove. For now, needed for directly checking quantile fits.
-        return self.quantile_regressors.keys(), self.quantile_regressors, self.train_dataset
+        return (
+            self.quantile_regressors.keys(),
+            self.quantile_regressors,
+            self.train_dataset,
+        )
+
     def _get_baseline_wealth_at_quantile(self, X, quantile):
         """
         Evaluates the expected wealth of each household at the given quantile, given its
@@ -697,11 +698,11 @@ class GapTargetedTransfers(TargetedTransfers):
 
         quantile_regressors = self.quantile_regressors
         if quantile_regressors is None:
-            raise ValueError('Missing quantile regressors - run fit first.')
+            raise ValueError("Missing quantile regressors - run fit first.")
 
         quantiles = list(quantile_regressors.keys())
         quantiles.sort()
-        
+
         quantile_index = bisect_left(quantiles, quantile)
 
         # if quantile_index == len(quantiles), then quantile is > all evaluated quantiles.
@@ -710,38 +711,34 @@ class GapTargetedTransfers(TargetedTransfers):
         # it's important to fit a quantile near or at zero.
         if quantile_index == len(quantiles):
 
-            baseline_quantile_wealth_level = (
-                quantile_regressors[quantiles[quantile_index - 1]](X)
-            )
+            baseline_quantile_wealth_level = quantile_regressors[
+                quantiles[quantile_index - 1]
+            ](X)
 
-        elif (
-            (quantile == quantiles[quantile_index])
-            or (quantile_index == 0)
-        ):
+        elif (quantile == quantiles[quantile_index]) or (quantile_index == 0):
 
-            baseline_quantile_wealth_level = (
-                quantile_regressors[quantiles[quantile_index]](X)
-            )
+            baseline_quantile_wealth_level = quantile_regressors[
+                quantiles[quantile_index]
+            ](X)
 
         # interpolate
         else:
             quantile_index_low = quantile_index - 1
-            quantile_index_high = quantile_index 
-           
+            quantile_index_high = quantile_index
+
             assert quantile > quantiles[quantile_index_low]
             assert quantile < quantiles[quantile_index_high]
-            
-            interpolation_factor = (
-                (quantile - quantiles[quantile_index_low]) 
-                / (quantiles[quantile_index_high] - quantiles[quantile_index_low])
+
+            interpolation_factor = (quantile - quantiles[quantile_index_low]) / (
+                quantiles[quantile_index_high] - quantiles[quantile_index_low]
             )
 
-            baseline_quantile_wealth_level_low = (
-                quantile_regressors[quantiles[quantile_index_low]](X)
-            )
-            baseline_quantile_wealth_level_high = (
-                quantile_regressors[quantiles[quantile_index_high]](X)
-            )
+            baseline_quantile_wealth_level_low = quantile_regressors[
+                quantiles[quantile_index_low]
+            ](X)
+            baseline_quantile_wealth_level_high = quantile_regressors[
+                quantiles[quantile_index_high]
+            ](X)
 
             baseline_quantile_wealth_level = (
                 (1 - interpolation_factor) * baseline_quantile_wealth_level_low
@@ -750,17 +747,16 @@ class GapTargetedTransfers(TargetedTransfers):
 
         return baseline_quantile_wealth_level
 
-
     def _get_policy_for_lambda(self, X, lambda_):
 
         quantile_regressors = self.quantile_regressors
         if quantile_regressors is None:
-            raise ValueError('Missing quantile regressors - run fit first.')
+            raise ValueError("Missing quantile regressors - run fit first.")
 
         baseline_lambda_quantile_wealth_level = self._get_baseline_wealth_at_quantile(
             X, lambda_
         )
-        
+
         transfer = np.maximum(self.c_bar - baseline_lambda_quantile_wealth_level, 0)
 
         def t(X):
@@ -770,7 +766,6 @@ class GapTargetedTransfers(TargetedTransfers):
             return assignments
 
         return t
-
 
     def run_opt(self, X_test, lambda_):
 
@@ -789,12 +784,13 @@ class BinaryGapTargetedTransfers(TargetedTransfers):
             conditional_tolerance=None,
         )
 
-        self.name = 'binary_gap'
-        self.candidate_t_values = np.linspace(0, self.c_bar, num_t_values, endpoint=True)
+        self.name = "binary_gap"
+        self.candidate_t_values = np.linspace(
+            0, self.c_bar, num_t_values, endpoint=True
+        )
 
         self.t_to_household_estimator_map = None
         self.t = None
-
 
     def fit(
         self,
@@ -813,16 +809,17 @@ class BinaryGapTargetedTransfers(TargetedTransfers):
 
         for t in self.candidate_t_values:
 
-            self.t_to_household_estimator_map[t] = self._fit_household_benefit_estimator(
-                dataset.X,
-                dataset.y,
-                dataset.r,
-                t, 
-                low_dim=low_dim,
-                n_epochs=n_epochs,
-                hidden_layer_size=hidden_layer_size
+            self.t_to_household_estimator_map[t] = (
+                self._fit_household_benefit_estimator(
+                    dataset.X,
+                    dataset.y,
+                    dataset.r,
+                    t,
+                    low_dim=low_dim,
+                    n_epochs=n_epochs,
+                    hidden_layer_size=hidden_layer_size,
+                )
             )
-
 
     def optimize_transfers_for_budget_grid(self, X_test, r_test=None, budgets=None):
         """
@@ -831,8 +828,8 @@ class BinaryGapTargetedTransfers(TargetedTransfers):
         """
 
         if self.t_to_household_estimator_map is None:
-            raise ValueError('Need to run fit before a policy can be computed')
-    
+            raise ValueError("Need to run fit before a policy can be computed")
+
         if r_test is None:
             r_test = np.ones(len(X_test))
 
@@ -850,13 +847,12 @@ class BinaryGapTargetedTransfers(TargetedTransfers):
             sorting_indices = np.argsort(estimated_benefits)[::-1]
             t_to_ordered_households_map[t] = sorting_indices
 
-
         # For each budget, select optimal transfers on the test set
         self.budget_to_households_map = dict()
         self.budget_to_t_map = dict()
 
         for budget in budgets:
-            
+
             highest_estimated_benefits = -1
             best_household_list = []
             best_t = None
@@ -869,7 +865,9 @@ class BinaryGapTargetedTransfers(TargetedTransfers):
                 indices_to_receive_transfers = self._get_indices_to_receive_transfers(
                     r_test, t, ordered_households, budget
                 )
-                total_estimated_benefits = estimated_benefits[indices_to_receive_transfers].sum()
+                total_estimated_benefits = estimated_benefits[
+                    indices_to_receive_transfers
+                ].sum()
 
                 # sanity check
                 assert total_estimated_benefits >= 0
@@ -891,18 +889,18 @@ class BinaryGapTargetedTransfers(TargetedTransfers):
 
         if self.budget_to_households_map is None:
             raise ValueError(
-                'Must run optimize_transfers_for_budget_grid before run_opt for '
-                'binary gap targeting'
-                )
-        
+                "Must run optimize_transfers_for_budget_grid before run_opt for "
+                "binary gap targeting"
+            )
+
         assert budget is not None
 
         if budget not in self.budget_to_households_map.keys():
             raise ValueError(
-                f'budget {budget} was not included in list provided to '
-                'optimize_transfers_for_budget_grid.'
+                f"budget {budget} was not included in list provided to "
+                "optimize_transfers_for_budget_grid."
             )
-        
+
         indices_to_receive_transfers = self.budget_to_households_map[budget]
         self.t = self.budget_to_t_map[budget]
 
@@ -917,7 +915,7 @@ class BinaryGapTargetedTransfers(TargetedTransfers):
         return transfer_function
 
     def _get_indices_to_receive_transfers(self, r, t, sorting_indices, budget):
-            
+
         r = r / r.sum()
 
         number_of_transfers = len(sorting_indices)
@@ -930,9 +928,8 @@ class BinaryGapTargetedTransfers(TargetedTransfers):
                 number_of_transfers = count
                 break
             budget_remaining -= cost
-        
-        return sorting_indices[:number_of_transfers]
 
+        return sorting_indices[:number_of_transfers]
 
     def _fit_household_benefit_estimator(
         self, X, y, r, t, low_dim=False, n_epochs=300, hidden_layer_size=64, lr=5e-3
@@ -961,8 +958,8 @@ class BinaryGapTargetedTransfers(TargetedTransfers):
             else:
                 predictor = torch.nn.Sequential(
                     torch.nn.Linear(d, hidden_layer_size),
-                    torch.nn.ReLU(), 
-                    torch.nn.Linear(hidden_layer_size, 1), 
+                    torch.nn.ReLU(),
+                    torch.nn.Linear(hidden_layer_size, 1),
                 )
 
             def loss_function(predictor, idx):
@@ -970,22 +967,19 @@ class BinaryGapTargetedTransfers(TargetedTransfers):
                 predicted_benefits = predictor(torch.Tensor(X[idx, :])).squeeze()
                 actual_benefits = torch.Tensor(benefits[idx])
 
-                return (
-                    (predicted_benefits - actual_benefits) ** 2
-                )
-
+                return (predicted_benefits - actual_benefits) ** 2
 
             optimizer = torch.optim.Adam(predictor.parameters(), lr=lr)
             train_prop = 0.7
-            
+
             idx_train_set, idx_val_set = (
-                list(range(int(train_prop * len(X)))), 
-                list(range(int(train_prop * len(X)), len(X)))
+                list(range(int(train_prop * len(X)))),
+                list(range(int(train_prop * len(X)), len(X))),
             )
-            print(f'val weight sum: {r[idx_val_set].sum()}')
+            print(f"val weight sum: {r[idx_val_set].sum()}")
 
             batch_size = int(len(idx_train_set) / 5)
-            print(f'Fitting estimator for household benefit from transfer of size {t}')
+            print(f"Fitting estimator for household benefit from transfer of size {t}")
             pbar = tqdm.tqdm(list(range(n_epochs)))
             val_losses = []
             models = []
@@ -994,7 +988,8 @@ class BinaryGapTargetedTransfers(TargetedTransfers):
                 if epoch % 10 == 0:
                     predictor.eval()
                     val_loss = torch.sum(
-                        loss_function(predictor, idx_val_set) * torch.Tensor(r[idx_val_set])
+                        loss_function(predictor, idx_val_set)
+                        * torch.Tensor(r[idx_val_set])
                     )
                     val_losses.append(val_loss.detach().item())
                     # ideally do torch.save to save checkpoints. Google it. Avoid saving so many models
@@ -1023,7 +1018,9 @@ class BinaryGapTargetedTransfers(TargetedTransfers):
                 X_test = (X_test - X_mean) / X_std
                 predicted_benefits = (
                     (
-                        final_predictor(torch.Tensor(X_test)).reshape(X_test.shape[0], 1)
+                        final_predictor(torch.Tensor(X_test)).reshape(
+                            X_test.shape[0], 1
+                        )
                         * benefits_std
                         + benefits_mean
                     )
@@ -1039,10 +1036,10 @@ class BinaryGapTargetedTransfers(TargetedTransfers):
 
 class OracleGapTargetedTransfers(TargetedTransfers):
     """
-    There is not one well-defined optimal policy to minimize the post-transfer poverty gap: As long as 
-    every dollar goes to households below the poverty line, the reduction in poverty gap will be the optimal. 
-    This class implements two policies: 
-      * lifting as many households as possible to the poverty line, with the restriction that a less-poor 
+    There is not one well-defined optimal policy to minimize the post-transfer poverty gap: As long as
+    every dollar goes to households below the poverty line, the reduction in poverty gap will be the optimal.
+    This class implements two policies:
+      * lifting as many households as possible to the poverty line, with the restriction that a less-poor
         household does not receive more than a poorer household: this amounts to iteratively raising households
         to the poverty line, starting from the poorest, until the specified tolerance is reached.
       * raising a poverty "floor" until the desired tolerance is reached: a floor is a wealth level below which no
@@ -1050,10 +1047,10 @@ class OracleGapTargetedTransfers(TargetedTransfers):
         to raise them to the floor. The floor is set to minimally satisfy the specified tolerance.
     """
 
-    def __init__(self, c_bar=2.15, unconditional_tolerance=None, scheme='lift_to_line'):
+    def __init__(self, c_bar=2.15, unconditional_tolerance=None, scheme="lift_to_line"):
 
-        assert scheme in ('lift_to_line', 'floor')
-        
+        assert scheme in ("lift_to_line", "floor")
+
         super().__init__(
             c_bar=c_bar,
             unconditional_tolerance=unconditional_tolerance,
@@ -1062,18 +1059,16 @@ class OracleGapTargetedTransfers(TargetedTransfers):
         self.name = "oracle_gap"
         self.scheme = scheme
 
-
     def set_conditional_tolerance(self, conditional_tolerance):
         raise NotImplementedError(
             "OraclePovertyGapTargetedTransfer can't use conditional tolerances."
         )
 
-
     def run_opt(self, y_test, r_test=None):
 
         dataset = Dataset(X=None, y=y_test, r=r_test)
 
-        if self.scheme == 'lift_to_line':
+        if self.scheme == "lift_to_line":
 
             self.opt_policy = run_oracle_poverty_gap_lift_to_line_scheme(
                 dataset, tolerance=self.unconditional_tolerance, c_bar=self.c_bar
@@ -1085,7 +1080,8 @@ class OracleGapTargetedTransfers(TargetedTransfers):
             )
 
         return self.opt_policy
-    
+
+
 # class UnconditionalDiscreteTransfers(TargetedTransfers):
 
 #     def __init__(
