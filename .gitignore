@@ -1,0 +1,14 @@
+*__pycache__
+package/src/opt_targeted_transfers.egg-info/
+gd/scripts/
+clean/
+data/
+replication/scripts
+replication/figs
+opt/
+gd/.ipynb_checkpoints
+gd/results
+gd/figs
+gd/policy_tables
+*.csv
+*.pickle
