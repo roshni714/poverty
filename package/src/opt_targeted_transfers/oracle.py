@@ -70,3 +70,95 @@ def run_oracle_poverty_rate(dataset, tolerance, c_bar):
     check_assignments_are_equal(opt_assignment, prox_assignment)
 
     return oracle_policy
+
+
+def run_oracle_poverty_gap_lift_to_line_scheme(dataset, tolerance, c_bar):
+    # Behaves slightly wrong if multiple households have identical income and they
+    # happen to fall right on the border between those receiving and not receiving 
+    # transfers. Identical incomes are unlikely given how consumption aggregates are 
+    # calculated. Will fix eventually.
+    
+    gaps = np.maximum(c_bar - np.array(dataset.y), 0)
+
+    r = dataset.r
+    assert r.sum() == 1
+    
+    sorting_indices = np.argsort(gaps)
+
+    tolerance_remaining = tolerance
+
+    wealth_receiving_partial_transfer = 0
+    
+    for i in sorting_indices:
+
+        if gaps[i] == 0:
+            continue
+
+        gap_contribution = gaps[i] * r[i]
+
+        if tolerance_remaining > gap_contribution:
+            tolerance_remaining -= gap_contribution
+
+        else:
+            wealth_receiving_partial_transfer = dataset.y[i]
+            partial_transfer = gaps[i] - tolerance_remaining / r[i]
+            break
+        
+    def t(y_test):
+
+        assignments = dict()
+        for i in range(len(y_test)):
+            if y_test[i] == wealth_receiving_partial_transfer:
+                assignments[i] = [(partial_transfer, 1.0)]
+            elif y_test[i] < wealth_receiving_partial_transfer:
+                assignments[i] = [(c_bar - y_test[i], 1.0)]
+            else:
+                assignments[i] = ([(0.0, 1.0)])
+        return assignments
+        
+    return t
+
+
+def run_oracle_poverty_gap_floor_scheme(dataset, tolerance, c_bar):
+    
+    gaps = np.maximum(c_bar - np.array(dataset.y), 0)
+    r = dataset.r
+    
+    assert r.sum() == 1
+    
+    sorting_indices = np.argsort(gaps)
+    tolerance_remaining = tolerance
+
+    running_weight = 0
+    max_poverty_gap = 0
+    
+    for i in sorting_indices:
+        if gaps[i] > 0:
+            running_weight += r[i]
+    
+    for i in sorting_indices:
+
+        if gaps[i] == 0:
+            continue
+
+        gap_contribution = gaps[i] * running_weight
+
+        if tolerance_remaining > gap_contribution:
+            max_poverty_gap = gaps[i]
+            tolerance_remaining -= gap_contribution
+            running_weight -= r[i]
+
+        else:
+            max_poverty_gap += tolerance_remaining / running_weight
+            break
+
+    def t(y_test):
+
+        gaps_possibly_negative = c_bar - np.array(y_test)
+        transfers = np.maximum(gaps_possibly_negative - max_poverty_gap, 0)
+        assignments = {
+            i: [(transfer, 1.0)] for i, transfer in enumerate(transfers)
+        }
+        return assignments
+        
+    return t
