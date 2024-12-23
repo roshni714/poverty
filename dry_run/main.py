@@ -26,8 +26,8 @@ def train(
 
     with open(
         savedir
-        + "/generator-{}_maxepochs={}_lr={}_batchsize={}.pickle".format(
-            datetime.now().strftime("%m-%d-%Y")
+        + "/generator-maxepochs={}_lr={}_batchsize={}.pickle".format(
+            maxepochs, lr, batchsize
         ),
         "wb",
     ) as dill_file:
@@ -35,8 +35,8 @@ def train(
 
     with open(
         savedir
-        + "/datawrapper-{}_maxepochs={}_lr={}_batchsize={}.pickle".format(
-            datetime.now().strftime("%m-%d-%Y")
+        + "/datawrapper-maxepochs={}_lr={}_batchsize={}.pickle".format(
+            maxepochs, lr, batchsize
         ),
         "wb",
     ) as dill_file:
@@ -65,7 +65,7 @@ def generate(
 
     synthetic_df = generate_synthetic_data(generator, data_wrapper, nsamples, seed=seed)
     synthetic_df.to_parquet(
-        savedir + "/synthetic_{}_n={}.parquet".format(name, nsamples), index=False
+        savedir + "/synthetic-{}_n={}.parquet".format(name, nsamples), index=False
     )
 
 
