@@ -1,0 +1,114 @@
+import pandas as pd
+import wgan
+import numpy as np
+from pathlib import Path
+
+
+def load_data_for_wgan(path):
+    """
+    Load data for WGAN training.
+
+    Args:
+        path (str): Path to the data file.
+
+    Returns:
+        data_for_wgan (pd.DataFrame): Data for WGAN training.
+        data_wrapper (wgan.DataWrapper): DataWrapper object for WGAN training.
+    """
+    data = pd.read_parquet(path)
+
+    # some of this preprocessing code should eventually be deprecated because
+    # it should be handled by prior data preprocessing code
+
+    # compute outcome conversion factor
+    a = 340.2 / 430.05  # Malawi CPI in 2017 USD / Malawi CPI in 2019 USD
+    b = 241.98  # Malawi Kwacha to USD exchange rate in 2017
+    adulteq = data["adulteq"]
+    # can alternatively implement this as data["num_adults"] + alpha * data["num_children"]
+    # where alpha is in (0, 1).
+    conversion_factor = (a / b) * (1 / 365) * (1 / adulteq)
+    data["consumption_per_capita_per_day"] = data["rexpagg"] * conversion_factor
+
+    # we include hh_wgt and consumption_per_capita_per_day so that
+    # we can synthetically generate samples from the joint distribution (X, Y, R)
+    durable_verifiable_covariates = list(
+        pd.read_csv("data/durable_verifiable_covariates.csv")["Covariates"]
+    )
+    data = data[
+        durable_verifiable_covariates + ["consumption_per_capita_per_day", "hh_wgt"]
+    ]
+
+    # Randomly select 50% of the data for training the WGAN
+    rng = np.random.default_rng(145745893)
+    train_rows = rng.choice(len(data), int(len(data) * 0.5), replace=False)
+    data_for_wgan = data.iloc[train_rows].copy().reset_index(drop=True)
+
+    # Identify which columns are continuous vs. categorical for the WGAN wrapper.
+    # Note that columns that are binary valued.
+
+    numeric_columns = set(data_for_wgan.select_dtypes(include=[np.number]).columns)
+
+    # Treat integer-valued columns as categorical for synthetic data generation
+    # (not necessary to do this for learning)
+    integer_columns = set(
+        [
+            col
+            for col in numeric_columns
+            if np.all(data[col].apply(lambda x: int(x) == x))
+        ]
+    )
+
+    non_numeric_columns = set(
+        data_for_wgan.select_dtypes(exclude=[np.number, np.datetime64]).columns
+    )
+
+    enforced_categorical = {c for c in numeric_columns if c.endswith("_nan")}
+    numeric_columns = list(numeric_columns - enforced_categorical - integer_columns)
+    non_numeric_columns = list(
+        non_numeric_columns | enforced_categorical | integer_columns
+    )
+
+    non_numeric_converted = (
+        data_for_wgan[non_numeric_columns]
+        .astype("category")
+        .apply(lambda c: c.cat.codes)
+    )
+
+    data_for_wgan[non_numeric_columns] = non_numeric_converted
+
+    data_wrapper = wgan.DataWrapper(
+        data_for_wgan,
+        continuous_vars=numeric_columns,
+        categorical_vars=non_numeric_columns,
+        continuous_lower_bounds={"consumption_per_capita_per_day": 0.0, "hh_wgt": 0.0},
+    )
+
+    return data_for_wgan, data_wrapper
+
+
+def train_wgan(data_for_wgan, data_wrapper, device):
+    """
+    Train a WGAN model.
+
+    Args:
+        data_for_wgan (pd.DataFrame): Data for WGAN training.
+        data_wrapper (wgan.DataWrapper): DataWrapper object for WGAN training.
+        device (str): Device to train the WGAN model on.
+
+    Returns:
+        generator (wgan.Generator): Trained WGAN generator.
+    """
+    spec = wgan.Specifications(
+        data_wrapper,
+        batch_size=512,
+        max_epochs=1000,
+        critic_d_hidden=[256, 256, 256],
+        generator_d_hidden=[256, 256, 256],
+        print_every=100,
+        device=device,
+    )
+    generator = wgan.Generator(spec)
+    critic = wgan.Critic(spec)
+    x, context = data_wrapper.preprocess(data_for_wgan)
+    wgan.train(generator, critic, x, context, spec)
+    return generator

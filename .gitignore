@@ -20,3 +20,4 @@ opt/
 **/*.csv
 **/*.pdf
 **/*.egg-info
+**/*.out
