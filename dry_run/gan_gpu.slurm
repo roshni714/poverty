@@ -13,4 +13,4 @@
 #SBATCH --mail-user=rsahoo@stanford.edu
 
 python main.py train --device cuda --savedir pickled --trainpath data/train.parquet --maxepochs 2000 --lr 1e-4 --batchsize 512
-python main.py generate --generatorpath pickled/generator-maxepochs=2000_lr=1e-4_batchsize=512.pickle --generatorpath pickled/datawrapper-maxepochs=2000_lr=1e-4_batchsize=512.pickle --nsamples 20000 --savedir data
+python main.py generate --generatorpath pickled/generator-maxepochs=2000_lr=0.0001_batchsize=512.pickle --datawrapperpath pickled/datawrapper-maxepochs=2000_lr=0.0001_batchsize=512.pickle --nsamples 20000 --savedir data
