@@ -5,48 +5,67 @@ from datetime import datetime
 import numpy as np
 
 
+@argh.arg("--batchsize", default=512)
+@argh.arg("--maxepochs", default=2000)
+@argh.arg("--lr", default=1e-3)
 @argh.arg("--trainpath", default="data/train.parquet")
 @argh.arg("--savedir", default="pickled")
 @argh.arg("--device", default="cuda")
-def train(trainpath="data/train.parquet", savedir="models", device="cuda"):
+def train(
+    trainpath="data/train.parquet",
+    savedir="models",
+    device="cuda",
+    maxepochs=2000,
+    lr=1e-3,
+    batchsize=512,
+):
     data, data_wrapper = load_data_for_wgan(trainpath)
-    generator = train_wgan(data, data_wrapper, device)
+    generator = train_wgan(
+        data, data_wrapper, device, max_epochs=maxepochs, lr=lr, batch_size=batchsize
+    )
 
     with open(
-        savedir + "/generator_{}.pickle".format(datetime.now().strftime("%m-%d-%Y")),
+        savedir
+        + "/generator-{}_maxepochs={}_lr={}_batchsize={}.pickle".format(
+            datetime.now().strftime("%m-%d-%Y")
+        ),
         "wb",
     ) as dill_file:
         dill.dump(generator, dill_file)
 
     with open(
-        savedir + "/data_wrapper_{}.pickle".format(datetime.now().strftime("%m-%d-%Y")),
+        savedir
+        + "/datawrapper-{}_maxepochs={}_lr={}_batchsize={}.pickle".format(
+            datetime.now().strftime("%m-%d-%Y")
+        ),
         "wb",
     ) as dill_file:
         dill.dump(data_wrapper, dill_file)
 
 
-@argh.arg("--timestamp", default=datetime.now().strftime("%m-%d-%Y"))
+@argh.arg("--generatorpath", default="pickled/generator_12-23-2024.pickle")
+@argh.arg("--datawrapperpath", default="pickled/data_wrapper_12-23-2024.pickle")
 @argh.arg("--nsamples", type=int, default=1000)
 @argh.arg("--savedir", default="data")
 @argh.arg("--seed", type=int, default=534543897)
 def generate(
-    timestamp="12-23-2024",
+    generatorpath="pickled/generator_12-23-2024.pickle",
+    datawrapperpath="pickled/datawrapper_12-23-2024.pickle",
     nsamples=20000,
     savedir="data",
-    modeldir="pickled",
     seed=534543897,
 ):
-    with open(modeldir + "/generator_{}.pickle".format(timestamp), "rb") as dill_file:
+    with open(generatorpath, "rb") as dill_file:
         generator = dill.load(dill_file)
 
-    with open(
-        modeldir + "/data_wrapper_{}.pickle".format(timestamp), "rb"
-    ) as dill_file:
+    with open(datawrapperpath, "rb") as dill_file:
         data_wrapper = dill.load(dill_file)
 
+    name = generatorpath.split("generator-")[1].split(".pickle")[0]
+
     synthetic_df = generate_synthetic_data(generator, data_wrapper, nsamples, seed=seed)
-    synthetic_df.to_csv(
-        savedir + "/synthetic_{}_n={}.parquet".format(timestamp, nsamples), index=False
+    synthetic_df.to_parquet(
+        savedir + "/synthetic_{}_n={}.parquet".format(name, nsamples), index=False
     )
 
 

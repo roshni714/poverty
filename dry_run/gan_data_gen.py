@@ -86,7 +86,9 @@ def load_data_for_wgan(path):
     return data_for_wgan, data_wrapper
 
 
-def train_wgan(data_for_wgan, data_wrapper, device):
+def train_wgan(
+    data_for_wgan, data_wrapper, device, batch_size=512, max_epochs=2000, lr=1e-3
+):
     """
     Train a WGAN model.
 
@@ -94,14 +96,18 @@ def train_wgan(data_for_wgan, data_wrapper, device):
         data_for_wgan (pd.DataFrame): Data for WGAN training.
         data_wrapper (wgan.DataWrapper): DataWrapper object for WGAN training.
         device (str): Device to train the WGAN model on.
+        max_epochs (int): Maximum number of epochs for training.
+        lr (float): Learning rate for training.
 
     Returns:
         generator (wgan.Generator): Trained WGAN generator.
     """
     spec = wgan.Specifications(
         data_wrapper,
-        batch_size=512,
-        max_epochs=1000,
+        batch_size=batch_size,
+        max_epochs=max_epochs,
+        critic_lr=lr,
+        generator_lr=lr,
         critic_d_hidden=[256, 256, 256],
         generator_d_hidden=[256, 256, 256],
         print_every=100,
@@ -131,3 +137,19 @@ def generate_synthetic_data(generator, data_wrapper, nsamples, seed):
     rand_ints = rng.integers(0, 2**20, nsamples)
     synthetic_df = data_wrapper.apply_generator(generator, pd.DataFrame(rand_ints))
     return synthetic_df
+
+
+def compare_dfs(df1, df2):
+    """
+    Compare two dataframes.
+
+    Args:
+        df1 (pd.DataFrame): First DataFrame.
+        df2 (pd.DataFrame): Second DataFrame.
+
+    Returns:
+        bool: True if the DataFrames are equal, False otherwise.
+    """
+    mean_distance = np.mean((df1.mean() - df2.mean()) ** 2)
+    std_distance = np.mean((df1.std() - df2.std()) ** 2)
+    return mean_distance, std_distance
