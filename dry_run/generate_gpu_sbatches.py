@@ -3,7 +3,8 @@ import glob
 import os
 
 
-SBATCH_PREFACE = """#SBATCH -J train-gpu
+SBATCH_PREFACE = """#!/bin/bash
+#SBATCH -J train-gpu
 #SBATCH -p gpu
 #SBATCH -c 20
 #SBATCH -N 1
@@ -14,7 +15,7 @@ SBATCH_PREFACE = """#SBATCH -J train-gpu
 #SBATCH --mail-user=rsahoo@stanford.edu
 #SBATCH --job-name="{}.sh"
 #SBATCH --error="{}/{}_err.log"
-#SBATCH --output="{}/{}_out.log\n
+#SBATCH --output="{}/{}_out.log"\n
 """
 
 OUTPUT_PATH = (
