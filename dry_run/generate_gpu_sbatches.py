@@ -24,7 +24,7 @@ OUTPUT_PATH = (
 def generate_wgan_runs():
 
     batchsize_range = [256]
-    maxepochs_range = [500, 1000, 2000, 3000]
+    maxepochs_range = [2000, 3000, 4000, 5000]
     lr_range = [1e-3]
     dropout_range = [0.0, 0.1, 0.2, 0.3]
     for batchsize in batchsize_range:

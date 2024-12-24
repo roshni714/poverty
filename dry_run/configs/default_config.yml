@@ -1,0 +1,25 @@
+rate:
+  num_features: 5
+  density_estimation:
+    num_bins: 100
+    num_knots: 4
+    dim_basis: 3
+continuous_gap:
+  neural_network:
+    num_hidden_layers: 2
+    num_hidden_units: 64
+    lr: 0.001
+  num_quantiles: 15
+binary_gap:
+  neural_network:
+    num_hidden_layers: 2
+    num_hidden_units: 64
+    lr: 0.001
+  num_quantiles: 15
+rank_order_binary_targeting:
+  neural_network:
+    num_layers: 2
+    num_hidden_units: 64
+    lr: 0.001
+
+
