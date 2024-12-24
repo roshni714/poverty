@@ -1,0 +1,6 @@
+wgan
+black
+dill
+notebook
+argh
+pyarrow

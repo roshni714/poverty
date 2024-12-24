@@ -34,9 +34,14 @@ def load_data_for_wgan(path):
     durable_verifiable_covariates = list(
         pd.read_csv("data/durable_verifiable_covariates.csv")["Covariates"]
     )
+
     data = data[
         durable_verifiable_covariates + ["consumption_per_capita_per_day", "hh_wgt"]
     ]
+
+    # More appropriate to represent this variable on a log scale
+    data["log_yearly_rent"] = np.log1p(data["yearly_rent"])
+    del data["yearly_rent"]
 
     # Randomly select 50% of the data for training the WGAN
     rng = np.random.default_rng(145745893)
@@ -80,14 +85,22 @@ def load_data_for_wgan(path):
         data_for_wgan,
         continuous_vars=numeric_columns,
         categorical_vars=non_numeric_columns,
-        continuous_lower_bounds={"consumption_per_capita_per_day": 0.0, "hh_wgt": 0.0},
+        continuous_lower_bounds={"consumption_per_capita_per_day": 0.0, 
+                                 "hh_wgt": 0.0,
+                                 "pop_density": 0.0},
     )
 
     return data_for_wgan, data_wrapper
 
 
 def train_wgan(
-    data_for_wgan, data_wrapper, device, batch_size=512, max_epochs=2000, lr=1e-3
+    data_for_wgan,
+    data_wrapper,
+    device,
+    batch_size=512,
+    max_epochs=2000,
+    lr=1e-3,
+    dropout=0.1,
 ):
     """
     Train a WGAN model.
@@ -98,6 +111,7 @@ def train_wgan(
         device (str): Device to train the WGAN model on.
         max_epochs (int): Maximum number of epochs for training.
         lr (float): Learning rate for training.
+        dropout (float): Dropout rate for the generator.
 
     Returns:
         generator (wgan.Generator): Trained WGAN generator.
@@ -110,6 +124,7 @@ def train_wgan(
         generator_lr=lr,
         critic_d_hidden=[256, 256, 256],
         generator_d_hidden=[256, 256, 256],
+        generator_dropout=dropout,
         print_every=100,
         device=device,
     )
@@ -139,7 +154,7 @@ def generate_synthetic_data(generator, data_wrapper, nsamples, seed):
     return synthetic_df
 
 
-def compare_dfs(df1, df2):
+def get_mean_std_error(df1, df2):
     """
     Compare two dataframes.
 
@@ -148,8 +163,11 @@ def compare_dfs(df1, df2):
         df2 (pd.DataFrame): Second DataFrame.
 
     Returns:
-        bool: True if the DataFrames are equal, False otherwise.
+        mean_rmse (float): Mean RMSE between the two DataFrames.
+        std_rmse (float): Standard deviation RMSE between the two DataFrames.
     """
-    mean_distance = np.mean((df1.mean() - df2.mean()) ** 2)
-    std_distance = np.mean((df1.std() - df2.std()) ** 2)
-    return mean_distance, std_distance
+    mean_rmse = np.sqrt(
+        np.mean((df1[df1.columns].mean() - df2[df1.columns].mean()) ** 2)
+    )
+    std_rmse = np.sqrt(np.mean((df1[df1.columns].std() - df2[df1.columns].std()) ** 2))
+    return mean_rmse, std_rmse

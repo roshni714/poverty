@@ -5,6 +5,7 @@ from datetime import datetime
 import numpy as np
 
 
+@argh.arg("--dropout", default=0.1)
 @argh.arg("--batchsize", default=512)
 @argh.arg("--maxepochs", default=2000)
 @argh.arg("--lr", default=1e-3)
@@ -18,26 +19,29 @@ def train(
     maxepochs=2000,
     lr=1e-3,
     batchsize=512,
+    dropout=0.1,
 ):
     data, data_wrapper = load_data_for_wgan(trainpath)
     generator = train_wgan(
-        data, data_wrapper, device, max_epochs=maxepochs, lr=lr, batch_size=batchsize
+        data,
+        data_wrapper,
+        device,
+        max_epochs=maxepochs,
+        lr=lr,
+        batch_size=batchsize,
+        dropout=dropout,
     )
 
     with open(
         savedir
-        + "/generator-maxepochs={}_lr={}_batchsize={}.pickle".format(
-            maxepochs, lr, batchsize
-        ),
+        + f"/generator-maxepochs={maxepochs}_lr={lr}_batchsize={batchsize}_dropout={dropout}.pickle",
         "wb",
     ) as dill_file:
         dill.dump(generator, dill_file)
 
     with open(
         savedir
-        + "/datawrapper-maxepochs={}_lr={}_batchsize={}.pickle".format(
-            maxepochs, lr, batchsize
-        ),
+        + f"/datawrapper-maxepochs={maxepochs}_lr={lr}_batchsize={batchsize}_dropout={dropout}.pickle",
         "wb",
     ) as dill_file:
         dill.dump(data_wrapper, dill_file)
