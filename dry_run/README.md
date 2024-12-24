@@ -22,14 +22,14 @@ Running the following command will train a WGAN on 50% of the data stored in `tr
 
 ```
 mkdir pickled
-python main.py train --device cuda --savedir pickled --trainpath data/train.parquet --maxepochs 1000 --lr 1e-3 --batchsize 256 --dropout 0.2
+python main.py train --device cpu --savedir pickled --trainpath data/train.parquet --maxepochs 3000 --lr 1e-3 --batchsize 256 --dropout 0.1
 ```
 
 # Synthetic Data Generation
 Running the following command will unpickle the generator and datawrapper saved at `generatorpath` and `datawrapperpath`, respectively and generate a synthetic dataset with `nsamples` and save it to `savedir`.
 
 ```
-python main.py generate --generatorpath pickled/generator-maxepochs=1000_lr=0.001_batchsize=256_dropout=0.2.pickle --datawrapperpath pickled/datawrapper-maxepochs=1000_lr=0.001_batchsize=256_dropout=0.2.pickle --nsamples 20000 --savedir data
+python main.py generate --generatorpath pickled/generator-maxepochs=3000_lr=0.001_batchsize=256_dropout=0.1.pickle --datawrapperpath pickled/datawrapper-maxepochs=1000_lr=0.001_batchsize=256_dropout=0.1.pickle --nsamples 20000 --savedir data
 ```
 
 
