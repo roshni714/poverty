@@ -12,7 +12,7 @@ python3 -m venv dryrun
 source dryrun/bin/activate
 pip install git+https://github.com/gsbDBI/ds-wgan
 ```
-There are a few other packages that I am using, listed [here](). Installation script to come.
+There are a few other packages that I am using, listed [here](https://github.com/roshni714/poverty/blob/master/dry_run/requirements.txt). Installation script to come.
 
 # GAN Training
 Running the following command will train a WGAN on 50% of the data stored in `trainpath` and save pickled outputs (generator, data wrapper) to the folder `savedir`. These objects are saved so that we can generate synthetic data without retraining.
