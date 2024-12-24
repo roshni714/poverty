@@ -85,9 +85,11 @@ def load_data_for_wgan(path):
         data_for_wgan,
         continuous_vars=numeric_columns,
         categorical_vars=non_numeric_columns,
-        continuous_lower_bounds={"consumption_per_capita_per_day": 0.0, 
-                                 "hh_wgt": 0.0,
-                                 "pop_density": 0.0},
+        continuous_lower_bounds={
+            "consumption_per_capita_per_day": 0.0,
+            "hh_wgt": 0.0,
+            "popdensity": 0.0,
+        },
     )
 
     return data_for_wgan, data_wrapper

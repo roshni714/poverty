@@ -1,3 +1,9 @@
+data:
+  gan: 
+    generatorpath: pickled/generator-maxepochs=1000_lr=0.001_batchsize=256_dropout=0.2.pickle
+    datawrapperpath: pickled/generator-maxepochs=1000_lr=0.001_batchsize=256_dropout=0.2.pickle
+ #gt:
+  #  trainpath: data/train.parquet
 rate:
   num_features: [0, 1, 2, 4, 8, 16, 32, 64, 128, 147]
   density_estimation:
