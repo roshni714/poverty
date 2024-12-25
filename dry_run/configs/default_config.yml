@@ -1,9 +1,9 @@
 rate:
   num_features: 5
   density_estimation:
-    num_bins: 100
-    num_knots: 4
-    dim_basis: 3
+    n_bins: 100
+    n_knots: 4
+    degree_basis: 3
 continuous_gap:
   neural_network:
     num_hidden_layers: 2

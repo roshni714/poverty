@@ -23,61 +23,39 @@ def standardize(z):
 
 
 class Dataset:
-
-    def __init__(self, X, y=None, r=None, normalize_weight_sum=True):
+    def __init__(self, df, outcome, covs=None, weight=None):
         """
         Initialize a Dataset object.
 
-        :param X: The input features.
-        :type X: numpy.ndarray
-        :param y: The target values. Defaults to None.
-        :type y: numpy.ndarray or None
-        :param r: The weights. Defaults to uniform weights if r is None.
-        :type r: numpy.ndarray or None
-        :param normalize_weight_sum: Whether to normalize the weights to sum to 1.
-        :type normalize_weight_sum: bool
+        :param df: The input data.
+        :type df: pandas.DataFrame
+        :param outcome: The name of the target column.
+        :type outcome: str
+        :param covs: The names of the input features.
+        :type covs: list
+        :param weight: The name of the weight column.
+        :type weight: str
         """
-        self.X = X
-        self.y = y
+        self.df = df
+        self.outcome = outcome
+        self.weight = weight
+        self.covs = covs
 
-        if X is None:
-            if y is None:
-                raise ValueError("Need at least one of X and y")
+    def get_data(self, normalize_weight=True):
+        """
+        Get the input features, target values, and weights.
 
-            length = len(y)
-        else:
-            length = len(X)
-
+        :return: The input features, target values, and weights.
+        :rtype: tuple(numpy.ndarray, numpy.ndarray, numpy.ndarray)
+        """
+        X = self.df[self.covs].values
+        y = self.df[self.outcome].values
         if r is None:
-            r = np.ones(length)
-
-        if normalize_weight_sum:
-            self.r = r / r.sum()
-
+            r = np.ones(y.shape)
         else:
-            self.r = r
+            r = self.df[self.weight].values
 
-    def __len__(self):
-        """
-        Return the number of samples in the dataset.
-        """
-        if self.X is not None:
-            return self.X.shape[0]
-        elif self.y is not None:
-            return self.y.shape[0]
+        if normalize_weight:
+            r = r / r.sum()
 
-    def __getitem__(self, i):
-        """
-        Get the i-th sample from the dataset.
-
-        :param i: The index of the sample.
-        :type i: int
-        :return: The i-th sample as a tuple (X_i, y_i, r_i) if y is not None, else (X_i, r_i).
-        :rtype: tuple
-        """
-        if self.X is not None and self.y is not None:
-            return self.X[i, :], self.y[i], self.r[i]
-        elif self.X is not None:
-            return self.y[i], self.r[i]
-        elif self.y is not None:
-            return self.X[i, :], self.r[i]
+        return X, y, r
