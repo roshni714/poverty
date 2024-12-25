@@ -1,6 +1,8 @@
 wgan
-black
+statsmodels
 dill
+black
 notebook
 argh
 pyarrow
+tqdm
