@@ -1,6 +1,7 @@
 import statsmodels.api as sm
 import numpy as np
 
+
 def forward_selection(train_dataset, validation_dataset):
     """
     Perform forward selection.
@@ -8,7 +9,7 @@ def forward_selection(train_dataset, validation_dataset):
     Args:
         train_dataset (pd.DataFrame): The training dataset.
         validation_dataset (pd.DataFrame): The validation dataset.
-    
+
     Returns:
         ordered_features (list): A list of features in the order they were selected.
         scores (list): A list of R^2 scores for each feature set.
@@ -42,5 +43,5 @@ def forward_selection(train_dataset, validation_dataset):
         ordered_features.append(best_feature)
         scores.append(best_score)
         feature_list.remove(best_feature)
-    
+
     return ordered_features, scores

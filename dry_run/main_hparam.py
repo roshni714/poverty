@@ -26,8 +26,7 @@ def main(hparamconfig="hparam_config.yaml", defaultconfig="default_config.yml"):
             default_params = yaml.safe_load(stream)
         except yaml.YAMLError as exc:
             print(exc)
-    
-    
+
     opt_hparams = {}
 
     data_config_params = config_hparams["data"]
@@ -41,28 +40,31 @@ def main(hparamconfig="hparam_config.yaml", defaultconfig="default_config.yml"):
         gt_config_params = data_config_params["gt"]
         trainpath = gt_config_params["trainpath"]
         data_generator = get_gt_data_generator(trainpath)
-    
+
     if "rate" in config_hparams:
         opt_hparams["rate"] = {}
         rate = config_hparams["rate"]
 
         if "density_estimation" in rate:
-            opt_density_estimation_hparams = get_optimal_density_estimation_parameters(density_estimation_hparam_ranges=rate["density_estimation"], 
-                                                                                       data_generator=data_generator)
+            opt_density_estimation_hparams = get_optimal_density_estimation_parameters(
+                density_estimation_hparam_ranges=rate["density_estimation"],
+                data_generator=data_generator,
+            )
             opt_hparams["rate"]["density_estimation"] = opt_density_estimation_hparams
         else:
-            opt_hparams["rate"]["density_estimation"] = default_params["rate"]["density_estimation"]
+            opt_hparams["rate"]["density_estimation"] = default_params["rate"][
+                "density_estimation"
+            ]
 
         if "num_features" in rate:
-            opt_num_features = get_optimal_num_features(density_estimation_params=opt_hparams["rate"]["density_estimation"],
-                                                        num_features_range=rate["num_features"],
-                                                        data_generator=data_generator)
+            opt_num_features = get_optimal_num_features(
+                density_estimation_params=opt_hparams["rate"]["density_estimation"],
+                num_features_range=rate["num_features"],
+                data_generator=data_generator,
+            )
             opt_hparams["rate"]["num_features"] = opt_num_features
         else:
             opt_hparams["rate"]["num_features"] = default_params["rate"]["num_features"]
-        
-
-        
 
 
 if __name__ == "__main__":

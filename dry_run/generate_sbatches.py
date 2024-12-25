@@ -33,20 +33,21 @@ OUTPUT_PATH = (
     "/home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/dry_run/scripts"
 )
 
+
 def generate_wgan_run():
     maxepochs = 3000
     lr = 1e-3
     batchsize = 256
     dropout = 0.1
 
-    exp_id = f'wgan_maxepochs={maxepochs}_lr={lr}_batchsize={batchsize}_dropout={dropout}'
+    exp_id = (
+        f"wgan_maxepochs={maxepochs}_lr={lr}_batchsize={batchsize}_dropout={dropout}"
+    )
 
     script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
     with open(script_fn, "w") as f:
         print(
-            SBATCH_PREFACE.format(
-                exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
-            ),
+            SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id),
             file=f,
         )
         base_cmd = "python main.py train --device cpu --savedir pickled --trainpath data/train.parquet --maxepochs {} --lr {} --batchsize {} --dropout {}".format(
@@ -101,4 +102,4 @@ def generate_wgan_hparam_runs():
 
 
 generate_wgan_run()
-#generate_wgan_hparam_runs()
+# generate_wgan_hparam_runs()
