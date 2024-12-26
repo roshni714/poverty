@@ -9,7 +9,7 @@ data:
 rate:
   density_estimation:
     n_features: [0, 1, 2, 4, 8, 16, 32, 50]
-    n_bins: [20, 50, 200, 500, 1000, 2000]
+    n_bins: [10, 20, 50, 200, 500]
     n_knots: [2, 4, 8, 10, 12]
     degree: [2, 3, 4, 5]
 continuous_gap:
