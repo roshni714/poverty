@@ -1,12 +1,14 @@
 data:
+  ntrain: 6480
+  nval: 50000
   gan: 
-    generatorpath: pickled/generator-maxepochs=1000_lr=0.001_batchsize=256_dropout=0.2.pickle
-    datawrapperpath: pickled/generator-maxepochs=1000_lr=0.001_batchsize=256_dropout=0.2.pickle
+    generatorpath: pickled/generator-maxepochs=5000_lr=0.001_batchsize=256_dropout=0.0.pickle
+    datawrapperpath: pickled/datawrapper-maxepochs=5000_lr=0.001_batchsize=256_dropout=0.0.pickle
  #gt:
   #  trainpath: data/train.parquet
 rate:
   density_estimation:
-    num_features: [0, 1, 2, 4, 8, 16, 32, 50]
+    n_features: [0, 1, 2, 4, 8, 16, 32, 50]
     n_bins: [20, 50, 200, 500, 1000, 2000]
     n_knots: [2, 4, 8, 10, 12]
     degree: [2, 3, 4, 5]
