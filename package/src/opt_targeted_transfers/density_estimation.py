@@ -3,15 +3,36 @@ import torch
 import tqdm
 from scipy.signal import argrelextrema
 from scipy.interpolate import interp1d
-import statsmodels.gam.smooth_basis as sb
-from scipy.interpolate import BSpline
 from statsmodels.nonparametric.kde import KDEUnivariate
+from sklearn.preprocessing import SplineTransformer
 
 from opt_targeted_transfers.dataset_utils import standardize
 from opt_targeted_transfers.cond_dist import NonparametricConditionalDistribution
 
 
-def get_cond_density_estimator(dataset, n_bins=100, n_knots=4, degree=3, n_epochs=300):
+def get_nll(dataset, cond_density_estimator):
+    """
+    Compute the negative log-likelihood of the conditional density using samples from dataset.
+
+    :param dataset: The dataset for which to compute the negative log-likelihood.
+    :type dataset: Dataset
+    :param cond_density_estimator: The conditional density estimator.
+    :type cond_density_estimator: Callable[[np.ndarray], np.ndarray]
+    :return: The negative log-likelihood of the conditional density.
+    """
+
+    X, y, r = dataset.get_data()
+    cond_dists = cond_density_estimator(X)
+
+    nlls = []
+    for i in range(len(y)):
+        nlls.append(-np.log(cond_dists[i].pdf(y[i])) * r[i])
+    return np.sum(nlls) / np.sum(r)
+
+
+def get_cond_density_estimator(
+    dataset, n_bins=100, n_knots=4, degree=3, truncation_upper_value=10, n_epochs=300
+):
     """
     Compute the conditional density estimator.
 
@@ -23,6 +44,8 @@ def get_cond_density_estimator(dataset, n_bins=100, n_knots=4, degree=3, n_epoch
     :type n_knots: int
     :param degree: The degree of the B-spline basis functions.
     :type degree: int
+    :param truncation_upper_value: Truncate the outcome space at this value.
+    :type truncation_upper_value: float
     :param n_epochs: The number of epochs to train the density estimator.
                      Defaults to 300.
     :type n_epochs: int
@@ -32,12 +55,22 @@ def get_cond_density_estimator(dataset, n_bins=100, n_knots=4, degree=3, n_epoch
     """
     if len(dataset.covs) == 0:
         helper = lindsey_method(
-            dataset, n_bins=n_bins, n_knots=n_knots, degree=degree, n_epochs=n_epochs
+            dataset,
+            n_bins=n_bins,
+            n_knots=n_knots,
+            degree=degree,
+            truncation_upper_value=truncation_upper_value,
+            n_epochs=n_epochs,
         )
 
     else:
         helper = lindsey_method_with_covariates(
-            dataset, n_bins=n_bins, n_knots=n_knots, degree=degree, n_epochs=n_epochs
+            dataset,
+            n_bins=n_bins,
+            n_knots=n_knots,
+            degree=degree,
+            truncation_upper_value=truncation_upper_value,
+            n_epochs=n_epochs,
         )
     return helper
 
@@ -58,52 +91,15 @@ def fit_carrier_function(y, r):
     return kde
 
 
-def setup_bspline_basis(y, n_knots=4, degree=3):
-    """
-    Set up a B-spline basis.
-
-    :param y: The data used to specify the splines.
-    :type y: numpy.ndarray
-    :param degree: The degree of the B-spline basis functions. Defaults to 3.
-    :type degree: int
-    :param knot_quantiles: The quantiles to use as knots for the B-spline basis functions.
-                           If None, quantiles [0.1, 0.2, 0.4, 0.6] will be used.
-                           Defaults to None.
-    :type knot_quantiles: numpy.ndarray or None
-    :return: A function that evaluates the B-Spline basis.
-    :rtype: Callable[[np.ndarray], np.ndarray]
-    """
-    internal_knots = [np.quantile(y, q) for q in np.linspace(0.05, 0.70, n_knots)]
-
-    df = len(internal_knots) + degree + 1
-    spline_matrix = sb.BSplines(
-        y,
-        df=df,
-        degree=degree,
-        include_intercept=True,
-        knot_kwds=[{"knots": internal_knots}],
-    )
-
-    knots = spline_matrix.smoothers[0].knots
-    num_basis_elem = spline_matrix.basis.shape[1]
-    print("KNOTS:{}".format(knots))
-
-    def get_basis(z):
-        spline_matrix = sb.BSplines(
-            z,
-            df=df,
-            degree=degree,
-            include_intercept=True,
-            knot_kwds=[{"all_knots": knots}],
-        )
-
-        basis = spline_matrix.basis.reshape(len(z), 1, num_basis_elem)
-        return basis
-
-    return get_basis, num_basis_elem
-
-
-def lindsey_method(train_dataset, n_bins=100, n_knots=4, degree=3, n_epochs=300):
+def lindsey_method(
+    train_dataset,
+    n_bins=100,
+    n_knots=4,
+    degree=3,
+    truncation_upper_value=10,
+    n_epochs=300,
+    seed=123456,
+):
     """
     Apply the Lindsey's method for marginal density estimation (Efron & Tibshirani 1996).
 
@@ -118,54 +114,64 @@ def lindsey_method(train_dataset, n_bins=100, n_knots=4, degree=3, n_epochs=300)
     :param n_epochs: The number of epochs to train the density estimator.
                      Defaults to 300.
     :type n_epochs: int
+    :param seed: The random seed to use for the method.
+    :type seed: int
     :return: A callable that maps a numpy array to a numpy array of NonparametricConditionalDistribution objects.
     :rtype: Callable[[np.ndarray], np.ndarray]
     """
-    y = train_dataset.y
-    r = train_dataset.r
+    torch.manual_seed(seed)
+    np.random.seed(seed)
 
-    y = np.log(y)
+    # Get data. Truncate outcome because we only care about
+    # accurate density estimation for units with Y < poverty line.
+    # Standardize Y.
+    _, y, r = train_dataset.get_data()
+    n = len(y)
+    y = np.clip(y, None, truncation_upper_value)
     y, y_mean, y_std = standardize(y)
 
-    n = y.shape[0]
-    torch.manual_seed(123456)
-    np.random.seed(123456)
+    # Define range where learned density is well defined.
+    lower = (0.0 - y_mean) / y_std
+    upper = (truncation_upper_value - y_mean) / y_std
 
-    bin_ends = np.linspace(min(y), max(y), n_bins)
+    # Bin the outcome space.
+    bin_ends = np.linspace(lower, upper, n_bins)
+
+    # Fit carrier density (Y marginal) and evaluate on bin boundaries.
     kde = fit_carrier_function(y, r)
     front = kde.evaluate(bin_ends)
 
-    get_basis_matrix, k = setup_bspline_basis(
-        y,
-        n_knots=n_knots,
-        degree=degree,
-    )
+    # Get B-spline basis functions.
+    spline = SplineTransformer(n_knots=n_knots, degree=degree, knots="quantile")
+    # This sets knots at evenly spaced quantiles of Y.
+    spline.fit(y.reshape(-1, 1))
 
-    bin_basis_elements = get_basis_matrix(bin_ends)
-    basis_matrix = get_basis_matrix(y)  # n x 1 x k
+    # Get basis representation of bin boundaries.
+    bin_basis_elements = spline.transform(bin_ends.reshape(-1, 1))
+    k = bin_basis_elements.shape[1]
+    bin_basis_elements = torch.tensor(
+        bin_basis_elements.reshape(n_bins, k), dtype=torch.float64
+    )  # n_bins x k
+
+    # Get basis representation of sampled Y values.
+    basis_matrix = torch.tensor(
+        spline.transform(y.reshape(-1, 1)).reshape(n, k), dtype=torch.float64
+    )  # n x k
 
     r = torch.tensor(r, dtype=torch.float64)
     y = torch.tensor(y, dtype=torch.float64)
-    basis_matrix = torch.tensor(basis_matrix, dtype=torch.float64)  # n x k
-    bin_basis_elements = torch.tensor(
-        bin_basis_elements, dtype=torch.float64
-    )  # n_bins x k
     bin_ends = torch.tensor(bin_ends, dtype=torch.float64)
     front = torch.tensor(front, dtype=torch.float64)
     theta = torch.nn.Parameter(
         torch.tensor(np.random.uniform(-1.0, 1.0, k).reshape(k, 1), dtype=torch.float64)
     )
-    unscaled_bin_ends = torch.exp(bin_ends * y_std + y_mean)
+
+    unscaled_bin_ends = bin_ends * y_std + y_mean
 
     def glm_nll(theta, idx):
         res = torch.matmul(basis_matrix[idx, :], theta).squeeze()  # n
         norm_res = torch.exp(
-            torch.matmul(
-                bin_basis_elements.reshape(
-                    bin_basis_elements.shape[0], bin_basis_elements.shape[2]
-                ),
-                theta,
-            )
+            torch.matmul(bin_basis_elements, theta)
         ).squeeze()  # n_bins  x1
         final_matrix = front * norm_res
         log_norm_constant = torch.log(torch.trapezoid(y=final_matrix, x=bin_ends))
@@ -200,28 +206,17 @@ def lindsey_method(train_dataset, n_bins=100, n_knots=4, degree=3, n_epochs=300)
     print("Final Theta: {}".format(final_theta))
 
     def helper(X_test):
-        norm_res = torch.exp(
-            torch.matmul(
-                bin_basis_elements.reshape(
-                    bin_basis_elements.shape[0], bin_basis_elements.shape[2]
-                ),
-                final_theta,
-            )
-        ).squeeze()
+        norm_res = torch.exp(torch.matmul(bin_basis_elements, final_theta)).squeeze()
         final_matrix = front * norm_res
         norm_constant = torch.trapezoid(final_matrix, bin_ends)
 
         center = torch.exp(
             torch.matmul(
-                bin_basis_elements.reshape(
-                    bin_basis_elements.shape[0], bin_basis_elements.shape[2]
-                ),
+                bin_basis_elements,
                 final_theta,
             )
         ).squeeze()
         pdf_matrix = (front * center) / norm_constant / y_std
-
-        pdf_matrix = pdf_matrix / unscaled_bin_ends
 
         pdf_matrix = pdf_matrix.detach()
 
@@ -252,7 +247,7 @@ def lindsey_method(train_dataset, n_bins=100, n_knots=4, degree=3, n_epochs=300)
             unscaled_bin_ends,
             pdf_matrix,
             bounds_error=False,
-            fill_value=0.0,
+            fill_value=(0.0, 1e-6),
         )
         ppf_function = interp1d(
             cdf_matrix,
@@ -282,7 +277,13 @@ def lindsey_method(train_dataset, n_bins=100, n_knots=4, degree=3, n_epochs=300)
 
 
 def lindsey_method_with_covariates(
-    train_dataset, n_bins=100, n_knots=4, degree=3, n_epochs=300
+    train_dataset,
+    n_bins=100,
+    n_knots=4,
+    degree=3,
+    truncation_upper_value=10,
+    n_epochs=300,
+    seed=123456,
 ):
     """
     Apply the Lindsey's method for marginal density estimation (Efron & Tibshirani 1996).
@@ -302,33 +303,54 @@ def lindsey_method_with_covariates(
     :rtype: Callable[[np.ndarray], np.ndarray]
     """
 
-    X = train_dataset.X
-    y = train_dataset.y
-    r = train_dataset.r
+    torch.manual_seed(seed)
+    np.random.seed(seed)
 
+    X, y, r = train_dataset.get_data()
+
+    # Get data. Truncate outcome because we only care about
+    # accurate density estimation for units with Y < poverty line.
+    # Standardize Y.
+    _, y, r = train_dataset.get_data()
+    n = len(y)
+    y = np.clip(y, None, truncation_upper_value)
     X, X_mean, X_std = standardize(X)
-
-    y = np.log(y)
     y, y_mean, y_std = standardize(y)
+
+    # Define range where learned density is well defined.
+    lower = (0.0 - y_mean) / y_std
+    upper = (truncation_upper_value - y_mean) / y_std
+
+    # Bin the outcome space.
+    bin_ends = np.linspace(lower, upper, n_bins)
 
     n = X.shape[0]
     d = X.shape[1]
-    torch.manual_seed(123456)
-    np.random.seed(123456)
 
-    bin_ends = np.linspace(min(y), max(y), n_bins)
+    # Fit carrier density (Y marginal) and evaluate on bin boundaries.
     kde = fit_carrier_function(y, r)
     front = kde.evaluate(bin_ends)
 
-    get_basis_matrix, k = setup_bspline_basis(y, n_knots=n_knots, degree=degree)
-    bin_basis_elements = get_basis_matrix(bin_ends)
-    basis_matrix = get_basis_matrix(y)  # n x 1 x k
+    # Get B-spline basis functions.
+    spline = SplineTransformer(n_knots=n_knots, degree=degree, knots="quantile")
+    # This sets knots at evenly spaced quantiles of Y.
+    spline.fit(y.reshape(-1, 1))
+
+    # Get basis representation of bin boundaries.
+    bin_basis_elements = spline.transform(bin_ends.reshape(-1, 1))
+    k = bin_basis_elements.shape[1]
+    bin_basis_elements = torch.tensor(
+        bin_basis_elements.reshape(n_bins, 1, k), dtype=torch.float64
+    )  # n_bins x 1 x k
+
+    # Get basis representation of sampled Y values.
+    basis_matrix = torch.tensor(
+        spline.transform(y.reshape(-1, 1)).reshape(n, 1, k), dtype=torch.float64
+    )  # n x 1 x k
 
     X = torch.tensor(X, dtype=torch.float64).reshape(n, d, 1)
     r = torch.tensor(r, dtype=torch.float64)
     y = torch.tensor(y, dtype=torch.float64)
-    basis_matrix = torch.tensor(basis_matrix, dtype=torch.float64)
-    bin_basis_elements = torch.tensor(bin_basis_elements, dtype=torch.float64)
     bin_ends = torch.tensor(bin_ends, dtype=torch.float64)
     front = torch.tensor(front, dtype=torch.float64)
 
@@ -337,7 +359,7 @@ def lindsey_method_with_covariates(
             np.random.uniform(-1.0, 1.0, k * d).reshape(k, d), dtype=torch.float64
         )
     )
-    unscaled_bin_ends = torch.exp(bin_ends * y_std + y_mean)
+    unscaled_bin_ends = bin_ends * y_std + y_mean
 
     def glm_nll(theta, idx):
         sub_n = len(idx)
@@ -414,7 +436,6 @@ def lindsey_method_with_covariates(
         )
         pdf_matrix = ((front * center) / norm_constant.reshape(len(X_test), 1)) / y_std
         pdf_matrix = pdf_matrix.detach()
-        pdf_matrix /= unscaled_bin_ends
 
         idx_maxima = argrelextrema(pdf_matrix.numpy(), np.less_equal, axis=1)
         idx_minima = argrelextrema(pdf_matrix.numpy(), np.greater_equal, axis=1)
@@ -446,7 +467,7 @@ def lindsey_method_with_covariates(
                 unscaled_bin_ends,
                 pdf_matrix[i].flatten(),
                 bounds_error=False,
-                fill_value=0.0,
+                fill_value=(0.0, 1e-6),
             )
             ppf_function = interp1d(
                 cdf_matrix[i].flatten(),

@@ -21,7 +21,12 @@ def get_wgan_data_generator(generatorpath, datawrapperpath):
     with open(datawrapperpath, "rb") as dill_file:
         data_wrapper = dill.load(dill_file)
 
-    vars = data_wrapper.variables["continuous"] + data_wrapper.variables["context"] + data_wrapper.variables["categorical"]
+    vars = (
+        data_wrapper.variables["continuous"]
+        + data_wrapper.variables["context"]
+        + data_wrapper.variables["categorical"]
+    )
+
     def data_generator(nsamples, seed):
         return generate_synthetic_data(generator, data_wrapper, nsamples, seed)[vars]
 
@@ -69,7 +74,7 @@ def get_gt_data_generator(trainpath):
 
     def data_generator(nsamples, seed):
         rng = np.random.default_rng(seed)
-        sample_indices = rng.choice(data.index, nsamples, replace=False)
+        sample_indices = rng.choice(data.index, nsamples, replace=True)
         return data.loc[sample_indices].reset_index(drop=True)
 
     return data_generator

@@ -6,3 +6,4 @@ notebook
 argh
 pyarrow
 tqdm
+scikit-learn

@@ -48,9 +48,12 @@ class Dataset:
         :return: The input features, target values, and weights.
         :rtype: tuple(numpy.ndarray, numpy.ndarray, numpy.ndarray)
         """
-        X = self.df[self.covs].values
+        if self.covs is None:
+            X = self.df[self.covs].values
+        else:
+            X = self.df[self.covs].values.reshape(len(self.df), len(self.covs))
         y = self.df[self.outcome].values
-        if r is None:
+        if self.weight is None:
             r = np.ones(y.shape)
         else:
             r = self.df[self.weight].values

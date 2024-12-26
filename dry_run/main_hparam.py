@@ -6,7 +6,6 @@ from feature_selection_hparam_search import get_optimal_num_features
 
 
 @argh.arg("--hparamconfig", default="hparam_config.yml")
-@argh.arg("--defaultconfig", default="default_config.yml")
 def main(hparamconfig="hparam_config.yaml", defaultconfig="default_config.yml"):
     """
     Main function to optimize hyperparameters.
@@ -51,20 +50,6 @@ def main(hparamconfig="hparam_config.yaml", defaultconfig="default_config.yml"):
                 data_generator=data_generator,
             )
             opt_hparams["rate"]["density_estimation"] = opt_density_estimation_hparams
-        else:
-            opt_hparams["rate"]["density_estimation"] = default_params["rate"][
-                "density_estimation"
-            ]
-
-        if "num_features" in rate:
-            opt_num_features = get_optimal_num_features(
-                density_estimation_params=opt_hparams["rate"]["density_estimation"],
-                num_features_range=rate["num_features"],
-                data_generator=data_generator,
-            )
-            opt_hparams["rate"]["num_features"] = opt_num_features
-        else:
-            opt_hparams["rate"]["num_features"] = default_params["rate"]["num_features"]
 
 
 if __name__ == "__main__":

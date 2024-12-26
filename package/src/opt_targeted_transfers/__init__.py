@@ -11,5 +11,8 @@ from opt_targeted_transfers.opt import (
     BinaryConditionalTargetedTransfers,
     BinaryGapTargetedTransfers,
 )
-from opt_targeted_transfers.density_estimation import get_cond_density_estimator
+from opt_targeted_transfers.density_estimation import (
+    get_cond_density_estimator,
+    get_nll,
+)
 from opt_targeted_transfers.dataset_utils import Dataset

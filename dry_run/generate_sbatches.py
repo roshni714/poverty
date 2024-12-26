@@ -101,5 +101,5 @@ def generate_wgan_hparam_runs():
                         print("sleep 1", file=f)
 
 
-generate_wgan_run()
-# generate_wgan_hparam_runs()
+# generate_wgan_run()
+generate_wgan_hparam_runs()
