@@ -6,7 +6,6 @@ from opt_targeted_transfers.opt import (
     OraclePovertyRateTargetedTransfers,
     GapTargetedTransfers,
     OracleGapTargetedTransfers,
-    BinaryConditionalTargetedTransfers,
     BinaryGapTargetedTransfers,
 )
 from opt_targeted_transfers.density_estimation import (

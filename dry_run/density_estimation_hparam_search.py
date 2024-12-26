@@ -4,7 +4,7 @@ import pandas as pd
 
 
 def get_optimal_density_estimation_parameters(
-    density_estimation_hparam_ranges, data_generator, ntrain, nval
+    density_estimation_hparam_ranges, data_generator, ntrain, nval, outcome, weight
 ):
     """
     Get optimal density estimation hyperparameters.
@@ -29,7 +29,7 @@ def get_optimal_density_estimation_parameters(
     if "n_bins" in density_estimation_hparam_ranges:
         n_bins_range = density_estimation_hparam_ranges["n_bins"]
     else:
-        n_bins_range = [10]
+        n_bins_range = [100]
 
     if "n_knots" in density_estimation_hparam_ranges:
         n_knots_range = density_estimation_hparam_ranges["n_knots"]
@@ -38,12 +38,8 @@ def get_optimal_density_estimation_parameters(
 
     train_df = data_generator(nsamples=ntrain, seed=547396234)
     val_df = data_generator(nsamples=nval, seed=79809342)
-    train_dataset = Dataset(
-        train_df, outcome="consumption_per_capita_per_day", weight="hh_wgt", covs=[]
-    )
-    val_dataset = Dataset(
-        val_df, outcome="consumption_per_capita_per_day", weight="hh_wgt", covs=[]
-    )
+    train_dataset = Dataset(train_df, outcome=outcome, weight=weight, covs=[])
+    val_dataset = Dataset(val_df, outcome=outcome, weight=weight, covs=[])
 
     print("Running forward selection...")
     ordered_features, _ = forward_selection(
@@ -56,14 +52,14 @@ def get_optimal_density_estimation_parameters(
         val_df = data_generator(nsamples=nval, seed=4308 * i + 1)
         train_dataset = Dataset(
             train_df,
-            outcome="consumption_per_capita_per_day",
-            weight="hh_wgt",
+            outcome=outcome,
+            weight=weight,
             covs=ordered_features[:n_features],
         )
         val_dataset = Dataset(
             val_df,
-            outcome="consumption_per_capita_per_day",
-            weight="hh_wgt",
+            outcome=outcome,
+            weight=weight,
             covs=ordered_features[:n_features],
         )
         for degree in degree_range:
@@ -71,7 +67,6 @@ def get_optimal_density_estimation_parameters(
                 for n_knots in n_knots_range:
                     density_estimator = get_cond_density_estimator(
                         train_dataset,
-                        n_features=n_features,
                         degree=degree,
                         n_bins=n_bins,
                         n_knots=n_knots,

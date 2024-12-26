@@ -31,4 +31,11 @@ Running the following command will unpickle the generator and datawrapper saved 
 python main.py generate --generatorpath pickled/generator-maxepochs=3000_lr=0.001_batchsize=256_dropout=0.1.pickle --datawrapperpath pickled/datawrapper-maxepochs=1000_lr=0.001_batchsize=256_dropout=0.1.pickle --nsamples 20000 --savedir data
 ```
 
+# Hyperparameter Search
+Running the following command will run a hyperparameter search for all procedures and hyperparameters specified in the `hparamconfig` YAML file. [This]((https://github.com/roshni714/poverty/blob/21ccd2be215338756a8ce1015082382a6eaac924/dry_run/configs/hparam_config.yml)) is an example config file. If a certain hyperparameter is not specified in the config file, the script uses a default value; see default hyperparameter values [here](https://github.com/roshni714/poverty/blob/21ccd2be215338756a8ce1015082382a6eaac924/dry_run/configs/default_config.yml). This script will produce a YAML file with the optimal hyperparameter values.
+
+```
+python main_hp.py main --hparamconfig hparam_config.yml
+```
+
 

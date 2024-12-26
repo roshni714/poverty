@@ -34,6 +34,8 @@ def main(hparamconfig="hparam_config.yaml"):
 
     ntrain = data_config_params["ntrain"]
     nval = data_config_params["nval"]
+    outcome = data_config_params["outcome"]
+    weight = data_config_params["weight"]
 
     if "rate" in config_hparams:
         opt_hparams["rate"] = {}
@@ -44,6 +46,8 @@ def main(hparamconfig="hparam_config.yaml"):
                 data_generator=data_generator,
                 ntrain=ntrain,
                 nval=nval,
+                outcome=outcome,
+                weight=weight,
             )
             opt_hparams["rate"]["density_estimation"] = opt_density_estimation_hparams
             print(opt_hparams)

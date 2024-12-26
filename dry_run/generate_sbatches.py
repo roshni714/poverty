@@ -34,6 +34,20 @@ OUTPUT_PATH = (
 )
 
 
+def generate_hparam_run():
+    exp_id = f"hparam"
+
+    script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
+    with open(script_fn, "w") as f:
+        print(
+            SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id),
+            file=f,
+        )
+        base_cmd = "python main_hparam.py main"
+        print(base_cmd, file=f)
+        print("sleep 1", file=f)
+
+
 def generate_wgan_run():
     maxepochs = 3000
     lr = 1e-3
@@ -70,6 +84,8 @@ def generate_wgan_hparam_runs():
     maxepochs_range = [2500, 5000, 7500]
     lr_range = [1e-3]
     dropout_range = [0.0]
+    n_trials = 5
+
     for batchsize in batchsize_range:
         for maxepochs in maxepochs_range:
             for lr in lr_range:
@@ -85,21 +101,24 @@ def generate_wgan_hparam_runs():
                             ),
                             file=f,
                         )
-                        base_cmd = "python main.py train --device cuda --savedir pickled --trainpath data/train.parquet --maxepochs {} --lr {} --batchsize {} --dropout {}".format(
-                            maxepochs, lr, batchsize, dropout
-                        )
-                        print(base_cmd, file=f)
+                        for trial in range(n_trials):
+                            base_cmd = "python main.py train --device cuda --savedir pickled --trainpath data/train.parquet --maxepochs {} --lr {} --batchsize {} --dropout {} --trial {}".format(
+                                maxepochs, lr, batchsize, dropout, trial
+                            )
+                            print(base_cmd, file=f)
 
-                        base_cmd = "python main.py generate --generatorpath pickled/generator-maxepochs={maxepochs}_lr={lr}_batchsize={batchsize}_dropout={dropout}.pickle --datawrapperpath pickled/datawrapper-maxepochs={maxepochs}_lr={lr}_batchsize={batchsize}_dropout={dropout}.pickle --nsamples 20000 --savedir data".format(
-                            maxepochs=maxepochs,
-                            lr=lr,
-                            batchsize=batchsize,
-                            dropout=dropout,
-                        )
-                        print(base_cmd, file=f)
+                            base_cmd = "python main.py generate --generatorpath pickled/generator-maxepochs={maxepochs}_lr={lr}_batchsize={batchsize}_dropout={dropout}_trial={trial}.pickle --datawrapperpath pickled/datawrapper-maxepochs={maxepochs}_lr={lr}_batchsize={batchsize}_dropout={dropout}_trial={trial}.pickle --nsamples 20000 --savedir data".format(
+                                maxepochs=maxepochs,
+                                lr=lr,
+                                batchsize=batchsize,
+                                dropout=dropout,
+                                trial=trial,
+                            )
+                            print(base_cmd, file=f)
 
-                        print("sleep 1", file=f)
+                            print("sleep 1", file=f)
 
 
+# generate_hparam_run()
 # generate_wgan_run()
 generate_wgan_hparam_runs()

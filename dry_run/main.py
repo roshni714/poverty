@@ -12,6 +12,7 @@ import numpy as np
 @argh.arg("--trainpath", default="data/train.parquet")
 @argh.arg("--savedir", default="pickled")
 @argh.arg("--device", default="cuda")
+@argh.arg("--trial", default=0)
 def train(
     trainpath="data/train.parquet",
     savedir="models",
@@ -20,6 +21,7 @@ def train(
     lr=1e-3,
     batchsize=512,
     dropout=0.1,
+    trial=0,
 ):
     data, data_wrapper = load_data_for_wgan(trainpath)
     generator = train_wgan(
@@ -34,14 +36,14 @@ def train(
 
     with open(
         savedir
-        + f"/generator-maxepochs={maxepochs}_lr={lr}_batchsize={batchsize}_dropout={dropout}.pickle",
+        + f"/generator-maxepochs={maxepochs}_lr={lr}_batchsize={batchsize}_dropout={dropout}_trial={trial}.pickle",
         "wb",
     ) as dill_file:
         dill.dump(generator, dill_file)
 
     with open(
         savedir
-        + f"/datawrapper-maxepochs={maxepochs}_lr={lr}_batchsize={batchsize}_dropout={dropout}.pickle",
+        + f"/datawrapper-maxepochs={maxepochs}_lr={lr}_batchsize={batchsize}_dropout={dropout}_trial={trial}.pickle",
         "wb",
     ) as dill_file:
         dill.dump(data_wrapper, dill_file)

@@ -2,8 +2,6 @@
 
 rm -rf /home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/dry_run/scripts
 mkdir /home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/dry_run/scripts
-rm -rf /home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/dry_run/pickled
-mkdir /home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/dry_run/pickled
 python generate_sbatches.py
 
 
