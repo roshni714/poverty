@@ -4,13 +4,12 @@ import numpy as np
 import dill
 
 
-def load_data_for_wgan(path, truncation_upper_value=25):
+def load_data_for_wgan(path):
     """
     Load data for WGAN training.
 
     Args:
         path (str): Path to the data file.
-        truncation_upper_value (float): The outcome space is truncated at this value.
 
     Returns:
         data_for_wgan (pd.DataFrame): Data for WGAN training.
@@ -29,9 +28,9 @@ def load_data_for_wgan(path, truncation_upper_value=25):
     # where alpha is in (0, 1).
     conversion_factor = (a / b) * (1 / 365) * (1 / adulteq)
     data["consumption_per_capita_per_day"] = data["rexpagg"] * conversion_factor
-    data["consumption_per_capita_per_day"] = np.clip(
-        data["consumption_per_capita_per_day"], 0, truncation_upper_value
-    )
+    # data["consumption_per_capita_per_day"] = np.clip(
+    #     data["consumption_per_capita_per_day"], 0, truncation_upper_value
+    # )
 
     # we include hh_wgt and consumption_per_capita_per_day so that
     # we can synthetically generate samples from the joint distribution (X, Y, R)
@@ -43,9 +42,16 @@ def load_data_for_wgan(path, truncation_upper_value=25):
         durable_verifiable_covariates + ["consumption_per_capita_per_day", "hh_wgt"]
     ]
 
-    # More appropriate to represent this variable on a log scale
-    data["log_yearly_rent"] = np.log1p(data["yearly_rent"])
-    del data["yearly_rent"]
+    # Log transform continuous variables that must be positive
+    positive_features = [
+        "consumption_per_capita_per_day",
+        "hh_wgt",
+        "popdensity",
+        "yearly_rent",
+    ]
+    for feature in positive_features:
+        data["log_" + feature] = np.log(np.clip(data[feature], 1e-5, None))
+    data.drop(columns=positive_features, inplace=True)
 
     # Randomly select 50% of the data for training the WGAN
     rng = np.random.default_rng(145745893)
@@ -89,11 +95,6 @@ def load_data_for_wgan(path, truncation_upper_value=25):
         data_for_wgan,
         continuous_vars=numeric_columns,
         categorical_vars=non_numeric_columns,
-        continuous_lower_bounds={
-            "consumption_per_capita_per_day": 0.0,
-            "hh_wgt": 0.0,
-            "popdensity": 0.0,
-        },
     )
 
     return data_for_wgan, data_wrapper
@@ -158,6 +159,17 @@ def generate_synthetic_data(generator, data_wrapper, nsamples, seed):
     rng = np.random.default_rng(seed)
     rand_ints = rng.normal(0, 2**20, nsamples)
     synthetic_df = data_wrapper.apply_generator(generator, pd.DataFrame(rand_ints))
+    vars = (
+        data_wrapper.variables["continuous"]
+        + data_wrapper.variables["context"]
+        + data_wrapper.variables["categorical"]
+    )
+    synthetic_df.drop(columns=[0], inplace=True)
+    for feature in vars:
+        if feature.startswith("log_"):
+            new_feature_name = feature[4:]
+            synthetic_df[new_feature_name] = np.exp(synthetic_df[feature])
+            synthetic_df.drop(columns=[feature], inplace=True)
     return synthetic_df
 
 
@@ -173,8 +185,13 @@ def get_mean_std_error(df1, df2):
         mean_rmse (float): Mean RMSE between the two DataFrames.
         std_rmse (float): Standard deviation RMSE between the two DataFrames.
     """
-    mean_rmse = np.sqrt(
-        np.mean((df1[df1.columns].mean() - df2[df1.columns].mean()) ** 2)
-    )
-    std_rmse = np.sqrt(np.mean((df1[df1.columns].std() - df2[df1.columns].std()) ** 2))
-    return mean_rmse, std_rmse
+    mean1 = df1[df1.columns].mean()
+    mean2 = df2[df1.columns].mean()
+
+    std1 = df1[df1.columns].std()
+    std2 = df2[df1.columns].std()
+
+    mean_rmae = np.mean(np.abs((mean1 - mean2) / mean1.clip(1.0, None)))
+    std_rmae = np.mean(np.abs((std1 - std2) / std1.clip(1.0, None)))
+
+    return mean_rmae, std_rmae

@@ -66,10 +66,10 @@ def generate_wgan_run():
 
 
 def generate_wgan_hparam_runs():
-    batchsize_range = [256]
-    maxepochs_range = [2000, 3000, 4000, 5000]
+    batchsize_range = [128, 256, 512]
+    maxepochs_range = [2500, 5000, 7500]
     lr_range = [1e-3]
-    dropout_range = [0.0, 0.1, 0.2, 0.3]
+    dropout_range = [0.0]
     for batchsize in batchsize_range:
         for maxepochs in maxepochs_range:
             for lr in lr_range:

@@ -21,14 +21,8 @@ def get_wgan_data_generator(generatorpath, datawrapperpath):
     with open(datawrapperpath, "rb") as dill_file:
         data_wrapper = dill.load(dill_file)
 
-    vars = (
-        data_wrapper.variables["continuous"]
-        + data_wrapper.variables["context"]
-        + data_wrapper.variables["categorical"]
-    )
-
     def data_generator(nsamples, seed):
-        return generate_synthetic_data(generator, data_wrapper, nsamples, seed)[vars]
+        return generate_synthetic_data(generator, data_wrapper, nsamples, seed)
 
     return data_generator
 
@@ -68,9 +62,9 @@ def get_gt_data_generator(trainpath):
         durable_verifiable_covariates + ["consumption_per_capita_per_day", "hh_wgt"]
     ]
 
-    # More appropriate to represent this variable on a log scale
-    data["log_yearly_rent"] = np.log1p(data["yearly_rent"])
-    del data["yearly_rent"]
+    # # More appropriate to represent this variable on a log scale
+    # data["log_yearly_rent"] = np.log1p(data["yearly_rent"])
+    # del data["yearly_rent"]
 
     def data_generator(nsamples, seed):
         rng = np.random.default_rng(seed)
