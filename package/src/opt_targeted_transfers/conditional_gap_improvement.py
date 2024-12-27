@@ -24,16 +24,17 @@ def get_conditional_gap_improvement_loss(val_dataset, predictor, t, c_bar=2.15):
     current_gaps = np.maximum(c_bar - y, 0)
     gaps_after_transfer = np.maximum(c_bar - t - y, 0)
     benefits = current_gaps - gaps_after_transfer
-    weighted_benefits = benefits
 
     predicted_benefits = predictor(X)
-    mse_loss = (predicted_benefits - weighted_benefits) ** 2
+    assert predicted_benefits.shape == benefits.shape
+    mse_loss = (predicted_benefits - benefits) ** 2
+    assert mse_loss.shape == r.shape
     weighted_mse_loss = np.sum(mse_loss * r) / np.sum(r)
     return weighted_mse_loss
 
 
 def get_conditional_gap_improvement_regressor(
-    train_dataset,
+    dataset,
     t,
     c_bar=2.15,
     n_layers=1,
@@ -63,11 +64,11 @@ def get_conditional_gap_improvement_regressor(
     :rtype: Callable[[np.ndarray], np.ndarray]
     """
 
-    torch.mean.seed(seed)
+    torch.manual_seed(seed)
     np.random.seed(seed)
 
     # shuffle the data
-    X, y, r = train_dataset.get_data()
+    X, y, r = dataset.get_data()
     X, X_mean, X_std = standardize(X)
 
     current_gaps = np.maximum(c_bar - y, 0)
@@ -104,7 +105,7 @@ def get_conditional_gap_improvement_regressor(
         )
 
         batch_size = int(len(idx_train_set) / 5)
-        print(f"Fitting estimator for household benefit from transfer of size {t}")
+        print(f"Fitting conditional gap improvement for transfer size {t}")
         pbar = tqdm.tqdm(list(range(n_epochs)))
         val_losses = []
         models = []

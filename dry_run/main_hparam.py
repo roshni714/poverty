@@ -75,18 +75,20 @@ def main(hparamconfig="hparam_config.yaml"):
         )
         opt_hparams["continuous_gap"]["neural_network"] = opt_nn_hparams
         print(opt_nn_hparams)
-    # if "binary_gap" in config_hparams:
-    #     opt_hparams["binary_gap"] = {}
-    #     binary_gap = config_hparams["binary_gap"]
-    #     opt_nn_hparams = get_optimal_nn_gap_improvement_parameters(nn_hparam_ranges=binary_gap["neural_network"],
-    #                                                                    data_generator=data_generator,
-    #                                                                    ntrain=ntrain,
-    #                                                                    nval=nval,
-    #                                                                    outcome=outcome,
-    #                                                                    weight=weight,
-    #                                                                    savedir=savedir)
-    #     opt_hparams["binary_gap"]["neural_network"] = opt_nn_hparams
-    #     print(opt_nn_hparams)
+    if "binary_gap" in config_hparams:
+        opt_hparams["binary_gap"] = {}
+        binary_gap = config_hparams["binary_gap"]
+        opt_nn_hparams = get_optimal_nn_gap_improvement_parameters(
+            nn_hparam_ranges=binary_gap["neural_network"],
+            data_generator=data_generator,
+            ntrain=ntrain,
+            nval=nval,
+            outcome=outcome,
+            weight=weight,
+            savedir=savedir,
+        )
+        opt_hparams["binary_gap"]["neural_network"] = opt_nn_hparams
+        print(opt_nn_hparams)
 
     name = hparamconfig.split("/")[1].split(".yaml")[0]
     with open(f"{savedir}/output_{name}.yaml", "w") as file:
