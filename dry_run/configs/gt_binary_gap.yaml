@@ -1,0 +1,13 @@
+savedir: "hparam_results"
+data:
+  ntrain: 6480
+  nval: 50000
+  outcome: consumption_per_capita_per_day
+  weight: hh_wgt
+  gt:
+    trainpath: data/train.parquet
+binary_gap:
+  neural_network:
+    n_layers: [1, 2, 3, 4]
+    n_hidden_units: [32, 64, 128, 256]
+    lr: [0.001, 0.005, 0.01]

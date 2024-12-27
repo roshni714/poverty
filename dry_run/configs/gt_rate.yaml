@@ -1,0 +1,15 @@
+savedir: "hparam_results"
+data:
+  ntrain: 6480
+  nval: 50000
+  outcome: consumption_per_capita_per_day
+  weight: hh_wgt
+  gt:
+    trainpath: data/train.parquet
+rate:
+  density_estimation:
+    n_features: [0, 5, 10, 20, 50, 100, 147]
+    n_bins: [10, 20, 50, 100, 200] 
+    n_knots: [2, 4, 8, 12]
+    degree: [2, 3, 4, 5] 
+
