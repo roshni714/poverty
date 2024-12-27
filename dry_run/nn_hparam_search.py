@@ -56,7 +56,7 @@ def get_optimal_nn_gap_improvement_parameters(
                 for n_hidden_units in n_hidden_units_range:
                     for lr in lr_range:
                         print(
-                            f"Training neural network with {n_layers} layers, {n_hidden_units} hidden units, and learning rate {lr}..."
+                            f"Training neural network with {n_layers} layers, {n_hidden_units} hidden units, and learning rate {lr} for transfer size {transfer_size} during trial {trial}..."
                         )
                         model = get_conditional_gap_improvement_regressor(
                             dataset=train_dataset,
@@ -137,7 +137,7 @@ def get_optimal_nn_quantile_regression_parameters(
                 for n_hidden_units in n_hidden_units_range:
                     for lr in lr_range:
                         print(
-                            f"Training neural network with {n_layers} layers, {n_hidden_units} hidden units, and learning rate {lr}..."
+                            f"Training neural network with {n_layers} layers, {n_hidden_units} hidden units, and learning rate {lr} for quantile {quantile} during trial {trial}..."
                         )
                         model = get_quantile_regressor(
                             dataset=train_dataset,
