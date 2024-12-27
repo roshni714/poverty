@@ -1,0 +1,5 @@
+continuous_gap:
+  neural_network:
+    lr: 0.001
+    n_hidden_units: 32.0
+    n_layers: 2.0

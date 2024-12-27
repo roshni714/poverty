@@ -1,4 +1,4 @@
-from dataset_utils import standardize
+from opt_targeted_transfers.dataset_utils import standardize
 import numpy as np
 import torch
 import tqdm

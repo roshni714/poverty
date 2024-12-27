@@ -79,14 +79,16 @@ def get_optimal_nn_gap_improvement_parameters(
                             "loss": loss,
                         }
                     )
-    df = results.groupby(["n_layers", "n_hidden_units", "lr"]).agg({"loss": "mean"})
-    df.to_csv(f"{savedir}/nn_quantile_regression_results.csv")
-    optimal_params = df.loc[df["loss_mean"].idxmin()].to_dict()
-    del optimal_params["loss_mean"]
+    df = pd.DataFrame.from_records(results)
+    df = df.groupby(["n_layers", "n_hidden_units", "lr"]).mean().reset_index()
+    df.to_csv(f"{savedir}/nn_gap_improvement_results.csv", index=False)
+    optimal_params = df.loc[df["loss"].idxmin()].to_dict()
+    del optimal_params["loss"]
+    del optimal_params["transfer_size"]
     return optimal_params
 
 
-def get_optimal_nn_quantile_regression_pararameters(
+def get_optimal_nn_quantile_regression_parameters(
     nn_hparam_ranges, data_generator, ntrain, nval, outcome, weight, savedir
 ):
     """
@@ -121,8 +123,6 @@ def get_optimal_nn_quantile_regression_pararameters(
     train_df = data_generator(nsamples=ntrain, seed=54734234)
     val_df = data_generator(nsamples=nval, seed=7959342)
     covs = train_df.columns.difference([outcome, weight]).tolist()
-    covs.remove(outcome)
-    covs.remove(weight)
     train_dataset = Dataset(train_df, outcome=outcome, weight=weight, covs=covs)
     val_dataset = Dataset(val_df, outcome=outcome, weight=weight, covs=covs)
 
@@ -156,10 +156,11 @@ def get_optimal_nn_quantile_regression_pararameters(
                             "pinball_loss": pinball_loss,
                         }
                     )
-    df = results.groupby(["n_layers", "n_hidden_units", "lr"]).agg(
-        {"pinball_loss": "mean"}
-    )
-    df.to_csv(f"{savedir}/nn_quantile_regression_results.csv")
-    optimal_params = df.loc[df["pinball_loss_mean"].idxmin()].to_dict()
-    del optimal_params["pinball_loss_mean"]
+                    print(pinball_loss)
+    df = pd.DataFrame.from_records(results)
+    df = df.groupby(["n_layers", "n_hidden_units", "lr"]).mean().reset_index()
+    df.to_csv(f"{savedir}/nn_quantile_regression_results.csv", index=False)
+    optimal_params = df.loc[df["pinball_loss"].idxmin()].to_dict()
+    del optimal_params["pinball_loss"]
+    del optimal_params["quantile"]
     return optimal_params

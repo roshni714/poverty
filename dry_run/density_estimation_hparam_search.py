@@ -96,7 +96,7 @@ def get_optimal_density_estimation_parameters(
                     )
 
     df = pd.DataFrame(results)
-    df.to_csv("{}/density_estimation.csv".format(savedir))
+    df.to_csv("{}/density_estimation.csv".format(savedir), index=False)
     optimal_params = df.loc[df["nll"].idxmin()].to_dict()
     del optimal_params["nll"]
     return optimal_params

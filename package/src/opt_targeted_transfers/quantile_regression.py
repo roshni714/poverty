@@ -22,9 +22,11 @@ def get_quantile_loss(val_dataset, quantile_regressor, quantile):
     """
     X, y, r = val_dataset.get_data()
     y_pred = quantile_regressor(X)
+    assert y_pred.shape == y.shape
     pinball_loss = quantile * np.maximum(y - y_pred, 0) + (1 - quantile) * np.maximum(
         y_pred - y, 0
     )
+    assert pinball_loss.shape == r.shape
     weighted_pinball_loss = np.sum(pinball_loss * r) / np.sum(r)
     return weighted_pinball_loss
 
@@ -50,7 +52,7 @@ def get_quantile_regressor(
     :return: The quantile regressor.
     :rtype: Callable[[np.ndarray], np.ndarray]
     """
-    torch.random.seed(seed)
+    torch.manual_seed(seed)
     np.random.seed(seed)
 
     X, y, r = dataset.get_data()
@@ -83,7 +85,7 @@ def get_quantile_regressor(
         )
 
         batch_size = int(len(idx_train_set) / 5)
-        print("Fitting conditional program - QR method via nonparametric regression...")
+        print("QR method via nonparametric regression...")
         pbar = tqdm.tqdm(list(range(n_epochs)))
         val_losses = []
         models = []
@@ -119,6 +121,7 @@ def get_quantile_regressor(
                     * y_std
                     + y_mean
                 )
+                .flatten()
                 .detach()
                 .numpy()
             )

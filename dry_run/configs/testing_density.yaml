@@ -15,22 +15,22 @@ rate:
     n_bins: [10, 20, 50, 100, 200] 
     n_knots: [2, 4, 8, 12]
     degree: [2, 3, 4, 5] 
-continuous_gap:
-  neural_network:
-    n_layers: [1, 2, 3, 4]
-    n_hidden_units: [32, 64, 128, 256]
-    lr: [0.001, 0.005, 0.01]
-  num_quantiles: [5, 10, 20, 30]
-binary_gap:
-  neural_network:
-    num_layers: [1, 2, 3, 4]
-    num_hidden_units: [32, 64, 128, 256]
-    lr: [0.001, 0.005, 0.01]
-  num_quantiles: [5, 10, 20, 30]
-rank_order_binary_targeting:
-  neural_network:
-    num_layers: [1, 2, 3, 4]
-    num_hidden_units: [32, 64, 128, 256]
-    lr: [0.001, 0.005, 0.01]
+# continuous_gap:
+#   neural_network:
+#     n_layers: [1, 2, 3, 4]
+#     n_hidden_units: [32, 64, 128, 256]
+#     lr: [0.001, 0.01, 0.1]
+#   num_quantiles: [5, 10, 20, 30]
+# binary_gap:
+#   neural_network:
+#     num_layers: [1, 2, 3, 4]
+#     num_hidden_units: [32, 64, 128, 256]
+#     lr: [0.001, 0.01, 0.1]
+#   num_quantiles: [5, 10, 20, 30]
+# rank_order_binary_targeting:
+#   neural_network:
+#     num_layers: [1, 2, 3, 4]
+#     num_hidden_units: [32, 64, 128, 256]
+#     lr: [0.001, 0.01, 0.1]
 
 

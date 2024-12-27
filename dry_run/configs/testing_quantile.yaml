@@ -9,18 +9,11 @@ data:
     datawrapperpath: pickled/datawrapper-maxepochs=7500_lr=0.001_batchsize=128_dropout=0.0_trial=0.pickle
  #gt:
   #  trainpath: data/train.parquet
-rate:
-  density_estimation:
-    n_features: [0, 10]
-    n_bins: [10, 200] 
-    n_knots: [2, 12]
-    degree: [2, 5] 
-# continuous_gap:
-#   neural_network:
-#     n_layers: [1, 2, 3, 4]
-#     n_hidden_units: [32, 64, 128, 256]
-#     lr: [0.001, 0.01, 0.1]
-#   num_quantiles: [5, 10, 20, 30]
+continuous_gap:
+  neural_network:
+    n_layers: [1, 2]
+    n_hidden_units: [32]
+    lr: [0.001]
 # binary_gap:
 #   neural_network:
 #     num_layers: [1, 2, 3, 4]

@@ -3,8 +3,10 @@ import argh
 from data_generators import get_wgan_data_generator, get_gt_data_generator
 from density_estimation_hparam_search import get_optimal_density_estimation_parameters
 import os
-
-# from nn_hparam_search import get_optimal_nn_quantile_regression_parameters, get_optimal_nn_gap_improvement_parameters
+from nn_hparam_search import (
+    get_optimal_nn_quantile_regression_parameters,
+    get_optimal_nn_gap_improvement_parameters,
+)
 
 
 @argh.arg("--hparamconfig", default="configs/hparam_config.yml")
@@ -59,18 +61,20 @@ def main(hparamconfig="hparam_config.yaml"):
             )
             opt_hparams["rate"]["density_estimation"] = opt_density_estimation_hparams
             print(opt_density_estimation_hparams)
-    # if "continuous_gap" in config_hparams:
-    #     opt_hparams["continuous_gap"] = {}
-    #     continuous_gap = config_hparams["continuous_gap"]
-    #     opt_nn_hparams = get_optimal_nn_quantile_regression_parameters(nn_hparam_ranges=continuous_gap["neural_network"],
-    #                                                                    data_generator=data_generator,
-    #                                                                    ntrain=ntrain,
-    #                                                                    nval=nval,
-    #                                                                    outcome=outcome,
-    #                                                                    weight=weight,
-    #                                                                    savedir=savedir)
-    #     opt_hparams["continuous_gap"]["neural_network"] = opt_nn_hparams
-    #     print(opt_nn_hparams)
+    if "continuous_gap" in config_hparams:
+        opt_hparams["continuous_gap"] = {}
+        continuous_gap = config_hparams["continuous_gap"]
+        opt_nn_hparams = get_optimal_nn_quantile_regression_parameters(
+            nn_hparam_ranges=continuous_gap["neural_network"],
+            data_generator=data_generator,
+            ntrain=ntrain,
+            nval=nval,
+            outcome=outcome,
+            weight=weight,
+            savedir=savedir,
+        )
+        opt_hparams["continuous_gap"]["neural_network"] = opt_nn_hparams
+        print(opt_nn_hparams)
     # if "binary_gap" in config_hparams:
     #     opt_hparams["binary_gap"] = {}
     #     binary_gap = config_hparams["binary_gap"]
@@ -84,7 +88,7 @@ def main(hparamconfig="hparam_config.yaml"):
     #     opt_hparams["binary_gap"]["neural_network"] = opt_nn_hparams
     #     print(opt_nn_hparams)
 
-    with open("output.yaml", "w") as file:
+    with open(f"{savedir}/output.yaml", "w") as file:
         yaml.dump(opt_hparams, file, default_flow_style=False)
 
 
