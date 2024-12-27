@@ -88,7 +88,8 @@ def main(hparamconfig="hparam_config.yaml"):
     #     opt_hparams["binary_gap"]["neural_network"] = opt_nn_hparams
     #     print(opt_nn_hparams)
 
-    with open(f"{savedir}/output.yaml", "w") as file:
+    name = hparamconfig.split("/")[1].split(".yaml")[0]
+    with open(f"{savedir}/output_{name}.yaml", "w") as file:
         yaml.dump(opt_hparams, file, default_flow_style=False)
 
 

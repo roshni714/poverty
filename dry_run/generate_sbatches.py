@@ -35,7 +35,7 @@ OUTPUT_PATH = (
 
 
 def generate_hparam_run():
-    exp_id = f"hparam"
+    exp_id = f"hparam_quantile"
 
     script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
     with open(script_fn, "w") as f:
@@ -43,7 +43,7 @@ def generate_hparam_run():
             SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id),
             file=f,
         )
-        base_cmd = "python main_hparam.py main --hparamconfig configs/testing.yaml"
+        base_cmd = "python main_hparam.py main --hparamconfig configs/testing_quantile.yaml"
         print(base_cmd, file=f)
         print("sleep 1", file=f)
 

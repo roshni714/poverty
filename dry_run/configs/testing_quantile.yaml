@@ -11,10 +11,9 @@ data:
   #  trainpath: data/train.parquet
 continuous_gap:
   neural_network:
-    n_layers: [1, 2]
-    n_hidden_units: [32]
-    lr: [0.001]
-# binary_gap:
+    n_layers: [1, 2, 3, 4]
+    n_hidden_units: [32, 64, 128, 256]
+    lr: [0.001, 0.005, 0.01]
 #   neural_network:
 #     num_layers: [1, 2, 3, 4]
 #     num_hidden_units: [32, 64, 128, 256]
