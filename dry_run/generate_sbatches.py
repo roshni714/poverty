@@ -43,7 +43,7 @@ def generate_hparam_run():
             SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id),
             file=f,
         )
-        base_cmd = "python main_hparam.py main"
+        base_cmd = "python main_hparam.py main --hparamconfig configs/testing.yaml"
         print(base_cmd, file=f)
         print("sleep 1", file=f)
 
@@ -119,6 +119,6 @@ def generate_wgan_hparam_runs():
                             print("sleep 1", file=f)
 
 
-# generate_hparam_run()
+generate_hparam_run()
 # generate_wgan_run()
-generate_wgan_hparam_runs()
+# generate_wgan_hparam_runs()

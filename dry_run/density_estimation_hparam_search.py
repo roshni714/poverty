@@ -4,7 +4,13 @@ import pandas as pd
 
 
 def get_optimal_density_estimation_parameters(
-    density_estimation_hparam_ranges, data_generator, ntrain, nval, outcome, weight
+    density_estimation_hparam_ranges,
+    data_generator,
+    ntrain,
+    nval,
+    outcome,
+    weight,
+    savedir,
 ):
     """
     Get optimal density estimation hyperparameters.
@@ -12,8 +18,14 @@ def get_optimal_density_estimation_parameters(
     Args:
         density_estimation_hparam_ranges (dict): Dictionary containing the hyperparameter ranges for density estimation.
         data_generator (DataGenerator): Data generator object.
+        ntrain (int): Number of training samples.
+        nval (int): Number of validation samples.
+        outcome (str): Outcome variable.
+        weight (str): Weight variable.
+        savedir (str): Directory to save the results.
 
     Returns:
+        opt_params (dict): Optimal hyperparameters for density estimation.
     """
 
     if "n_features" in density_estimation_hparam_ranges:
@@ -46,10 +58,11 @@ def get_optimal_density_estimation_parameters(
         train_dataset, val_dataset, max_features=max(n_features_range)
     )
 
+    train_df = data_generator(nsamples=ntrain, seed=1283)
+    val_df = data_generator(nsamples=nval, seed=4308)
+
     results = []
-    for i, n_features in enumerate(n_features_range):
-        train_df = data_generator(nsamples=ntrain, seed=1283 * i + 1)
-        val_df = data_generator(nsamples=nval, seed=4308 * i + 1)
+    for n_features in n_features_range:
         train_dataset = Dataset(
             train_df,
             outcome=outcome,
@@ -83,6 +96,7 @@ def get_optimal_density_estimation_parameters(
                     )
 
     df = pd.DataFrame(results)
+    df.to_csv("{}/density_estimation.csv".format(savedir))
     optimal_params = df.loc[df["nll"].idxmin()].to_dict()
     del optimal_params["nll"]
     return optimal_params

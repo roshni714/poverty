@@ -7,33 +7,53 @@ import copy
 from opt_targeted_transfers.dataset_utils import standardize
 
 
+def get_quantile_loss(val_dataset, quantile_regressor, quantile):
+    """
+    Get the pinball loss for a given quantile regressor.
+
+    :param val_dataset: The dataset used for evaluating the quantile regressor.
+    :type val_dataset: Dataset
+    :param quantile_regressor: The quantile regressor.
+    :type quantile_regressor: Callable[[np.ndarray], np.ndarray]
+    :param quantile: The quantile for which the pinball loss is computed.
+    :type quantile: float
+    :return: The pinball loss.
+    :rtype: float
+    """
+    X, y, r = val_dataset.get_data()
+    y_pred = quantile_regressor(X)
+    pinball_loss = quantile * np.maximum(y - y_pred, 0) + (1 - quantile) * np.maximum(
+        y_pred - y, 0
+    )
+    weighted_pinball_loss = np.sum(pinball_loss * r) / np.sum(r)
+    return weighted_pinball_loss
+
+
 def get_quantile_regressor(
-    dataset,
-    quantile,
-    n_layers=1,
-    n_hidden_units=64,
-    lr=5e-3,
-    n_epochs=300,
-    seed=123456
+    dataset, quantile, n_layers=1, n_hidden_units=64, lr=5e-3, n_epochs=300, seed=123456
 ):
     """
     Get a quantile regressor for a given dataset.
 
-    :param dataset: The dataset used for training the regressor.
+    :param dataset: The dataset used for training the quantile regressor.
     :type dataset: Dataset
-    :param tolerance: The tolerance for the poverty rate
-    :type tolerance: float
-    :param n_epochs: The number of epochs for training the regressor. Defaults to 300.
+    :param quantile: The quantile for which the regressor is trained.
+    :type quantile: float
+    :param n_layers: The number of hidden layers in the neural network.
+    :type n_layers: int
+    :param n_hidden_units: The number of hidden units in each hidden layer.
+    :type n_hidden_units: int
+    :param lr: The learning rate for training the neural network.
+    :type lr: float
+    :param n_epochs: The number of epochs for training the neural network.
     :type n_epochs: int
-    :param hidden_layer_size: size of the hidden layer in the neural net.
-    :type hidden_layer_size: int
     :return: The quantile regressor.
     :rtype: Callable[[np.ndarray], np.ndarray]
     """
     torch.random.seed(seed)
     np.random.seed(seed)
 
-    X, y, r= dataset.get_data()
+    X, y, r = dataset.get_data()
     X, X_mean, X_std = standardize(X)
     y, y_mean, y_std = standardize(y)
 
@@ -51,13 +71,10 @@ def get_quantile_regressor(
         q_hat = torch.nn.Sequential(*model_list)
 
         def quantile_loss(q_hat, idx):
-            sub_n = len(idx)
             y_pred = q_hat(torch.Tensor(X[idx, :])).squeeze()
             return quantile * torch.nn.functional.relu(
                 torch.Tensor(y[idx]) - y_pred
-            ) + (1 - quantile) * torch.nn.functional.relu(
-                y_pred - torch.Tensor(y[idx])
-            )
+            ) + (1 - quantile) * torch.nn.functional.relu(y_pred - torch.Tensor(y[idx]))
 
         optimizer = torch.optim.Adam(q_hat.parameters(), lr=lr)
         train_prop = 0.7
@@ -105,6 +122,6 @@ def get_quantile_regressor(
                 .detach()
                 .numpy()
             )
-            return np.maximum(quantile, 0.)
+            return np.maximum(quantile, 0.0)
 
     return quantile_regressor
