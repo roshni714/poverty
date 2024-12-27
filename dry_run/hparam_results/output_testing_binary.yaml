@@ -1,0 +1,6 @@
+binary_gap:
+  neural_network:
+    lr: 0.001
+    n_hidden_units: 64.0
+    n_layers: 1.0
+    trial: 2.0

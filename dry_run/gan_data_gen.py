@@ -59,45 +59,33 @@ def load_data_for_wgan(path):
     data_for_wgan = data.iloc[train_rows].copy().reset_index(drop=True)
 
     # Identify which columns are continuous vs. categorical for the WGAN wrapper.
-    # Note that columns that are binary valued.
 
     numeric_columns = set(data_for_wgan.select_dtypes(include=[np.number]).columns)
-
-    # Treat integer-valued columns as categorical for synthetic data generation
-    # (not necessary to do this for learning)
-    integer_columns = set(
-        [
-            col
-            for col in numeric_columns
-            if np.all(data[col].apply(lambda x: int(x) == x))
-        ]
-    )
 
     non_numeric_columns = set(
         data_for_wgan.select_dtypes(exclude=[np.number, np.datetime64]).columns
     )
 
     enforced_categorical = {c for c in numeric_columns if c.endswith("_nan")}
-    numeric_columns = list(numeric_columns - enforced_categorical - integer_columns)
-    non_numeric_columns = list(
-        non_numeric_columns | enforced_categorical | integer_columns
-    )
+    numeric_columns = list(numeric_columns - enforced_categorical)
+    all_non_numeric_columns = list(non_numeric_columns | enforced_categorical)
 
-    non_numeric_converted = (
-        data_for_wgan[non_numeric_columns]
-        .astype("category")
-        .apply(lambda c: c.cat.codes)
-    )
-
-    data_for_wgan[non_numeric_columns] = non_numeric_converted
+    categorical_mapping = {}
+    for col in all_non_numeric_columns:
+        categorical_mapping[col] = dict(
+            zip(
+                data_for_wgan[col].astype("category").cat.codes,
+                data_for_wgan[col],
+            )
+        )
+        data_for_wgan[col] = data_for_wgan[col].astype("category").cat.codes
 
     data_wrapper = wgan.DataWrapper(
         data_for_wgan,
         continuous_vars=numeric_columns,
-        categorical_vars=non_numeric_columns,
+        categorical_vars=all_non_numeric_columns,
     )
-
-    return data_for_wgan, data_wrapper
+    return data_for_wgan, data_wrapper, categorical_mapping
 
 
 def train_wgan(
@@ -143,13 +131,16 @@ def train_wgan(
     return generator
 
 
-def generate_synthetic_data(generator, data_wrapper, nsamples, seed):
+def generate_synthetic_data(
+    generator, data_wrapper, categorical_mapping, nsamples, seed
+):
     """
     Generate synthetic data using a trained WGAN generator.
 
     Args:
         generator (wgan.Generator): Trained WGAN generator.
         data_wrapper (wgan.DataWrapper): DataWrapper object for WGAN training.
+        categorical_mapping (list): List of dictionaries containing mappings for categorical variables.
         nsamples (int): Number of samples to generate.
         seed (int): Random seed for synthetic data generation.
 
@@ -170,6 +161,8 @@ def generate_synthetic_data(generator, data_wrapper, nsamples, seed):
             new_feature_name = feature[4:]
             synthetic_df[new_feature_name] = np.exp(synthetic_df[feature])
             synthetic_df.drop(columns=[feature], inplace=True)
+    for col in categorical_mapping:
+        synthetic_df[col] = synthetic_df[col].map(categorical_mapping[col])
     return synthetic_df
 
 

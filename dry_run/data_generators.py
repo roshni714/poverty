@@ -62,10 +62,6 @@ def get_gt_data_generator(trainpath):
         durable_verifiable_covariates + ["consumption_per_capita_per_day", "hh_wgt"]
     ]
 
-    # # More appropriate to represent this variable on a log scale
-    # data["log_yearly_rent"] = np.log1p(data["yearly_rent"])
-    # del data["yearly_rent"]
-
     def data_generator(nsamples, seed):
         rng = np.random.default_rng(seed)
         sample_indices = rng.choice(data.index, nsamples, replace=True)

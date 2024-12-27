@@ -23,7 +23,7 @@ def train(
     dropout=0.1,
     trial=0,
 ):
-    data, data_wrapper = load_data_for_wgan(trainpath)
+    data, data_wrapper, categorical_mapping = load_data_for_wgan(trainpath)
     generator = train_wgan(
         data,
         data_wrapper,
@@ -34,42 +34,41 @@ def train(
         dropout=dropout,
     )
 
-    with open(
-        savedir
-        + f"/generator-maxepochs={maxepochs}_lr={lr}_batchsize={batchsize}_dropout={dropout}_trial={trial}.pickle",
-        "wb",
-    ) as dill_file:
-        dill.dump(generator, dill_file)
+    objects = {
+        "generator": generator,
+        "data_wrapper": data_wrapper,
+        "categorical_mapping": categorical_mapping,
+    }
 
     with open(
         savedir
-        + f"/datawrapper-maxepochs={maxepochs}_lr={lr}_batchsize={batchsize}_dropout={dropout}_trial={trial}.pickle",
+        + f"/objects-maxepochs={maxepochs}_lr={lr}_batchsize={batchsize}_dropout={dropout}_trial={trial}.pickle",
         "wb",
     ) as dill_file:
-        dill.dump(data_wrapper, dill_file)
+        dill.dump(objects, dill_file)
 
 
-@argh.arg("--generatorpath", default="pickled/generator_12-23-2024.pickle")
-@argh.arg("--datawrapperpath", default="pickled/data_wrapper_12-23-2024.pickle")
+@argh.arg("--objectspath", default="pickled/objects_12-23-2024.pickle")
 @argh.arg("--nsamples", type=int, default=1000)
 @argh.arg("--savedir", default="data")
 @argh.arg("--seed", type=int, default=534543897)
 def generate(
-    generatorpath="pickled/generator_12-23-2024.pickle",
-    datawrapperpath="pickled/datawrapper_12-23-2024.pickle",
+    objectspath="pickled/objects_12-23-2024.pickle",
     nsamples=20000,
     savedir="data",
     seed=534543897,
 ):
-    with open(generatorpath, "rb") as dill_file:
-        generator = dill.load(dill_file)
+    with open(objectspath, "rb") as dill_file:
+        objects = dill.load(dill_file)
+        generator = objects["generator"]
+        data_wrapper = objects["data_wrapper"]
+        categorical_mapping = objects["categorical_mapping"]
 
-    with open(datawrapperpath, "rb") as dill_file:
-        data_wrapper = dill.load(dill_file)
+    name = objectspath.split("objects-")[1].split(".pickle")[0]
 
-    name = generatorpath.split("generator-")[1].split(".pickle")[0]
-
-    synthetic_df = generate_synthetic_data(generator, data_wrapper, nsamples, seed=seed)
+    synthetic_df = generate_synthetic_data(
+        generator, data_wrapper, categorical_mapping, nsamples, seed=seed
+    )
     synthetic_df.to_parquet(
         savedir + "/synthetic-{}_n={}.parquet".format(name, nsamples), index=False
     )
