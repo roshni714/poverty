@@ -13,3 +13,4 @@ from opt_targeted_transfers.density_estimation import (
     get_nll,
 )
 from opt_targeted_transfers.dataset_utils import Dataset
+from opt_targeted_transfers.quantile_regression import get_quantile_regressor

@@ -9,11 +9,12 @@ from opt_targeted_transfers.dataset_utils import standardize
 
 def get_quantile_regressor(
     dataset,
-    tolerance,
-    log_transform=True,
-    low_dim=False,
+    quantile,
+    n_layers=1,
+    n_hidden_units=64,
+    lr=5e-3,
     n_epochs=300,
-    hidden_layer_size=64,
+    seed=123456
 ):
     """
     Get a quantile regressor for a given dataset.
@@ -29,43 +30,36 @@ def get_quantile_regressor(
     :return: The quantile regressor.
     :rtype: Callable[[np.ndarray], np.ndarray]
     """
-    X = dataset.X
-    y = dataset.y
-    r = dataset.r
+    torch.random.seed(seed)
+    np.random.seed(seed)
 
+    X, y, r= dataset.get_data()
     X, X_mean, X_std = standardize(X)
-    if log_transform:
-        y = np.log(y)
     y, y_mean, y_std = standardize(y)
-
-    np.random.seed(123456)
-    torch.manual_seed(123456)
 
     if X.shape[1] == 0:
         wq = DescrStatsW(data=y, weights=r)
-        final_q_hat = wq.quantile(tolerance).item()
+        final_q_hat = wq.quantile(quantile).item()
     else:
         d = X.shape[1]
 
-        if low_dim:
-            q_hat = torch.nn.Sequential(torch.nn.Linear(d, 1))
-        else:
-            q_hat = torch.nn.Sequential(
-                torch.nn.Linear(d, hidden_layer_size),
-                torch.nn.ReLU(),
-                torch.nn.Linear(hidden_layer_size, 1),
-            )
+        model_list = [torch.nn.Linear(d, n_hidden_units), torch.nn.ReLU()]
+        for _ in range(n_layers - 1):
+            model_list.append(torch.nn.Linear(n_hidden_units, n_hidden_units))
+            model_list.append(torch.nn.ReLU())
+        model_list.append(torch.nn.Linear(n_hidden_units, 1))
+        q_hat = torch.nn.Sequential(*model_list)
 
         def quantile_loss(q_hat, idx):
             sub_n = len(idx)
             y_pred = q_hat(torch.Tensor(X[idx, :])).squeeze()
-            return tolerance * torch.nn.functional.relu(
+            return quantile * torch.nn.functional.relu(
                 torch.Tensor(y[idx]) - y_pred
-            ) + (1 - tolerance) * torch.nn.functional.relu(
+            ) + (1 - quantile) * torch.nn.functional.relu(
                 y_pred - torch.Tensor(y[idx])
             )
 
-        optimizer = torch.optim.Adam(q_hat.parameters(), lr=5e-3)
+        optimizer = torch.optim.Adam(q_hat.parameters(), lr=lr)
         train_prop = 0.7
         idx_train_set, idx_val_set = list(range(int(train_prop * len(X)))), list(
             range(int(train_prop * len(X)), len(X))
@@ -111,9 +105,6 @@ def get_quantile_regressor(
                 .detach()
                 .numpy()
             )
-        if log_transform:
-            return np.maximum(np.exp(quantile), 0)
-        else:
-            return np.maximum(quantile, 0)
+            return np.maximum(quantile, 0.)
 
     return quantile_regressor
