@@ -109,7 +109,7 @@ def generate_wgan_hparam_runs():
                             )
                             print(base_cmd, file=f)
 
-                            base_cmd = "python main.py generate --objectspath pickled/generator-maxepochs={maxepochs}_lr={lr}_batchsize={batchsize}_dropout={dropout}_trial={trial}.pickle --nsamples 20000 --savedir data".format(
+                            base_cmd = "python main.py generate --objectspath pickled/objects-maxepochs={maxepochs}_lr={lr}_batchsize={batchsize}_dropout={dropout}_trial={trial}.pickle --nsamples 20000 --savedir data".format(
                                 maxepochs=maxepochs,
                                 lr=lr,
                                 batchsize=batchsize,
@@ -122,5 +122,5 @@ def generate_wgan_hparam_runs():
 
 
 # generate_hparam_run()
-# generate_wgan_run()
-generate_wgan_hparam_runs()
+generate_wgan_run()
+#generate_wgan_hparam_runs()

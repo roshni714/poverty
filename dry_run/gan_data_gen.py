@@ -62,16 +62,27 @@ def load_data_for_wgan(path):
 
     numeric_columns = set(data_for_wgan.select_dtypes(include=[np.number]).columns)
 
+    # Treat integer-valued columns as categorical for synthetic data generation
+    # (not necessary to do this for learning)
+    integer_columns = set(
+        [
+            col
+            for col in numeric_columns
+            if np.all(data[col].apply(lambda x: int(x) == x))
+        ]
+    )
+
     non_numeric_columns = set(
         data_for_wgan.select_dtypes(exclude=[np.number, np.datetime64]).columns
     )
 
     enforced_categorical = {c for c in numeric_columns if c.endswith("_nan")}
-    numeric_columns = list(numeric_columns - enforced_categorical)
-    all_non_numeric_columns = list(non_numeric_columns | enforced_categorical)
+    numeric_columns = list(numeric_columns - enforced_categorical - integer_columns)
+    actual_categorical = list(non_numeric_columns | enforced_categorical)
+    wgan_categorical = list(non_numeric_columns | enforced_categorical | integer_columns)
 
     categorical_mapping = {}
-    for col in all_non_numeric_columns:
+    for col in actual_categorical:
         categorical_mapping[col] = dict(
             zip(
                 data_for_wgan[col].astype("category").cat.codes,
@@ -83,7 +94,7 @@ def load_data_for_wgan(path):
     data_wrapper = wgan.DataWrapper(
         data_for_wgan,
         continuous_vars=numeric_columns,
-        categorical_vars=all_non_numeric_columns,
+        categorical_vars=wgan_categorical,
     )
     return data_for_wgan, data_wrapper, categorical_mapping
 
