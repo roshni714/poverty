@@ -79,7 +79,9 @@ def load_data_for_wgan(path):
     enforced_categorical = {c for c in numeric_columns if c.endswith("_nan")}
     numeric_columns = list(numeric_columns - enforced_categorical - integer_columns)
     actual_categorical = list(non_numeric_columns | enforced_categorical)
-    wgan_categorical = list(non_numeric_columns | enforced_categorical | integer_columns)
+    wgan_categorical = list(
+        non_numeric_columns | enforced_categorical | integer_columns
+    )
 
     categorical_mapping = {}
     for col in actual_categorical:

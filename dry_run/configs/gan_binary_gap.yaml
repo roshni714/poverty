@@ -5,13 +5,12 @@ data:
   outcome: consumption_per_capita_per_day
   weight: hh_wgt
   gan: 
-    generatorpath: pickled/generator-maxepochs=7500_lr=0.001_batchsize=128_dropout=0.0_trial=0.pickle
-    datawrapperpath: pickled/datawrapper-maxepochs=7500_lr=0.001_batchsize=128_dropout=0.0_trial=0.pickle
+    objectspath: pickled/objects-maxepochs=2500_lr=0.001_batchsize=128_dropout=0.0_trial=0.pickle
 binary_gap:
   neural_network:
-    n_layers: [1, 2, 3, 4]
-    n_hidden_units: [32, 64, 128, 256]
-    lr: [0.001, 0.005, 0.01]
+    n_layers: [1] #[1, 2, 3, 4]
+    n_hidden_units: [32] #[32, 64, 128, 256]
+    lr: [0.001] #[0.001, 0.005, 0.01]
 
 
 

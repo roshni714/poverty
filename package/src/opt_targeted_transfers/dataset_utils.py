@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 
 def standardize(z):
@@ -51,7 +52,13 @@ class Dataset:
         if self.covs is None:
             X = self.df[self.covs].values
         else:
-            X = self.df[self.covs].values.reshape(len(self.df), len(self.covs))
+            selected_columns = [
+                col
+                for col in self.df.columns
+                if any(col.startswith(var) for var in self.covs)
+            ]
+            X = self.df[selected_columns].values
+
         y = self.df[self.outcome].values
         if self.weight is None:
             r = np.ones(y.shape)

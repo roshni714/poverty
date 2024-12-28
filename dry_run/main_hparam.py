@@ -32,14 +32,13 @@ def main(hparamconfig="hparam_config.yaml"):
     data_config_params = config_hparams["data"]
     if "gan" in data_config_params:
         gan_config_params = data_config_params["gan"]
-        generatorpath = gan_config_params["generatorpath"]
-        datawrapperpath = gan_config_params["datawrapperpath"]
-        data_generator = get_wgan_data_generator(generatorpath, datawrapperpath)
+        objectspath = gan_config_params["objectspath"]
+        data_generator, original_cols = get_wgan_data_generator(objectspath)
 
     elif "gt" in data_config_params:
         gt_config_params = data_config_params["gt"]
         trainpath = gt_config_params["trainpath"]
-        data_generator = get_gt_data_generator(trainpath)
+        data_generator, original_cols = get_gt_data_generator(trainpath)
 
     ntrain = data_config_params["ntrain"]
     nval = data_config_params["nval"]
@@ -53,6 +52,7 @@ def main(hparamconfig="hparam_config.yaml"):
             opt_density_estimation_hparams = get_optimal_density_estimation_parameters(
                 density_estimation_hparam_ranges=rate["density_estimation"],
                 data_generator=data_generator,
+                original_cols=original_cols,
                 ntrain=ntrain,
                 nval=nval,
                 outcome=outcome,

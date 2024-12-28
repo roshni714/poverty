@@ -20,22 +20,9 @@ def forward_selection(
 
     # TODO: Should we clip the outcomes to the truncation_upper_value? Or should we remove these samples?
 
-    feature_list = train_dataset.df.columns.tolist()
-    outcome = train_dataset.outcome
-    weight = train_dataset.weight
-    feature_list.remove(outcome)
-    feature_list.remove(weight)
     ordered_features = []
+    feature_list = train_dataset.covs.copy()
 
-    filtered_train_df = train_dataset.df[
-        train_dataset.df[outcome] < truncation_upper_value
-    ]
-    filtered_validation_df = validation_dataset.df[
-        validation_dataset.df[outcome] < truncation_upper_value
-    ]
-
-    y_val = filtered_validation_df[outcome].values
-    r_val = filtered_validation_df[weight].values
     scores = []
 
     for i in range(max_features):
@@ -44,12 +31,17 @@ def forward_selection(
 
         for feature in feature_list:
             features = ordered_features + [feature]
-            y = filtered_train_df[outcome].values
-            X = filtered_train_df[features].values
-            r = filtered_train_df[weight].values
+            train_dataset.covs = features
+            X, y, r = train_dataset.get_data()
+            y = np.clip(y, None, truncation_upper_value)
+
             model = LinearRegression(fit_intercept=True)
             model.fit(X, y, sample_weight=r)
-            X_val = filtered_validation_df[features].values
+
+            validation_dataset.covs = features
+            X_val, y_val, r_val = validation_dataset.get_data()
+            y_val = np.clip(y_val, None, truncation_upper_value)
+
             score = model.score(X_val, y_val, sample_weight=r_val)
 
             if score > best_score:

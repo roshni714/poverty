@@ -6,6 +6,7 @@ import pandas as pd
 def get_optimal_density_estimation_parameters(
     density_estimation_hparam_ranges,
     data_generator,
+    original_cols,
     ntrain,
     nval,
     outcome,
@@ -18,6 +19,7 @@ def get_optimal_density_estimation_parameters(
     Args:
         density_estimation_hparam_ranges (dict): Dictionary containing the hyperparameter ranges for density estimation.
         data_generator (DataGenerator): Data generator object.
+        original_cols (list): List of columns in dataset before one-hot encoding.
         ntrain (int): Number of training samples.
         nval (int): Number of validation samples.
         outcome (str): Outcome variable.
@@ -50,8 +52,11 @@ def get_optimal_density_estimation_parameters(
 
     train_df = data_generator(nsamples=ntrain, seed=547396234)
     val_df = data_generator(nsamples=nval, seed=79809342)
-    train_dataset = Dataset(train_df, outcome=outcome, weight=weight, covs=[])
-    val_dataset = Dataset(val_df, outcome=outcome, weight=weight, covs=[])
+    feature_list = original_cols
+    feature_list.remove(outcome)
+    feature_list.remove(weight)
+    train_dataset = Dataset(train_df, outcome=outcome, weight=weight, covs=feature_list)
+    val_dataset = Dataset(val_df, outcome=outcome, weight=weight, covs=feature_list)
 
     print("Running forward selection...")
     ordered_features, _ = forward_selection(

@@ -4,27 +4,85 @@ import pandas as pd
 import numpy as np
 
 
-def get_wgan_data_generator(generatorpath, datawrapperpath):
+def convert_to_onehot(df):
+    """
+    Convert categorical columns to one-hot encoding.
+
+    :param df: The input data.
+    :type df: pandas.DataFrame
+    :return new_df: The input data with one-hot encoding.
+    :rtype: pandas.DataFrame
+    """
+    numeric_columns = set(df.select_dtypes(include=[np.number]).columns)
+    non_numeric_columns = set(
+        df.select_dtypes(exclude=[np.number, np.datetime64]).columns
+    )
+
+    enforced_categorical = {c for c in numeric_columns if c.endswith("_nan")}
+    numeric_columns = list(numeric_columns - enforced_categorical)
+    all_non_numeric_columns = list(non_numeric_columns | enforced_categorical)
+
+    one_hot = pd.get_dummies(df[all_non_numeric_columns]).astype(np.float32)
+    df.drop(columns=all_non_numeric_columns, inplace=True)
+    new_df = pd.concat([df, one_hot], axis=1)
+    return new_df
+
+
+def add_missing_columns(df_synthetic, categorical_mapping):
+    """
+    Add missing columns to the synthetic data.
+
+    :param df_synthetic: The synthetic data.
+    :type df_synthetic: pandas.DataFrame
+    :param categorical_mapping: The categorical mapping.
+    :type categorical_mapping: dict
+    """
+    missing_cols = [df_synthetic]
+    for col in categorical_mapping:
+        for code in categorical_mapping[col]:
+            cat = categorical_mapping[col][code]
+            if f"{col}_{cat}" not in df_synthetic.columns:
+                missing_cols.append(
+                    pd.DataFrame({f"{col}_{cat}": np.zeros(len(df_synthetic))})
+                )
+
+    # Concatenate with the original dataframe (optional)
+    df = pd.concat(missing_cols, axis=1)
+    return df
+
+
+def get_wgan_data_generator(objectspath):
     """
     Load a trained WGAN generator and data wrapper from disk and return a data generator function.
 
     Args:
-        generatorpath (str): Path to the trained WGAN generator.
-        datawrapperpath (str): Path to the data wrapper for the WGAN generator.
+        objectspath (str): Path to the pickled WGAN generator, data wrapper, and categorical mapping.
 
     Returns:
         data_generator (function): A function that generates synthetic data using the trained WGAN generator
     """
-    with open(generatorpath, "rb") as dill_file:
-        generator = dill.load(dill_file)
+    with open(objectspath, "rb") as dill_file:
+        objects = dill.load(dill_file)
+        generator = objects["generator"]
+        data_wrapper = objects["data_wrapper"]
+        categorical_mapping = objects["categorical_mapping"]
 
-    with open(datawrapperpath, "rb") as dill_file:
-        data_wrapper = dill.load(dill_file)
+    small_df = generate_synthetic_data(
+        generator, data_wrapper, categorical_mapping, 1, 0
+    )
+    original_cols = small_df.columns.tolist()
 
     def data_generator(nsamples, seed):
-        return generate_synthetic_data(generator, data_wrapper, nsamples, seed)
+        df_synthetic = generate_synthetic_data(
+            generator, data_wrapper, categorical_mapping, nsamples, seed
+        )
+        df_synthetic_one_hot = convert_to_onehot(df_synthetic)
+        df_synthetic_final = add_missing_columns(
+            df_synthetic_one_hot, categorical_mapping
+        )
+        return df_synthetic_final
 
-    return data_generator
+    return data_generator, original_cols
 
 
 def get_gt_data_generator(trainpath):
@@ -62,9 +120,13 @@ def get_gt_data_generator(trainpath):
         durable_verifiable_covariates + ["consumption_per_capita_per_day", "hh_wgt"]
     ]
 
+    original_cols = data.columns.tolist()
+
+    data = convert_to_onehot(data)
+
     def data_generator(nsamples, seed):
         rng = np.random.default_rng(seed)
         sample_indices = rng.choice(data.index, nsamples, replace=True)
         return data.loc[sample_indices].reset_index(drop=True)
 
-    return data_generator
+    return data_generator, original_cols
