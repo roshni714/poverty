@@ -37,7 +37,7 @@ def get_optimal_nn_gap_improvement_parameters(
     if "n_hidden_units" in nn_hparam_ranges:
         n_hidden_units_range = nn_hparam_ranges["n_hidden_units"]
     else:
-        n_hidden_units_range = [64]
+        n_hidden_units_range = [2 ** round(np.log(original_cols), 1)]
     if "lr" in nn_hparam_ranges:
         lr_range = nn_hparam_ranges["lr"]
     else:
@@ -121,7 +121,7 @@ def get_optimal_nn_quantile_regression_parameters(
     if "n_hidden_units" in nn_hparam_ranges:
         n_hidden_units_range = nn_hparam_ranges["n_hidden_units"]
     else:
-        n_hidden_units_range = [64]
+        n_hidden_units_range = [2 ** round(np.log(original_cols), 1)]
     if "lr" in nn_hparam_ranges:
         lr_range = nn_hparam_ranges["lr"]
     else:
