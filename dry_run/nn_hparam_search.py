@@ -10,7 +10,7 @@ import numpy as np
 
 
 def get_optimal_nn_gap_improvement_parameters(
-    nn_hparam_ranges, data_generator, ntrain, nval, outcome, weight, savedir
+    nn_hparam_ranges, data_generator, original_cols, ntrain, nval, outcome, weight, savepath
 ):
     """
     Get optimal neural network hyperparameters for gap improvement.
@@ -18,10 +18,12 @@ def get_optimal_nn_gap_improvement_parameters(
     Args:
         nn_hparam_ranges (dict): Hyperparameter ranges for neural network.
         data_generator (generator): Data generator.
+        original_cols (list): Original columns before one-hot encoding.
         ntrain (int): Number of training samples.
         nval (int): Number of validation samples.
         outcome (str): Outcome variable.
         weight (str): Weight variable.
+        savepath (str): Path to save results.
 
     Returns:
         opt_params: Optimal hyperparameters for neural network.
@@ -42,12 +44,14 @@ def get_optimal_nn_gap_improvement_parameters(
         lr_range = [5e-3]
 
     results = []
-    transfer_sizes = np.linspace(0.01, 2.0, 5)
+    transfer_sizes = [0.5, 1., 1.5]
 
-    for trial in range(5):
+    for trial in range(3):
         train_df = data_generator(nsamples=ntrain, seed=54734234 + trial)
         val_df = data_generator(nsamples=nval, seed=7959342 + trial)
-        covs = train_df.columns.difference([outcome, weight]).tolist()
+        covs = original_cols.copy()
+        covs.remove(outcome)
+        covs.remove(weight)
         train_dataset = Dataset(train_df, outcome=outcome, weight=weight, covs=covs)
         val_dataset = Dataset(val_df, outcome=outcome, weight=weight, covs=covs)
 
@@ -82,7 +86,7 @@ def get_optimal_nn_gap_improvement_parameters(
                         print(loss)
     df = pd.DataFrame.from_records(results)
     df = df.groupby(["n_layers", "n_hidden_units", "lr"]).mean().reset_index()
-    df.to_csv(f"{savedir}/nn_gap_improvement_results.csv", index=False)
+    df.to_csv(savepath, index=False)
     optimal_params = df.loc[df["loss"].idxmin()].to_dict()
     del optimal_params["loss"]
     del optimal_params["transfer_size"]
@@ -91,7 +95,7 @@ def get_optimal_nn_gap_improvement_parameters(
 
 
 def get_optimal_nn_quantile_regression_parameters(
-    nn_hparam_ranges, data_generator, ntrain, nval, outcome, weight, savedir
+    nn_hparam_ranges, data_generator, original_cols, ntrain, nval, outcome, weight, savepath
 ):
     """
     Get optimal neural network hyperparameters for quantile regression.
@@ -99,6 +103,7 @@ def get_optimal_nn_quantile_regression_parameters(
     Args:
         nn_hparam_ranges (dict): Hyperparameter ranges for neural network.
         data_generator (generator): Data generator.
+        original_cols (list): Original columns before one-hot encoding.
         ntrain (int): Number of training samples.
         nval (int): Number of validation samples.
         outcome (str): Outcome variable.
@@ -123,12 +128,14 @@ def get_optimal_nn_quantile_regression_parameters(
         lr_range = [5e-3]
 
     results = []
-    quantiles = [0.1, 0.25, 0.5, 0.75, 0.9]
+    quantiles = [0.25, 0.5, 0.75]
 
-    for trial in range(5):
+    for trial in range(3):
         train_df = data_generator(nsamples=ntrain, seed=54734234 + trial)
         val_df = data_generator(nsamples=nval, seed=7959342 + trial)
-        covs = train_df.columns.difference([outcome, weight]).tolist()
+        covs = original_cols.copy()
+        covs.remove(outcome)
+        covs.remove(weight)
         train_dataset = Dataset(train_df, outcome=outcome, weight=weight, covs=covs)
         val_dataset = Dataset(val_df, outcome=outcome, weight=weight, covs=covs)
 
@@ -164,7 +171,7 @@ def get_optimal_nn_quantile_regression_parameters(
                         print(pinball_loss)
     df = pd.DataFrame.from_records(results)
     df = df.groupby(["n_layers", "n_hidden_units", "lr"]).mean().reset_index()
-    df.to_csv(f"{savedir}/nn_quantile_regression_results.csv", index=False)
+    df.to_csv(savepath, index=False)
     optimal_params = df.loc[df["pinball_loss"].idxmin()].to_dict()
     del optimal_params["pinball_loss"]
     del optimal_params["quantile"]

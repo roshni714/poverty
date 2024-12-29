@@ -24,8 +24,6 @@ def main(hparamconfig="hparam_config.yaml"):
             print(exc)
 
     savedir = config_hparams["savedir"]
-    if not os.path.exists(savedir):
-        os.makedirs(savedir)
 
     opt_hparams = {}
 
@@ -45,6 +43,8 @@ def main(hparamconfig="hparam_config.yaml"):
     outcome = data_config_params["outcome"]
     weight = data_config_params["weight"]
 
+    name = hparamconfig.split("/")[1].split(".yaml")[0]
+
     if "rate" in config_hparams:
         opt_hparams["rate"] = {}
         rate = config_hparams["rate"]
@@ -57,7 +57,7 @@ def main(hparamconfig="hparam_config.yaml"):
                 nval=nval,
                 outcome=outcome,
                 weight=weight,
-                savedir=savedir,
+                savepath=f'{savedir}/density_estimation_{name}.csv',
             )
             opt_hparams["rate"]["density_estimation"] = opt_density_estimation_hparams
             print(opt_density_estimation_hparams)
@@ -67,11 +67,12 @@ def main(hparamconfig="hparam_config.yaml"):
         opt_nn_hparams = get_optimal_nn_quantile_regression_parameters(
             nn_hparam_ranges=continuous_gap["neural_network"],
             data_generator=data_generator,
+            original_cols=original_cols,
             ntrain=ntrain,
             nval=nval,
             outcome=outcome,
             weight=weight,
-            savedir=savedir,
+            savepath=f'{savedir}/nn_{name}.csv',
         )
         opt_hparams["continuous_gap"]["neural_network"] = opt_nn_hparams
         print(opt_nn_hparams)
@@ -81,16 +82,16 @@ def main(hparamconfig="hparam_config.yaml"):
         opt_nn_hparams = get_optimal_nn_gap_improvement_parameters(
             nn_hparam_ranges=binary_gap["neural_network"],
             data_generator=data_generator,
+            original_cols=original_cols,
             ntrain=ntrain,
             nval=nval,
             outcome=outcome,
             weight=weight,
-            savedir=savedir,
+            savepath=f'{savedir}/nn_{name}.csv',
         )
         opt_hparams["binary_gap"]["neural_network"] = opt_nn_hparams
         print(opt_nn_hparams)
 
-    name = hparamconfig.split("/")[1].split(".yaml")[0]
     with open(f"{savedir}/output_{name}.yaml", "w") as file:
         yaml.dump(opt_hparams, file, default_flow_style=False)
 

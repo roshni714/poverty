@@ -11,7 +11,7 @@ def get_optimal_density_estimation_parameters(
     nval,
     outcome,
     weight,
-    savedir,
+    savepath,
 ):
     """
     Get optimal density estimation hyperparameters.
@@ -24,7 +24,8 @@ def get_optimal_density_estimation_parameters(
         nval (int): Number of validation samples.
         outcome (str): Outcome variable.
         weight (str): Weight variable.
-        savedir (str): Directory to save the results.
+        savepath (str): Path to save results.
+        
 
     Returns:
         opt_params (dict): Optimal hyperparameters for density estimation.
@@ -99,9 +100,10 @@ def get_optimal_density_estimation_parameters(
                             "nll": nll,
                         }
                     )
+                    print(results[-1])
 
     df = pd.DataFrame(results)
-    df.to_csv("{}/density_estimation.csv".format(savedir), index=False)
+    df.to_csv(savepath, index=False)
     optimal_params = df.loc[df["nll"].idxmin()].to_dict()
     del optimal_params["nll"]
     return optimal_params

@@ -1,25 +1,23 @@
 rate:
   density_estimation:
     n_bins: 100
-    n_knots: 4
-    n_features: 4
-    degree: 3
+    n_knots: 6
+    n_features: 10
+    degree: 4
 continuous_gap:
   neural_network:
-    num_hidden_layers: 2
-    num_hidden_units: 64
-    lr: 0.001
-  num_quantiles: 15
+    num_hidden_layers: 1
+    num_hidden_units: 256
+    lr: 0.005
 binary_gap:
   neural_network:
-    num_hidden_layers: 2
-    num_hidden_units: 64
-    lr: 0.001
-  num_quantiles: 15
+    num_hidden_layers: 1
+    num_hidden_units: 256
+    lr: 0.005
 rank_order_binary_targeting:
   neural_network:
-    num_layers: 2
-    num_hidden_units: 64
-    lr: 0.001
+    num_hidden_layers: 1
+    num_hidden_units: 256
+    lr: 0.005
 
 
