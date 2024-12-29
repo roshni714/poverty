@@ -85,8 +85,8 @@ def get_optimal_nn_gap_improvement_parameters(
                         )
                         print(loss)
     df = pd.DataFrame.from_records(results)
-    df = df.groupby(["n_layers", "n_hidden_units", "lr"]).mean().reset_index()
     df.to_csv(savepath, index=False)
+    df = df.groupby(["n_layers", "n_hidden_units", "lr"]).mean().reset_index()
     optimal_params = df.loc[df["loss"].idxmin()].to_dict()
     del optimal_params["loss"]
     del optimal_params["transfer_size"]
@@ -170,8 +170,8 @@ def get_optimal_nn_quantile_regression_parameters(
                         )
                         print(pinball_loss)
     df = pd.DataFrame.from_records(results)
-    df = df.groupby(["n_layers", "n_hidden_units", "lr"]).mean().reset_index()
     df.to_csv(savepath, index=False)
+    df = df.groupby(["n_layers", "n_hidden_units", "lr"]).mean().reset_index()
     optimal_params = df.loc[df["pinball_loss"].idxmin()].to_dict()
     del optimal_params["pinball_loss"]
     del optimal_params["quantile"]

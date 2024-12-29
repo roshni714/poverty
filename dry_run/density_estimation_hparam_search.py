@@ -64,46 +64,50 @@ def get_optimal_density_estimation_parameters(
         train_dataset, val_dataset, max_features=max(n_features_range)
     )
 
-    train_df = data_generator(nsamples=ntrain, seed=1283)
-    val_df = data_generator(nsamples=nval, seed=4308)
 
     results = []
-    for n_features in n_features_range:
-        train_dataset = Dataset(
-            train_df,
-            outcome=outcome,
-            weight=weight,
-            covs=ordered_features[:n_features],
-        )
-        val_dataset = Dataset(
-            val_df,
-            outcome=outcome,
-            weight=weight,
-            covs=ordered_features[:n_features],
-        )
-        for degree in degree_range:
-            for n_bins in n_bins_range:
-                for n_knots in n_knots_range:
-                    density_estimator = get_cond_density_estimator(
-                        train_dataset,
-                        degree=degree,
-                        n_bins=n_bins,
-                        n_knots=n_knots,
-                    )
-                    nll = get_nll(val_dataset, density_estimator)
-                    results.append(
-                        {
-                            "n_features": n_features,
-                            "degree": degree,
-                            "n_bins": n_bins,
-                            "n_knots": n_knots,
-                            "nll": nll,
-                        }
-                    )
-                    print(results[-1])
+    for trial in range(3):
+        train_df = data_generator(nsamples=ntrain, seed=1283 + trial)
+        val_df = data_generator(nsamples=nval, seed=4308 + trial)
 
-    df = pd.DataFrame(results)
+        for n_features in n_features_range:
+            train_dataset = Dataset(
+                train_df,
+                outcome=outcome,
+                weight=weight,
+                covs=ordered_features[:n_features],
+            )
+            val_dataset = Dataset(
+                val_df,
+                outcome=outcome,
+                weight=weight,
+                covs=ordered_features[:n_features],
+            )
+            for degree in degree_range:
+                for n_bins in n_bins_range:
+                    for n_knots in n_knots_range:
+                        density_estimator = get_cond_density_estimator(
+                            train_dataset,
+                            degree=degree,
+                            n_bins=n_bins,
+                            n_knots=n_knots,
+                        )
+                        nll = get_nll(val_dataset, density_estimator)
+                        results.append(
+                            {
+                                "n_features": n_features,
+                                "degree": degree,
+                                "n_bins": n_bins,
+                                "n_knots": n_knots,
+                                "nll": nll,
+                                "trial": trial,
+                            }
+                        )
+                        print(results[-1])
+    df = pd.DataFrame.from_records(results)
     df.to_csv(savepath, index=False)
+    df = df.groupby(["n_features", "degree", "n_bins", "n_knots"]).mean().reset_index()
     optimal_params = df.loc[df["nll"].idxmin()].to_dict()
     del optimal_params["nll"]
+    del optimal_params["trial"]
     return optimal_params
