@@ -32,7 +32,7 @@ python main.py generate --objectspath pickled/objects-maxepochs=3000_lr=0.001_ba
 ```
 
 # Hyperparameter Search
-Running the following command will run a hyperparameter search for all procedures and hyperparameters specified in the `hparamconfig` YAML file. The `configs` directory has example config files. If a certain hyperparameter is not specified in the config file, the script uses a default value; see default hyperparameter values [here](https://github.com/roshni714/poverty/blob/21ccd2be215338756a8ce1015082382a6eaac924/dry_run/configs/default_config.yml). This script will produce a YAML file with the optimal hyperparameter values.
+Running the following command will run a hyperparameter search for all procedures and hyperparameters specified in the `hparamconfig` YAML file. The `configs` directory has example config files. If a certain hyperparameter is not specified in the config file, the script uses a default value; see default hyperparameter values [here](https://github.com/roshni714/poverty/blob/master/dry_run/configs/default_config.yml). This script will produce a YAML file with the optimal hyperparameter values.
 
 ```
 mkdir hparam_results

@@ -6,7 +6,7 @@ data:
   weight: hh_wgt
   gt:
     trainpath: data/train.parquet
-binary_gap:
+continuous_gap:
   neural_network:
     n_layers: [1, 2, 3]
     n_hidden_units: [64, 256, 1024, 2048]
