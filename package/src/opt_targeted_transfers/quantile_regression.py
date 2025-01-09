@@ -85,7 +85,6 @@ def get_quantile_regressor(
         )
 
         batch_size = int(len(idx_train_set) / 5)
-        print("QR method via nonparametric regression...")
         pbar = tqdm.tqdm(list(range(n_epochs)))
         val_losses = []
         models = []

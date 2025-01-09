@@ -15,13 +15,23 @@ pip install -e .
 
 ## Usage
 
-Poverty rate targeting
+Load simple dataset.
 ```
-from opt_targeted_transfers import UnconditionalTargetedTransfers 
-from examples.data_loaders import get_example_data
+from opt_targeted_transfers import RateTargetedTransfers
+from opt_targeted_transfers import Dataset
+from data_loaders import load_data, PATH_TO_TRAIN_DATA, PATH_TO_TEST_DATA
 
-train_dataset, test_dataset = get_example_data()
+train_data = load_data(PATH_TO_TRAIN_DATA)
+test_data = load_data(PATH_TO_TEST_DATA)
 
+train_dataset = Dataset(df=train_data, outcome='consumption_per_capita_per_day', weight='hh_wgt', covs=['hh_size', 'urban'])
+test_covariate_dataset = Dataset(df=test_data, outcome=None, weight='hh_wgt', covs=['hh_size', 'urban'])
+test_dataset = Dataset(df=test_data, outcome='consumption_per_capita_per_day', weight='hh_wgt', covs=['hh_size', 'urban'])
+
+```
+
+Poverty rate targeting.
+```
 tt = RateTargetedTransfers(c_bar=2.15, budget=None)
 tt.fit(train_dataset)
 tt.set_budget(0.5)

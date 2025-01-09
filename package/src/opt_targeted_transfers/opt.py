@@ -239,8 +239,8 @@ class GapTargetedTransfers(TargetedTransfers):
 
         :param train_dataset: The dataset used for training the regressors
         :type train_dataset: Dataset
-        :param lambda_: The quantile for which the regressor is trained. Defaults to 0.5.
-        :type lambda_: float
+        :param n_regressors: The number of quantile regressors to fit. Defaults to 20.
+        :type n_regressors: int
         :param n_layers: The number of hidden layers in the neural network. Defaults to 1.
         :type n_layers: int
         :param n_hidden_units: The number of hidden units in each hidden layer. Defaults to 256.
@@ -257,6 +257,7 @@ class GapTargetedTransfers(TargetedTransfers):
         self.quantile_regressors = dict()
 
         for quantile in quantiles:
+            print("Fitting quantile regressor for quantile {}".format(quantile))
             quantile_regressor = get_quantile_regressor(train_dataset, 
                                                     quantile=quantile, 
                                                     n_layers=n_layers, 
@@ -264,16 +265,17 @@ class GapTargetedTransfers(TargetedTransfers):
                                                     lr=lr, 
                                                     n_epochs=n_epochs,
                                                     seed=seed)
-            self.quantile_regressor[quantile] = quantile_regressor
+            self.quantile_regressors[quantile] = quantile_regressor
 
     def run_opt(self, test_covariate_dataset):
-        if self.quantile_regressor is None:
+        if self.quantile_regressors is None:
             raise ValueError("Missing quantile regressors - run fit first.")
         #For each quantile regressor, compute the corresponding assignments and policy cost
         costs = []
         all_assignments = []
         X_test, r_test = test_covariate_dataset.get_data()
-        for _,quantile_regressor in self.quantile_regressors.items():
+        for quantile in reversed(sorted(self.quantile_regressors.keys())):
+            quantile_regressor = self.quantile_regressors[quantile]
             conditional_quantile = quantile_regressor(X_test)
             transfer = np.maximum(self.c_bar - conditional_quantile, 0)
             assignments = {x_idx: [] for x_idx in range(len(X_test))}
@@ -281,11 +283,14 @@ class GapTargetedTransfers(TargetedTransfers):
                 assignments[i].append((transfer[i].item(), 1.0))
             cost = policy_cost(test_covariate_dataset, assignments)
             costs.append(cost)
+            print("Quantile:", quantile, "Cost: ", cost)
             all_assignments.append(assignments)
         # Get the assignments that have cost lower than budget
         idx = bisect_left(costs, self.budget)
-        self.assignments = all_assignments[idx]
-        return all_assignments[idx]
+        self.assignments = all_assignments[idx-1]
+
+        #TODO: Add back interpolation here if idx-1 is between two entries.
+        return all_assignments[idx-1]
 
 
 class BinaryGapTargetedTransfers(TargetedTransfers):
