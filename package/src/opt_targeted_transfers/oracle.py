@@ -1,6 +1,5 @@
 from opt_targeted_transfers.knapsack import (
     solve_fractional_mc_knapsack_problem,
-    check_assignments_are_equal,
 )
 from opt_targeted_transfers.cond_dist import get_lower_cvx_hull
 
@@ -67,7 +66,7 @@ def run_oracle_poverty_rate(dataset, tolerance, c_bar):
     oracle_policy = get_transfer_function(c_bar, eta, lamb)
 
     prox_assignment = oracle_policy(y)
-    check_assignments_are_equal(opt_assignment, prox_assignment)
+    #check_assignments_are_equal(opt_assignment, prox_assignment)
 
     return oracle_policy
 

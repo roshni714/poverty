@@ -761,3 +761,70 @@ def compute_opt_policy_knapsack(
         return assignments
 
     return t
+
+
+
+def get_alpha_transfer_function(
+    alpha, c_bar, lamb, eta, cond_density_estimator
+):
+    """
+    Compute the transfer function.
+
+    :param alpha: The alpha value.
+    :type alpha: float
+    :param c_bar: The poverty line.
+    :type c_bar: float
+    :param lamb: The threshold cost-benefit ratio.
+    :type lamb: float
+    :param eta: The threshold probability
+    :type eta: float
+    :param cond_density_estimator: A function to compute the conditional density.
+    :type cond_density_estimator: Callable[[np.ndarray], np.ndarray]
+    :return: The transfer function.
+    :rtype: Callable[[np.ndarray], np.ndarray]
+    """
+
+    def t(X_test):
+        cond_densities = cond_density_estimator(X_test)
+        assignments = {x_idx: [] for x_idx in range(len(X_test))}
+        cvx_hulls = get_alpha_convex_hulls(
+            alpha,
+            c_bar,
+            cond_dists=cond_densities,
+        )
+        
+        for j, cond_density in enumerate(cond_densities):
+            cvx_hull = cvx_hulls[j]
+            ratios = np.zeros(len(cvx_hull)).astype(np.float64)
+            ratios[0] = -np.inf
+            for i in range(len(cvx_hull) - 1):
+                p1 = cvx_hull[i]
+                p2 = cvx_hull[i + 1]
+                ratios[i + 1] = (p2[1] - p1[1]) / (p2[0] - p1[0])
+            idx = bisect.bisect_left(ratios, eta)
+
+            if (
+                idx > 0
+                and idx < len(ratios)
+                and ratios[idx - 1] < lamb
+                and ratios[idx] > lamb
+            ):
+                assignments[j] = [(cvx_hull[idx - 1][1], 1.0)]
+            elif idx < len(ratios) and ratios[idx] == lamb:
+                assignments[j] = [
+                    (cvx_hull[idx - 1][1], eta),
+                    (cvx_hull[idx][1], 1 - eta),
+                ]
+            else:
+                assignments[j] = [(0., 1.0)]
+        return assignments
+
+    return t
+
+def check_assignments_are_equal(assignment1, assignment2):
+    assert assignment1.keys() == assignment2.keys()
+
+    for key in assignment1.keys():
+        val1 = assignment1[key]
+        val2 = assignment2[key]
+        assert val1 == val2, "error at key {} bc {} != {}".format(key, val1, val2)

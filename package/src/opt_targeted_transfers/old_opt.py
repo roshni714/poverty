@@ -36,9 +36,11 @@ class TargetedTransfers:
     """
 
     def __init__(
-        self, c_bar=2.15,
+        self, c_bar=2.15, unconditional_tolerance=None, conditional_tolerance=None
     ):
         self.c_bar = c_bar
+        self.unconditional_tolerance = unconditional_tolerance
+        self.conditional_tolerance = conditional_tolerance
         self.density_estimator = None
         self.opt_policy = None
         self.name = None

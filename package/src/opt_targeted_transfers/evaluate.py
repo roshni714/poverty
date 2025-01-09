@@ -1,15 +1,9 @@
 import numpy as np
 
 
-def expected_value_transfers(test_dataset, policy, oracle=False):
-    y_test = test_dataset.y
-    if oracle:
-        assignments = policy(test_dataset.y)
-    else:
-        assignments = policy(test_dataset.X)
-
+def expected_value_transfers(assignments):
     transfers = []
-    for i in range(len(test_dataset)):
+    for i in range(len(assignments)):
         ev = 0.0
         for j in range(len(assignments[i])):
             ev += assignments[i][j][1] * assignments[i][j][0]
@@ -17,20 +11,16 @@ def expected_value_transfers(test_dataset, policy, oracle=False):
         transfers.append(ev)
     return np.array(transfers)
 
-def policy_cost(test_covariate_dataset, policy, oracle=False):
-    if oracle:
-        assignments = policy(test_covariate_dataset.y)
-    else:
-        assignments = policy(test_covariate_dataset.X)
-
+def policy_cost(test_covariate_dataset, assignments):
+    _, r_test = test_covariate_dataset.get_data()
     cost = 0.0
-    for i in range(len(test_covariate_dataset)):
+    for i in range(len(assignments)):
         for j in range(len(assignments[i])):
-            cost += assignments[i][j][1] * assignments[i][j][0]
+            cost += r_test[i] * assignments[i][j][1] * assignments[i][j][0]
 
     return cost
 
-def post_transfer_metrics(test_dataset, policy, c_bar, oracle=False):
+def post_transfer_metrics(test_dataset, assignments, c_bar):
     """
     Compute post-transfer metrics for a policy given the test dataset.
 
@@ -46,10 +36,7 @@ def post_transfer_metrics(test_dataset, policy, c_bar, oracle=False):
     :rtype: dict
     """
 
-    y_test = test_dataset.y
-    r_test = test_dataset.r
-
-    normalized_r_test = r_test / r_test.sum()
+    _, y_test, r_test = test_dataset.get_data()
 
     dic = {
         "initial_poverty_rate": 0.0,
@@ -57,34 +44,32 @@ def post_transfer_metrics(test_dataset, policy, c_bar, oracle=False):
         "post_transfer_poverty_gap": 0.0,
         "post_transfer_poverty_rate": 0.0,
         "policy_cost_per_capita": 0.0,
-        "weight_adjusted_population": r_test.sum(),
     }
 
     dic["initial_poverty_gap"] = np.sum(
-        np.maximum(c_bar - y_test, 0) * normalized_r_test
+        np.maximum(c_bar - y_test, 0) * r_test
     ).item()
-    dic["initial_poverty_rate"] = np.sum(normalized_r_test * (y_test < c_bar))
+    dic["initial_poverty_rate"] = np.sum(r_test * (y_test < c_bar))
 
-    if not oracle:
-        assignments = policy(test_dataset.X)
-    else:
-        assignments = policy(test_dataset.y)
 
-    for i in range(len(test_dataset)):
+    for i in assignments:
         pov_gap = 0.0
-        prob = 0.0
+        pov_rate = 0.0
         cost = 0.0
         for j in range(len(assignments[i])):
-            pov_gap += assignments[i][j][1] * np.maximum(
-                c_bar - y_test[i] - assignments[i][j][0], 0
-            )
-            prob += assignments[i][j][1] * (
-                assignments[i][j][0] + y_test[i] < c_bar
-            ).astype(float)
-            cost += assignments[i][j][1] * assignments[i][j][0]
+            transfer_amt = assignments[i][j][0]
+            prob =  assignments[i][j][1]
 
-        dic["post_transfer_poverty_gap"] += pov_gap * normalized_r_test[i]
-        dic["post_transfer_poverty_rate"] += prob * normalized_r_test[i]
-        dic["policy_cost_per_capita"] += cost * normalized_r_test[i]
+            pov_gap += prob * np.maximum(
+                c_bar - y_test[i] - transfer_amt, 0
+            )
+            pov_rate += prob * (
+                transfer_amt + y_test[i] < c_bar
+            ).astype(float)
+            cost += prob * transfer_amt
+
+        dic["post_transfer_poverty_gap"] += pov_gap * r_test[i]
+        dic["post_transfer_poverty_rate"] += pov_rate * r_test[i]
+        dic["policy_cost_per_capita"] += cost * r_test[i]
 
     return dic

@@ -52,14 +52,7 @@ class TargetedTransfers:
 
     def set_budget(self, budget):
         self.budget = budget
-
-    def save_opt_policy(self, name):
-        if self.opt_policy is None:
-            assert False, "Need to run opt first"
-        pickle.dump(
-            self.opt_policy,
-            open("{}.pickle".format(name), "wb"),
-        )
+        self.assignments = None
 
     def evaluate(self, test_dataset):
         """
@@ -71,16 +64,9 @@ class TargetedTransfers:
         :rtype: dict
         """
 
-        if self.opt_policy is None:
-            assert False, "Need to first run optimization"
-
-        if "oracle" in self.name:
-            result = post_transfer_metrics(
-                test_dataset, self.opt_policy, self.c_bar, oracle=True
+        result = post_transfer_metrics(
+                test_dataset, self.assignments, self.c_bar
             )
-        else:
-            result = post_transfer_metrics(test_dataset, self.opt_policy, self.c_bar)
-
         d= len(test_dataset.covs)
         result.update(
             {
@@ -99,17 +85,9 @@ class TargetedTransfers:
         :return: A dictionary of evaluation results.
         :rtype: dict
         """
-        if self.opt_policy is None:
-            assert False, "Need to first run optimization"
         d = len(test_dataset.covs)
-
-        if "oracle" in self.name:
-            oracle = True
-        else:
-            oracle = False
-
         all_transfers_ev = expected_value_transfers(
-            test_dataset, self.opt_policy, oracle=oracle
+            test_dataset, self.assignments
         )
 
         _, y_test, _ = test_dataset.get_data()
@@ -136,7 +114,7 @@ class RateTargetedTransfers(TargetedTransfers):
         super().__init__(
             c_bar=c_bar, budget=budget
         )
-        self.name = "unconditional_rate"
+        self.name = "rate"
         self.density_estimator = None
         self.opt_policy = None
 
@@ -207,7 +185,7 @@ class RateTargetedTransfers(TargetedTransfers):
             assert False, "Need to first set density estimator"
 
         (
-            t_alpha_joint_programs,
+            all_opt_assignments,
             total_transfers,
             alphas,
         ) = compute_alpha_opt_policies(
@@ -222,9 +200,8 @@ class RateTargetedTransfers(TargetedTransfers):
         )
 
         idx = np.argmin(total_transfers)
-        t_joint_program_est = t_alpha_joint_programs[idx]
-        self.opt_policy = t_joint_program_est
-        return t_joint_program_est
+        self.assignments = all_opt_assignments[idx]
+        return self.assignments
 
 
 class GapTargetedTransfers(TargetedTransfers):

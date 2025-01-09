@@ -41,7 +41,6 @@ def solve_fractional_mc_knapsack_problem(p_xs, convex_hulls, budget):
 
     lambs = [-float("inf")]
     metadata = [None]
-    lamb = 0.0
     while total_cost < budget and pq:
         ratio, tups = pq.get()
         # Remove previous assignment
@@ -127,75 +126,8 @@ def solve_fractional_mc_knapsack_problem(p_xs, convex_hulls, budget):
                     next_point[0] - curr_point[0]
                 )
                 pq.put(ratio, (x_idx, next_hull_idx))
-
+    
     return assignments, total_cost, total_loss, lambs[-1], 1.0
-
-
-def get_alpha_transfer_function(
-    alpha, c_bar, lamb, eta, cond_density_estimator
-):
-    """
-    Compute the transfer function.
-
-    :param alpha: The alpha value.
-    :type alpha: float
-    :param c_bar: The poverty line.
-    :type c_bar: float
-    :param lamb: The threshold cost-benefit ratio.
-    :type lamb: float
-    :param eta: The threshold probability
-    :type eta: float
-    :param cond_density_estimator: A function to compute the conditional density.
-    :type cond_density_estimator: Callable[[np.ndarray], np.ndarray]
-    :return: The transfer function.
-    :rtype: Callable[[np.ndarray], np.ndarray]
-    """
-
-    def t(X_test):
-        cond_densities = cond_density_estimator(X_test)
-        assignments = {x_idx: [] for x_idx in range(len(X_test))}
-        cvx_hulls = get_alpha_convex_hulls(
-            alpha,
-            c_bar,
-            cond_dists=cond_densities,
-        )
-        
-        for j, cond_density in enumerate(cond_densities):
-            cvx_hull = cvx_hulls[j]
-            ratios = np.zeros(len(cvx_hull)).astype(np.float64)
-            ratios[0] = -np.inf
-            for i in range(len(cvx_hull) - 1):
-                p1 = cvx_hull[i]
-                p2 = cvx_hull[i + 1]
-                ratios[i + 1] = (p2[1] - p1[1]) / (p2[0] - p1[0])
-            idx = bisect.bisect_left(ratios, eta)
-
-            if (
-                idx > 0
-                and idx < len(ratios)
-                and ratios[idx - 1] < lamb
-                and ratios[idx] > lamb
-            ):
-                assignments[j] = [(cvx_hull[idx - 1][1], 1.0)]
-            elif idx < len(ratios) and ratios[idx] == lamb:
-                assignments[j] = [
-                    (cvx_hull[idx - 1][1], eta),
-                    (cvx_hull[idx][1], 1 - eta),
-                ]
-            else:
-                assignments[j] = [(0., 1.0)]
-        return assignments
-
-    return t
-
-def check_assignments_are_equal(assignment1, assignment2):
-    assert assignment1.keys() == assignment2.keys()
-
-    for key in assignment1.keys():
-        val1 = assignment1[key]
-        val2 = assignment2[key]
-        assert val1 == val2, "error at key {} bc {} != {}".format(key, val1, val2)
-
 
 def get_alpha_convex_hulls(alpha, c_bar, cond_dists):
     transfer_values = [
@@ -208,7 +140,7 @@ def get_alpha_convex_hulls(alpha, c_bar, cond_dists):
     
 
 def compute_alpha_opt_policies(
-    train_dataset,
+    test_covariate_dataset,
     cond_density_estimator,
     budget,
     c_bar,
@@ -220,8 +152,8 @@ def compute_alpha_opt_policies(
     """
     Compute alpha-optimal policies for a given training dataset.
 
-    :param train_dataset: The training dataset.
-    :type train_dataset: Dataset
+    :param test_covariate_dataset: The test dataset.
+    :type test_covariate_dataset: Dataset
     :param cond_density_estimator: The conditional density estimator.
     :type cond_density_estimator: Callable[[np.ndarray], np.ndarray]
     :param c_bar: The poverty line.
@@ -235,10 +167,11 @@ def compute_alpha_opt_policies(
     :param path: The path to save the simulation results. Defaults to "sim".
     :type path: str
     """
-    cond_dists = cond_density_estimator(train_dataset.X)
+    X, r = test_covariate_dataset.get_data()
+    cond_dists = cond_density_estimator(X)
 
     total_transfers = []
-    opt_policies = []
+    opt_assignments = []
     if max_alpha is None:
         max_alpha = np.quantile([dist.pdf(dist.mode) for dist in cond_dists], 0.97)
     if min_alpha is None:
@@ -258,23 +191,12 @@ def compute_alpha_opt_policies(
             cond_dists=cond_dists,
         )
 
-        (
-            opt_assignment,
+        (opt_assignment,
             total_transfer,
             prob_below_line,
-            eta,
             lamb,
-        ) = solve_fractional_mc_knapsack_problem(train_dataset.r, cvx_hulls, budget)
-        t_alpha = get_alpha_transfer_function(
-            alpha,
-            c_bar,
             eta,
-            lamb,
-            compute_cond_density=cond_density_estimator,
-        )
-
-        # prox_assignment = t_alpha(train_dataset.X)
-        # check_assignments_are_equal(opt_assignment, prox_assignment)
+        ) = solve_fractional_mc_knapsack_problem(r, cvx_hulls, budget)
 
         result = {
             "alpha": alpha,
@@ -282,7 +204,7 @@ def compute_alpha_opt_policies(
             "poverty_rate": prob_below_line,
         }
         total_transfers.append(total_transfer)
-        opt_policies.append(t_alpha)
+        opt_assignments.append(opt_assignment)
         if results_file is not None:
             write_result(results_file, result)
-    return opt_policies, total_transfers, alphas
+    return opt_assignments, total_transfers, alphas
