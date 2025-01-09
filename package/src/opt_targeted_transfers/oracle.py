@@ -66,7 +66,7 @@ def run_oracle_poverty_rate(dataset, tolerance, c_bar):
     oracle_policy = get_transfer_function(c_bar, eta, lamb)
 
     prox_assignment = oracle_policy(y)
-    #check_assignments_are_equal(opt_assignment, prox_assignment)
+    # check_assignments_are_equal(opt_assignment, prox_assignment)
 
     return oracle_policy
 

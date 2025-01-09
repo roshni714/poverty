@@ -14,9 +14,11 @@ from opt_targeted_transfers.quantile_regression import get_quantile_regressor
 from opt_targeted_transfers.evaluate import (
     post_transfer_metrics,
     expected_value_transfers,
-    policy_cost
+    policy_cost,
 )
-from opt_targeted_transfers.conditional_gap_improvement import get_conditional_gap_improvement_regressor
+from opt_targeted_transfers.conditional_gap_improvement import (
+    get_conditional_gap_improvement_regressor,
+)
 from opt_targeted_transfers.reporting import write_result
 
 import dill as pickle
@@ -37,7 +39,9 @@ class TargetedTransfers:
     """
 
     def __init__(
-        self, c_bar=2.15, budget=None,
+        self,
+        c_bar=2.15,
+        budget=None,
     ):
         self.c_bar = c_bar
         self.budget = budget
@@ -65,10 +69,8 @@ class TargetedTransfers:
         if self.assignments is None:
             raise ValueError("Must run run_opt before evaluate")
 
-        result = post_transfer_metrics(
-                test_dataset, self.assignments, self.c_bar
-            )
-        d= len(test_dataset.covs)
+        result = post_transfer_metrics(test_dataset, self.assignments, self.c_bar)
+        d = len(test_dataset.covs)
         result.update(
             {
                 "policy_type": self.name,
@@ -88,11 +90,9 @@ class TargetedTransfers:
         """
         if self.assigments is None:
             raise ValueError("Must run run_opt before evaluate_equity")
-        
+
         d = len(test_dataset.covs)
-        all_transfers_ev = expected_value_transfers(
-            test_dataset, self.assignments
-        )
+        all_transfers_ev = expected_value_transfers(test_dataset, self.assignments)
 
         _, y_test, _ = test_dataset.get_data()
 
@@ -115,20 +115,18 @@ class RateTargetedTransfers(TargetedTransfers):
         :param tolerance: The tolerance. Defaults to None.
         :type tolerance: float or None
         """
-        super().__init__(
-            c_bar=c_bar, budget=budget
-        )
+        super().__init__(c_bar=c_bar, budget=budget)
         self.name = "rate"
         self.density_estimator = None
 
     def fit(
         self,
         train_dataset,
-        n_bins=100, 
-        n_knots=4, 
-        degree=4, 
-        truncation_upper_value=10, 
-        n_epochs=300
+        n_bins=100,
+        n_knots=4,
+        degree=4,
+        truncation_upper_value=10,
+        n_epochs=300,
     ):
         """
         Fitting the conditional density.
@@ -149,9 +147,9 @@ class RateTargetedTransfers(TargetedTransfers):
         density_estimator = get_cond_density_estimator(
             train_dataset,
             n_bins=n_bins,
-            n_knots=n_knots, 
-            degree=degree, 
-            truncation_upper_value=truncation_upper_value, 
+            n_knots=n_knots,
+            degree=degree,
+            truncation_upper_value=truncation_upper_value,
             n_epochs=n_epochs,
         )
 
@@ -218,9 +216,7 @@ class GapTargetedTransfers(TargetedTransfers):
         :type c_bar: float
         """
 
-        super().__init__(
-            c_bar=c_bar, budget=budget
-        )
+        super().__init__(c_bar=c_bar, budget=budget)
         self.name = "gap"
         self.quantile_regressors = None
 
@@ -230,9 +226,9 @@ class GapTargetedTransfers(TargetedTransfers):
         n_regressors=20,
         n_layers=1,
         n_hidden_units=256,
-        lr=5e-3, 
+        lr=5e-3,
         n_epochs=300,
-        seed=123456  
+        seed=123456,
     ):
         """
         Fitting the quantile regression.
@@ -258,19 +254,21 @@ class GapTargetedTransfers(TargetedTransfers):
 
         for quantile in quantiles:
             print("Fitting quantile regressor for quantile {}".format(quantile))
-            quantile_regressor = get_quantile_regressor(train_dataset, 
-                                                    quantile=quantile, 
-                                                    n_layers=n_layers, 
-                                                    n_hidden_units=n_hidden_units, 
-                                                    lr=lr, 
-                                                    n_epochs=n_epochs,
-                                                    seed=seed)
+            quantile_regressor = get_quantile_regressor(
+                train_dataset,
+                quantile=quantile,
+                n_layers=n_layers,
+                n_hidden_units=n_hidden_units,
+                lr=lr,
+                n_epochs=n_epochs,
+                seed=seed,
+            )
             self.quantile_regressors[quantile] = quantile_regressor
 
     def run_opt(self, test_covariate_dataset):
         if self.quantile_regressors is None:
             raise ValueError("Missing quantile regressors - run fit first.")
-        #For each quantile regressor, compute the corresponding assignments and policy cost
+        # For each quantile regressor, compute the corresponding assignments and policy cost
         costs = []
         all_assignments = []
         X_test, r_test = test_covariate_dataset.get_data()
@@ -287,19 +285,16 @@ class GapTargetedTransfers(TargetedTransfers):
             all_assignments.append(assignments)
         # Get the assignments that have cost lower than budget
         idx = bisect_left(costs, self.budget)
-        self.assignments = all_assignments[idx-1]
+        self.assignments = all_assignments[idx - 1]
 
-        #TODO: Add back interpolation here if idx-1 is between two entries.
-        return all_assignments[idx-1]
+        # TODO: Add back interpolation here if idx-1 is between two entries.
+        return all_assignments[idx - 1]
 
 
 class BinaryGapTargetedTransfers(TargetedTransfers):
     def __init__(self, c_bar=2.15, budget=None):
 
-        super().__init__(
-            c_bar=c_bar,
-            budget=budget
-        )
+        super().__init__(c_bar=c_bar, budget=budget)
 
         self.name = "binary_gap"
         self.t_to_household_estimator_map = None
@@ -309,27 +304,31 @@ class BinaryGapTargetedTransfers(TargetedTransfers):
         self,
         train_dataset,
         n_transfer_values=20,
-        n_layers=1, 
-        n_hidden_units=256, 
-        lr=5e-3, 
+        n_layers=1,
+        n_hidden_units=256,
+        lr=5e-3,
         n_epochs=300,
-        seed=123456
+        seed=123456,
     ):
 
         # For each transfer size t, fit benefit estimator using training data
         self.t_to_household_estimator_map = dict()
 
-        transfer_sizes = np.linspace(0., 2.15, n_transfer_values)
+        transfer_sizes = np.linspace(0.0, 2.15, n_transfer_values)
 
         for transfer_size in transfer_sizes:
-            self.t_to_household_estimator_map[transfer_size] = get_conditional_gap_improvement_regressor(train_dataset,
-                                                                                             t=transfer_size,
-                                                                                             c_bar=self.c_bar,
-                                                                                             n_layers=n_layers,
-                                                                                             n_hidden_units=n_hidden_units,
-                                                                                             lr=lr,
-                                                                                             n_epochs=n_epochs,
-                                                                                             seed=seed)
+            self.t_to_household_estimator_map[transfer_size] = (
+                get_conditional_gap_improvement_regressor(
+                    train_dataset,
+                    t=transfer_size,
+                    c_bar=self.c_bar,
+                    n_layers=n_layers,
+                    n_hidden_units=n_hidden_units,
+                    lr=lr,
+                    n_epochs=n_epochs,
+                    seed=seed,
+                )
+            )
 
     def optimize_transfers_for_budget_grid(self, test_covariate_dataset, budgets):
         """
@@ -339,7 +338,7 @@ class BinaryGapTargetedTransfers(TargetedTransfers):
 
         if self.t_to_household_estimator_map is None:
             raise ValueError("Need to run fit before a policy can be computed")
-        
+
         X_test, r_test = test_covariate_dataset.get_data()
 
         # for each t, order the households in the test set
@@ -456,10 +455,7 @@ class OracleGapTargetedTransfers(TargetedTransfers):
 
         assert scheme in ("lift_to_line", "floor")
 
-        super().__init__(
-            c_bar=c_bar,
-            budget=budget
-        )
+        super().__init__(c_bar=c_bar, budget=budget)
         self.name = "oracle_gap"
         self.scheme = scheme
 
@@ -484,13 +480,12 @@ class OracleGapTargetedTransfers(TargetedTransfers):
 class BinaryRateTargetedTransfers(TargetedTransfers):
 
     def __init__(
-        self, c_bar=2.15, budget=None,
+        self,
+        c_bar=2.15,
+        budget=None,
     ):
 
-        super().__init__(
-            c_bar=c_bar,
-            budget=budget
-        )
+        super().__init__(c_bar=c_bar, budget=budget)
         self.name = "binary_rate"
 
     def fit(
@@ -500,7 +495,7 @@ class BinaryRateTargetedTransfers(TargetedTransfers):
         n_knots=4,
         degree=4,
         truncation_upper_value=10,
-        n_epochs=300
+        n_epochs=300,
     ):
         density_estimator = get_cond_density_estimator(
             train_dataset,
@@ -558,15 +553,15 @@ class BinaryRateTargetedTransfers(TargetedTransfers):
 class OraclePovertyRateTargetedTransfers(TargetedTransfers):
     def __init__(self, c_bar=2.15, unconditional_tolerance=None):
 
-        super().__init__(
-            c_bar=c_bar
-        )
+        super().__init__(c_bar=c_bar)
         self.name = "oracle_rate"
 
     def run_opt(self, test_outcome_dataset):
 
         oracle_policy = run_oracle_poverty_rate(
-            test_outcome_dataset, c_bar=self.c_bar, tolerance=self.unconditional_tolerance
+            test_outcome_dataset,
+            c_bar=self.c_bar,
+            tolerance=self.unconditional_tolerance,
         )
         self.opt_policy = oracle_policy
         return oracle_policy

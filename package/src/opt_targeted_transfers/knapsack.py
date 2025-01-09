@@ -107,7 +107,7 @@ def solve_fractional_mc_knapsack_problem(p_xs, convex_hulls, budget):
                 ]
             )
 
-            eta = (remainder - curr_cost)/(prev_cost - curr_cost)
+            eta = (remainder - curr_cost) / (prev_cost - curr_cost)
             for x_idx, hull_idx in tups:
                 assignments[x_idx] = [
                     (convex_hulls[x_idx][hull_idx - 1][0], eta),
@@ -126,18 +126,21 @@ def solve_fractional_mc_knapsack_problem(p_xs, convex_hulls, budget):
                     next_point[0] - curr_point[0]
                 )
                 pq.put(ratio, (x_idx, next_hull_idx))
-    
+
     return assignments, total_cost, total_loss, lambs[-1], 1.0
+
 
 def get_alpha_convex_hulls(alpha, c_bar, cond_dists):
     transfer_values = [
-        c_dist.get_alpha_valid_transfers(alpha, c_bar)
-        for c_dist in cond_dists
+        c_dist.get_alpha_valid_transfers(alpha, c_bar) for c_dist in cond_dists
     ]
 
-    cvx_hulls = [c_dist.get_convex_hull(z=transfer_values[i], c_bar=c_bar) for i, c_dist in enumerate(cond_dists)]
+    cvx_hulls = [
+        c_dist.get_convex_hull(z=transfer_values[i], c_bar=c_bar)
+        for i, c_dist in enumerate(cond_dists)
+    ]
     return cvx_hulls
-    
+
 
 def compute_alpha_opt_policies(
     test_covariate_dataset,
@@ -191,7 +194,8 @@ def compute_alpha_opt_policies(
             cond_dists=cond_dists,
         )
 
-        (opt_assignment,
+        (
+            opt_assignment,
             total_transfer,
             prob_below_line,
             lamb,

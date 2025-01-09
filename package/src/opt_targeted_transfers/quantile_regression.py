@@ -32,7 +32,13 @@ def get_quantile_loss(val_dataset, quantile_regressor, quantile):
 
 
 def get_quantile_regressor(
-    dataset, quantile, n_layers=1, n_hidden_units=256, lr=5e-3, n_epochs=300, seed=123456
+    dataset,
+    quantile,
+    n_layers=1,
+    n_hidden_units=256,
+    lr=5e-3,
+    n_epochs=300,
+    seed=123456,
 ):
     """
     Get a quantile regressor for a given dataset.
