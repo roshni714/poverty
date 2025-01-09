@@ -41,7 +41,6 @@ class TargetedTransfers:
     ):
         self.c_bar = c_bar
         self.budget = budget
-        self.opt_policy = None
         self.name = None
 
     def fit(self, train_dataset):
@@ -63,6 +62,8 @@ class TargetedTransfers:
         :return: A dictionary of evaluation results.
         :rtype: dict
         """
+        if self.assignments is None:
+            raise ValueError("Must run run_opt before evaluate")
 
         result = post_transfer_metrics(
                 test_dataset, self.assignments, self.c_bar
@@ -85,6 +86,9 @@ class TargetedTransfers:
         :return: A dictionary of evaluation results.
         :rtype: dict
         """
+        if self.assigments is None:
+            raise ValueError("Must run run_opt before evaluate_equity")
+        
         d = len(test_dataset.covs)
         all_transfers_ev = expected_value_transfers(
             test_dataset, self.assignments
@@ -116,7 +120,6 @@ class RateTargetedTransfers(TargetedTransfers):
         )
         self.name = "rate"
         self.density_estimator = None
-        self.opt_policy = None
 
     def fit(
         self,
@@ -266,28 +269,26 @@ class GapTargetedTransfers(TargetedTransfers):
     def run_opt(self, test_covariate_dataset):
         if self.quantile_regressor is None:
             raise ValueError("Missing quantile regressors - run fit first.")
-        #For each quantile regressor, compute the corresponding policy and policy cost
+        #For each quantile regressor, compute the corresponding assignments and policy cost
         costs = []
-        policies = []
+        all_assignments = []
+        X_test, r_test = test_covariate_dataset.get_data()
         for _,quantile_regressor in self.quantile_regressors.items():
-            def t(X):
-                conditional_quantile = quantile_regressor(X)
-                transfer = np.maximum(self.c_bar - conditional_quantile, 0)
-                assignments = {x_idx: [] for x_idx in range(len(X))}
-                for i in range(len(X)):
-                    assignments[i].append((transfer[i].item(), 1.0))
-                return assignments
-            cost = policy_cost(test_covariate_dataset, t)
+            conditional_quantile = quantile_regressor(X_test)
+            transfer = np.maximum(self.c_bar - conditional_quantile, 0)
+            assignments = {x_idx: [] for x_idx in range(len(X_test))}
+            for i in range(len(X_test)):
+                assignments[i].append((transfer[i].item(), 1.0))
+            cost = policy_cost(test_covariate_dataset, assignments)
             costs.append(cost)
-            policies.append(t)
-        # Find the policy that has policy cost lower than budget
+            all_assignments.append(assignments)
+        # Get the assignments that have cost lower than budget
         idx = bisect_left(costs, self.budget)
-        return policies[idx]
+        self.assignments = all_assignments[idx]
+        return all_assignments[idx]
 
 
 class BinaryGapTargetedTransfers(TargetedTransfers):
-    # TODO: Hit expected budget exactly by having one stochastic transfer
-
     def __init__(self, c_bar=2.15, budget=None):
 
         super().__init__(
