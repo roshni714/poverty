@@ -24,7 +24,7 @@ def standardize(z):
 
 
 class Dataset:
-    def __init__(self, df, outcome, covs=None, weight=None):
+    def __init__(self, df, outcome=None, covs=None, weight=None):
         """
         Initialize a Dataset object.
 
@@ -59,7 +59,6 @@ class Dataset:
             ]
             X = self.df[selected_columns].values
 
-        y = self.df[self.outcome].values
         if self.weight is None:
             r = np.ones(y.shape)
         else:
@@ -68,4 +67,8 @@ class Dataset:
         if normalize_weight:
             r = r / r.sum()
 
-        return X, y, r
+        if self.outcome is None:
+            return X, r
+        else:
+            y = self.df[self.outcome].values
+            return X, y, r

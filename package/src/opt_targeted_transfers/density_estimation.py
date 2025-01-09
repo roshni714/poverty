@@ -31,7 +31,7 @@ def get_nll(dataset, cond_density_estimator):
 
 
 def get_cond_density_estimator(
-    dataset, n_bins=100, n_knots=4, degree=3, truncation_upper_value=10, n_epochs=300
+    dataset, n_bins=100, n_knots=4, degree=4, truncation_upper_value=10, n_epochs=300
 ):
     """
     Compute the conditional density estimator.

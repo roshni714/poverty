@@ -457,3 +457,307 @@ class OraclePovertyGapPolicy:
             }
         )
         return result
+
+
+class ConditionalTargetedTransfers(TargetedTransfers):
+    """
+    Compute optimal conditional targeted transfers.
+    """
+
+    def __init__(self, method="qr", c_bar=2.15, conditional_tolerance=None):
+        """
+        Initialize a new instance of the UnconditionalTargetedTransfers class.
+        :param method: The method used for fitting the nuisance parameter. Either "qr" or "density."
+        :type method: str
+        :type name: str
+        :param c_bar: The minimum threshold value (poverty line). Defaults to 2.15.
+        :type c_bar: float
+        :param tolerance: The tolerance. Defaults to None.
+        :type tolerance: float or None
+        """
+
+        super().__init__(
+            c_bar=c_bar,
+            conditional_tolerance=conditional_tolerance,
+            unconditional_tolerance=conditional_tolerance,
+        )
+        self.name = "conditional_{}_rate".format(method)
+        self.method = method
+        self.quantile_regressor = None
+        self.density_estimator = None
+
+    def fit(
+        self,
+        X_train,
+        y_train,
+        r_train=None,
+        low_dim=False,
+        log_transform=True,
+        internal_knots=None,
+        n_epochs=300,
+    ):
+        """
+        Fitting the nuisance parameter.
+
+        :param X_train: The input features of the training data.
+        :type X_train: numpy.ndarray
+        :param y_train: The target values of the training data.
+        :type y_train: numpy.ndarray
+        :param r_train: The sampling weight variable of the training data. Defaults to None.
+        :type r_train: numpy.ndarray or None
+        :param log_transform: Whether to perform a log-transform on Y before fitting for "density" method.
+                          Defaults to True.
+        :type log_transform: bool
+        :param knot_quantiles: The quantiles to use as knots for the spline basis functions for "density" method.
+                           If None, evenly spaced knots will be used.
+                           Defaults to None.
+        :type knot_quantiles: numpy.ndarray or None
+        :param n_epochs: The number of epochs to train the model. Defaults to 300.
+        :type n_epochs: int
+        """
+
+        if self.conditional_tolerance is None and self.method == "qr":
+            assert (
+                False
+            ), "First set conditional tolerance before fitting if method is {}".format(
+                self.method
+            )
+        dataset = Dataset(X_train, y_train, r_train)
+
+        if self.method == "density":
+            density_estimator = get_cond_density_estimator(
+                dataset,
+                low_dim=low_dim,
+                log_transform=log_transform,
+                internal_knots=internal_knots,
+                n_epochs=n_epochs,
+            )
+
+            pickle.dump(
+                density_estimator,
+                open("{}_cond_density_estimator.pickle".format(self.name), "wb"),
+            )
+            self.density_estimator = density_estimator
+        elif self.method == "qr":
+            quantile_regressor = get_quantile_regressor(
+                dataset, self.conditional_tolerance, low_dim=low_dim, n_epochs=n_epochs
+            )
+            self.quantile_regressor = quantile_regressor
+
+    def set_conditional_tolerance(self, conditional_tolerance):
+        """
+        Set the tolerance.
+        Note that setting the tolerance to a new value will clear the
+        existing optimal policy. Furthermore, if the method is "qr,"
+        then setting a new tolerance will also clear the quantile
+        regressor.
+
+        :param tolerance: The tolerance to set.
+        :type tolerance: float
+        """
+        if conditional_tolerance != self.conditional_tolerance:
+            self.opt_policy = None
+            if self.method == "qr":
+                self.quantile_regressor = None
+
+        self.conditional_tolerance = conditional_tolerance
+        self.unconditional_tolerance = conditional_tolerance
+
+    def run_opt(self, X_test, r_test=None):
+        """
+        Run the optimization algorithm.
+
+        :param X_test: The input features of the test data.
+        :type X_test: numpy.ndarray
+        :param r_test: The sampling weight variable of the test data. Defaults to None.
+        :type r_test: numpy.ndarray or None
+        """
+
+        if self.method == "qr":
+            if self.quantile_regressor is None:
+                assert False, "Need to fit quantile regressor"
+
+            def t(X_test):
+                quantile = self.quantile_regressor(X_test)
+                transfer = np.maximum(self.c_bar - quantile, 0)
+                assignments = {x_idx: [] for x_idx in range(len(X_test))}
+                for i in range(len(X_test)):
+                    assignments[i].append((transfer[i].item(), 1.0))
+                return assignments
+
+        elif self.method == "density":
+            if self.density_estimator is None:
+                assert False, "Need to fit density function"
+
+            def t(X_test):
+                cond_densities = self.density_estimator(X_test)
+                assignments = {x_idx: [] for x_idx in range(len(X_test))}
+                for i, cond_dist in enumerate(cond_densities):
+                    if cond_dist.cdf(self.c_bar) > self.conditional_tolerance:
+                        assignments[i] = [
+                            (
+                                self.c_bar - cond_dist.ppf(self.conditional_tolerance),
+                                1.0,
+                            )
+                        ]
+                    else:
+                        assignments[i] = [(0.0, 1.0)]
+                return assignments
+
+        self.opt_policy = t
+        return t
+
+
+def check_knapsack_feasibility(
+    dataset,
+    cond_densities,
+    unconditional_tolerance,
+    raw_min_transfer_function,
+    c_bar,
+    max_transfer_value,
+):
+
+    if raw_min_transfer_function is not None:
+        raw_min_transfer_values = raw_min_transfer_function(cond_densities)
+        if any(raw_min_transfer_values > max_transfer_value):
+            return False
+    probs = np.array(
+        [
+            cond_density.cdf(c_bar - max_transfer_value)
+            for cond_density in cond_densities
+        ]
+    )
+    prob_total = np.sum(probs * dataset.r).item()
+    if prob_total > unconditional_tolerance:
+        return False
+    else:
+        return True
+
+
+def compute_cost(train_dataset, policy):
+    assignments = policy(train_dataset.X)
+
+    total_cost = 0.0
+    for i in range(len(train_dataset)):
+        cost = 0.0
+        for j in range(len(assignments[i])):
+            cost += assignments[i][j][1] * assignments[i][j][0]
+        total_cost += cost * train_dataset.r[i]
+
+    return total_cost
+
+
+def compute_opt_policy_knapsack(
+    train_dataset,
+    cond_dists,
+    raw_min_transfer_function,
+    tolerance,
+    transfer_amts,
+    c_bar,
+    compute_cond_density,
+    deterministic=False,
+):
+
+    feasible = check_knapsack_feasibility(
+        train_dataset,
+        cond_dists,
+        tolerance,
+        raw_min_transfer_function,
+        c_bar,
+        max(transfer_amts),
+    )
+    if not feasible:
+        return False
+
+    else:
+        if raw_min_transfer_function is not None:
+
+            def min_transfer_function(cond_densities):
+                raw_min_transfer_values = raw_min_transfer_function(cond_densities)
+                if len(transfer_amts) == 2 and transfer_amts[0] == 0.0:
+                    min_transfer_values = (
+                        np.array(raw_min_transfer_values) > 0
+                    ).astype(float) * transfer_amts[1]
+                else:
+                    raise NotImplementedError
+                return min_transfer_values
+
+        else:
+            min_transfer_function = None
+
+        cvx_hulls = get_convex_hulls(
+            c_bar,
+            cond_dists,
+            [transfer_amts for i in range(len(train_dataset))],
+            min_transfer_function,
+        )
+        (opt_assignment, total_transfer, prob_below_line, eta, lamb) = (
+            solve_fractional_mc_knapsack_problem(train_dataset.r, cvx_hulls, tolerance)
+        )
+        t = get_transfer_function(
+            transfer_amts=transfer_amts,
+            c_bar=c_bar,
+            eta=eta,
+            lamb=lamb,
+            compute_cond_density=compute_cond_density,
+            deterministic=deterministic,
+        )
+
+        new_total_transfer = compute_cost(train_dataset, t)
+        return t, new_total_transfer
+    
+    def get_transfer_function(
+    transfer_amts, c_bar, eta, lamb, compute_cond_density, deterministic=False
+):
+    """
+    Compute the transfer function.
+
+    :param c_bar: The poverty line.
+    :type c_bar: float
+    :param eta: The threshold cost-benefit ratio.
+    :type eta: float
+    :param lamb: The threshold probability.
+    :type lamb: float
+    :param compute_cond_density: A function to compute the conditional density.
+    :type compute_cond_density: Callable[[np.ndarray], np.ndarray]
+    :return: The transfer function.
+    :rtype: Callable[[np.ndarray], np.ndarray]
+    """
+
+    def t(X_test):
+        cond_densities = compute_cond_density(X_test)
+        assignments = {x_idx: [] for x_idx in range(len(X_test))}
+
+        for j, cond_density in enumerate(cond_densities):
+            cvx_hull = cond_density.get_convex_hull(z=transfer_amts, c_bar=c_bar)
+            ratios = np.zeros(len(cvx_hull)).astype(np.float64)
+            ratios[0] = -np.inf
+            for i in range(len(cvx_hull) - 1):
+                p1 = cvx_hull[i]
+                p2 = cvx_hull[i + 1]
+                ratios[i + 1] = (p2[1] - p1[1]) / (p2[0] - p1[0])
+            idx = bisect.bisect_left(ratios, eta)
+
+            if (
+                idx > 0
+                and idx < len(ratios)
+                and ratios[idx - 1] < eta
+                and ratios[idx] > eta
+            ):
+                assignments[j] = [(cvx_hull[idx - 1][1], 1.0)]
+            elif idx < len(ratios) and ratios[idx] == eta:
+                if deterministic:
+                    assignments[j] = [
+                        (max(cvx_hull[idx - 1][1], cvx_hull[idx][1]), 1.0)
+                    ]
+                else:
+                    assignments[j] = [
+                        (cvx_hull[idx - 1][1], lamb),
+                        (cvx_hull[idx][1], 1 - lamb),
+                    ]
+            else:
+                assignments[j] = [(0.0, 1.0)]
+
+        return assignments
+
+    return t

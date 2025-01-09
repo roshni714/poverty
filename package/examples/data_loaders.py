@@ -1,89 +1,90 @@
 import pandas as pd
+import numpy as np
 
-PATH_TO_DATA = "~/zfs/gsb/intermediate-yens/rsahoo/poverty/data/malawi_merged.csv"
-CONVERSION_FACTORS = {"malawi": 0.01406191874}
+PATH_TO_TRAIN_DATA = "~/zfs/gsb/intermediate-yens/rsahoo/poverty/dry_run/data/train.parquet"
+PATH_TO_TEST_DATA = "~/zfs/gsb/intermediate-yens/rsahoo/poverty/dry_run/data/test.parquet"
+PATH_TO_DURABLE_VERIFIABLE= "~/zfs/gsb/intermediate-yens/rsahoo/poverty/dry_run/data/durable_verifiable_covariates.csv"
 
+def load_data(path):
+    """
+    Load data and add missing columns to dataset.
 
-def get_dataset(country_name):
+    :param path: The path to the data file.
+    :type path: str
+    :return: The data with missing columns added.
+    :rtype: pandas.DataFrame
+    """
+    data = _load_data(path)
+    data = convert_to_onehot(data)
+    data1 = _load_data(PATH_TO_TRAIN_DATA)
+    data2 = _load_data(PATH_TO_TEST_DATA)
+    all_data = pd.concat([data1, data2], ignore_index=True)
+    all_data = convert_to_onehot(all_data)
+    missing_columns = set(all_data.columns) - set(data.columns)
+    res = [data]
+    for col in missing_columns:
+        res.append(pd.DataFrame({col: np.zeros(len(data))}))
+    final = pd.concat(res, axis=1)
+    return final
 
-    if country_name == "uganda":
-        return _load_uganda_data()
-    elif country_name == "ethiopia":
-        return _load_ethiopia_data()
-    elif country_name == "malawi":
-        return _load_malawi_data()
+def convert_to_onehot(df):
+    """
+    Convert categorical columns to one-hot encoding.
 
+    :param df: The input data.
+    :type df: pandas.DataFrame
+    :return new_df: The input data with one-hot encoding.
+    :rtype: pandas.DataFrame
+    """
+    numeric_columns = set(df.select_dtypes(include=[np.number]).columns)
+    non_numeric_columns = set(
+        df.select_dtypes(exclude=[np.number, np.datetime64]).columns
+    )
 
-def _load_uganda_data():
-    pass
+    enforced_categorical = {c for c in numeric_columns if c.endswith("_nan")}
+    numeric_columns = list(numeric_columns - enforced_categorical)
+    all_non_numeric_columns = list(non_numeric_columns | enforced_categorical)
 
+    one_hot = pd.get_dummies(df[all_non_numeric_columns]).astype(np.float32)
+    df.drop(columns=all_non_numeric_columns, inplace=True)
+    new_df = pd.concat([df, one_hot], axis=1)
+    return new_df
 
-def _load_ethiopia_data():
-    pass
+def _load_data(path):
+    """
+    Load data.
 
+    Args:
+        path (str): Path to the data file.
 
-def _load_malawi_data():
-    df = pd.read_csv(PATH_TO_DATA)
+    Returns:
+        data_for_wgan (pd.DataFrame): Data for WGAN training.
+        data_wrapper (wgan.DataWrapper): DataWrapper object for WGAN training.
+    """
+    data = pd.read_parquet(path)
 
-    # Drop rows of dataframe that missing outcome values
-    df.dropna(axis=0, subset="rexpagg", inplace=True)
-    df = df.reset_index()
+    # some of this preprocessing code should eventually be deprecated because
+    # it should be handled by prior data preprocessing code
 
-    # Convert outcome to consumption per capita per day in terms of 2017 USD
-    #    1. Use Shruthi's conversion factor's to convert to 2017 USD
-    #    2. Convert household consumption to consumption per capita (using adult equivalence scale).
-    #       If adult equiv is NaN, then impute the mean.
-    #    3. Convert consumption to consumption per day
-    # Note that datasets may differ in whether they report yearly or monthly consumption,
-    # or their adult equivalence scale.
-    df["outcome"] = df["rexpagg"].copy()
-    df["outcome"] *= CONVERSION_FACTORS["malawi"]
-    adult_equiv_per_hh = (
-        df["num_kids"] + df["num_adults"]
-    )  # May prefer alpha * num_kids + num_adults for alpha in (0, 1)
-    adult_equiv_per_hh = adult_equiv_per_hh.fillna(adult_equiv_per_hh.mean())
-    df["outcome"] /= adult_equiv_per_hh
-    df["outcome"] /= 365
-    y = df["outcome"]
+    # compute outcome conversion factor
+    a = 340.2 / 430.05  # Malawi CPI in 2017 USD / Malawi CPI in 2019 USD
+    b = 241.98  # Malawi Kwacha to USD exchange rate in 2017
+    adulteq = data["adulteq"]
+    # can alternatively implement this as data["num_adults"] + alpha * data["num_children"]
+    # where alpha is in (0, 1).
+    conversion_factor = (a / b) * (1 / 365) * (1 / adulteq)
+    data["consumption_per_capita_per_day"] = data["rexpagg"] * conversion_factor
+    # data["consumption_per_capita_per_day"] = np.clip(
+    #     data["consumption_per_capita_per_day"], 0, truncation_upper_value
+    # )
 
-    # Select features from the dataset. For Malawi, we consider dwelling type, wall type,
-    # number of kids in the household, number of adults in the household,
-    # distance to the nearest market, distance to the nearest borderpost,
-    # binary indicators for generator, electric stove, kerosene stove, radio.
+    # we include hh_wgt and consumption_per_capita_per_day so that
+    # we can synthetically generate samples from the joint distribution (X, Y, R)
+    durable_verifiable_covariates = list(
+        pd.read_csv(PATH_TO_DURABLE_VERIFIABLE)["Covariates"]
+    )
 
-    categorical_features = ["dwelling_type", "wall_type"]
-    other_features = [
-        "num_kids",
-        "num_adults",
-        "dist_admarc",
-        "dist_borderpost",
-        "yn_generator",
-        "yn_elec_stove",
-        "yn_ker_stove",
-        "yn_radio",
+    data = data[
+        durable_verifiable_covariates + ["consumption_per_capita_per_day", "hh_wgt"]
     ]
-
-    # Handle missingness in X's by creating dummy variables to denote missingness in the features.
-    # For categorical variables, use a one hot encoding with an
-    # additional category that is a NaN indicator for that feature.
-    # If there are NaNs in other feature, add a new category that is a
-    # NaN for that feature and impute the NaN with 0.
-    X_cat = []
-    X_cat = [
-        pd.get_dummies(
-            df[[cat_feat]], dummy_na=(df[[cat_feat]].isna().sum().item() > 0)
-        ).astype(float)
-        for cat_feat in categorical_features
-    ]
-    for col in other_features:
-        if df[col].isna().sum() > 0:
-            df[f"{col}_nan"] = df[col].isna().astype(float)
-            other_features.append(f"{col}_nan")
-    X_other = df[sorted(other_features)]
-    X_other = X_other.fillna(0.0)
-    X = X_cat[0].join(X_cat[1:])
-    X = X.join(X_other)
-
-    # Get survey weights
-    r = df["hh_wgt"]
-    return X.to_numpy(), y.to_numpy(), r.to_numpy(), X.columns
+    return data.reset_index(drop=True)

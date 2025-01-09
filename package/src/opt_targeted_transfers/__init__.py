@@ -1,11 +1,8 @@
 from opt_targeted_transfers.opt import (
     TargetedTransfers,
-    UnconditionalTargetedTransfers,
-    ConditionalTargetedTransfers,
-    BinaryTargetedTransfers,
-    OraclePovertyRateTargetedTransfers,
+    RateTargetedTransfers,
+    BinaryRateTargetedTransfers,
     GapTargetedTransfers,
-    OracleGapTargetedTransfers,
     BinaryGapTargetedTransfers,
 )
 from opt_targeted_transfers.density_estimation import (

@@ -116,10 +116,10 @@ class ConditionalDistribution:
         """
         raise NotImplementedError("set_inverses function not implemented")
 
-    def get_nonboundary_alpha_valid_transfers(self, alpha, c_bar):
+    def get_alpha_valid_transfers(self, alpha, c_bar):
         if self.inverses is None:
             self.set_inverses()
-        z = [c_bar]
+        z = [0, c_bar]
         for i, domain in enumerate(self.domains):
             if alpha <= domain[1] and alpha >= domain[0]:
                 inv = self.inverses[i]
@@ -131,7 +131,7 @@ class ConditionalDistribution:
 
     def get_convex_hull(self, z, c_bar):
         p = self.cdf(c_bar - z)
-        tups = list(zip(p, z))
+        tups = list(zip(z, p))
         cvx_hull = get_lower_cvx_hull(tups)
         return cvx_hull
 

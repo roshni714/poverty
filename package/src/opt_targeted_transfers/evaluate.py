@@ -17,6 +17,18 @@ def expected_value_transfers(test_dataset, policy, oracle=False):
         transfers.append(ev)
     return np.array(transfers)
 
+def policy_cost(test_covariate_dataset, policy, oracle=False):
+    if oracle:
+        assignments = policy(test_covariate_dataset.y)
+    else:
+        assignments = policy(test_covariate_dataset.X)
+
+    cost = 0.0
+    for i in range(len(test_covariate_dataset)):
+        for j in range(len(assignments[i])):
+            cost += assignments[i][j][1] * assignments[i][j][0]
+
+    return cost
 
 def post_transfer_metrics(test_dataset, policy, c_bar, oracle=False):
     """
