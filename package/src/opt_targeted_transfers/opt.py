@@ -502,36 +502,33 @@ class OracleGapTargetedTransfers(TargetedTransfers):
         self.name = "oracle_gap"
         self.scheme = scheme
 
-    def run_opt(self, y_test, r_test=None):
-
-        dataset = Dataset(X=None, y=y_test, r=r_test)
+    def run_opt(self, test_dataset):
 
         if self.scheme == "lift_to_line":
-
-            self.opt_policy = run_oracle_poverty_gap_lift_to_line_scheme(
-                dataset, tolerance=self.unconditional_tolerance, c_bar=self.c_bar
+            assignments = run_oracle_poverty_gap_lift_to_line_scheme(
+                test_dataset, budget=self.budget, c_bar=self.c_bar
             )
 
-        else:
-            self.opt_policy = run_oracle_poverty_gap_floor_scheme(
-                dataset, tolerance=self.unconditional_tolerance, c_bar=self.c_bar
+        elif self.scheme == "floor":
+            assignments = run_oracle_poverty_gap_floor_scheme(
+                test_dataset, budget=self.budget, c_bar=self.c_bar
             )
+        self.assignments = assignments
+        return assignments
 
-        return self.opt_policy
 
+class OracleRateTargetedTransfers(TargetedTransfers):
+    def __init__(self, c_bar=2.15, budget=None):
 
-class OraclePovertyRateTargetedTransfers(TargetedTransfers):
-    def __init__(self, c_bar=2.15, unconditional_tolerance=None):
-
-        super().__init__(c_bar=c_bar)
+        super().__init__(c_bar=c_bar, budget=budget)
         self.name = "oracle_rate"
 
-    def run_opt(self, test_outcome_dataset):
+    def run_opt(self, test_dataset):
 
-        oracle_policy = run_oracle_poverty_rate(
-            test_outcome_dataset,
+        assignments = run_oracle_poverty_rate(
+            test_dataset,
             c_bar=self.c_bar,
-            tolerance=self.unconditional_tolerance,
+            budget=self.budget,
         )
-        self.opt_policy = oracle_policy
-        return oracle_policy
+        self.assignments=assignments
+        return assignments

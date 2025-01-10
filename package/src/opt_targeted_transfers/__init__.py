@@ -3,6 +3,8 @@ from opt_targeted_transfers.opt import (
     BinaryRateTargetedTransfers,
     GapTargetedTransfers,
     BinaryGapTargetedTransfers,
+    OracleGapTargetedTransfers,
+    OracleRateTargetedTransfers
 )
 from opt_targeted_transfers.density_estimation import (
     get_cond_density_estimator,
