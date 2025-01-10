@@ -72,3 +72,6 @@ class Dataset:
         else:
             y = self.df[self.outcome].values
             return X, y, r
+
+    def __len__(self):
+        return len(self.df)

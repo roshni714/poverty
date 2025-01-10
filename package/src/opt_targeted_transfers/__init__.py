@@ -14,7 +14,7 @@ from opt_targeted_transfers.quantile_regression import (
     get_quantile_regressor,
     get_quantile_loss,
 )
-from opt_targeted_transfers.conditional_gap_improvement import (
-    get_conditional_gap_improvement_regressor,
-    get_conditional_gap_improvement_loss,
+from opt_targeted_transfers.conditional_improvement import (
+    get_conditional_improvement_regressor,
+    get_conditional_improvement_loss,
 )

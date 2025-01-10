@@ -1,9 +1,7 @@
 from opt_targeted_transfers.dataset_utils import Dataset
 from opt_targeted_transfers.prediction import get_prediction_function
 from opt_targeted_transfers.density_estimation import get_cond_density_estimator
-from opt_targeted_transfers.knapsack import (
-    compute_alpha_opt_policies,
-)
+from opt_targeted_transfers.knapsack import compute_alpha_opt_policies
 from opt_targeted_transfers.oracle import (
     run_oracle_poverty_rate,
     run_oracle_poverty_gap_floor_scheme,
@@ -16,8 +14,8 @@ from opt_targeted_transfers.evaluate import (
     expected_value_transfers,
     policy_cost,
 )
-from opt_targeted_transfers.conditional_gap_improvement import (
-    get_conditional_gap_improvement_regressor,
+from opt_targeted_transfers.conditional_improvement import (
+    get_conditional_improvement_regressor,
 )
 from opt_targeted_transfers.reporting import write_result
 
@@ -187,7 +185,7 @@ class RateTargetedTransfers(TargetedTransfers):
 
         (
             all_opt_assignments,
-            total_transfers,
+            poverty_rates,
             alphas,
         ) = compute_alpha_opt_policies(
             test_covariate_dataset,
@@ -200,9 +198,201 @@ class RateTargetedTransfers(TargetedTransfers):
             path=path,
         )
 
-        idx = np.argmin(total_transfers)
+        idx = np.argmin(poverty_rates)
         self.assignments = all_opt_assignments[idx]
         return self.assignments
+
+
+class BinaryTargetedTransfers(TargetedTransfers):
+    def __init__(self, c_bar=2.15, budget=None, n_transfer_values=20):
+
+        super().__init__(c_bar=c_bar, budget=budget)
+
+        self.t_to_household_estimator_map = None
+        self.n_transfer_values = n_transfer_values
+        self.candidate_t_values = np.linspace(0.01, self.c_bar, self.n_transfer_values)
+
+    def fit(
+        self,
+        train_dataset,
+    ):
+        pass
+
+    def optimize_transfers_for_budget_grid(self, test_covariate_dataset, budgets):
+        """
+        Computes transfers for each budget in the list of budgets. Enables calling
+        run_opt for each budget in the list.
+        """
+
+        if self.t_to_household_estimator_map is None:
+            raise ValueError("Need to run fit before a policy can be computed")
+
+        X_test, r_test = test_covariate_dataset.get_data()
+
+        # for each t, order the households in the test set
+        t_to_ordered_households_map = (
+            dict()
+        )  # rank households from largest to smallest benefit
+        t_to_estimated_benefits_map = dict()
+
+        for t, household_benefit_estimator in self.t_to_household_estimator_map.items():
+            estimated_benefits = household_benefit_estimator(X_test)
+            t_to_estimated_benefits_map[t] = estimated_benefits
+
+            sorting_indices = np.argsort(estimated_benefits)[::-1]
+            t_to_ordered_households_map[t] = sorting_indices
+
+        # For each budget, select optimal transfer value on the test set
+        self.budget_to_households_map = dict()
+        self.budget_to_t_map = dict()
+
+        for budget in budgets:
+
+            highest_estimated_benefits = -1
+            best_household_list = []
+            best_t = None
+
+            for t in self.candidate_t_values:
+                ordered_households = t_to_ordered_households_map[t]
+                estimated_benefits = t_to_estimated_benefits_map[t]
+
+                indices_to_receive_transfers = self._get_indices_to_receive_transfers(
+                    test_covariate_dataset, ordered_households, t, budget
+                )
+                total_estimated_benefits = (
+                    estimated_benefits[indices_to_receive_transfers]
+                    * r_test[indices_to_receive_transfers]
+                ).sum()
+
+                # sanity check
+                assert total_estimated_benefits >= 0
+
+                if total_estimated_benefits > highest_estimated_benefits:
+                    highest_estimated_benefits = total_estimated_benefits
+                    best_household_list = indices_to_receive_transfers
+                    best_t = t
+
+            assert best_household_list is not None
+            assert best_t is not None
+
+            self.budget_to_households_map[budget] = best_household_list
+            self.budget_to_t_map[budget] = best_t
+
+    def _get_indices_to_receive_transfers(
+        self, test_covariate_dataset, household_idx_ranked_by_benefit, t, budget
+    ):
+
+        _, r_test = test_covariate_dataset.get_data()
+
+        pop_weight_receive_transfers = budget / t
+        weights_ranked_by_benefit = r_test[household_idx_ranked_by_benefit]
+        cumsum_weights = np.cumsum(weights_ranked_by_benefit)
+        indicator_receive_transfers = cumsum_weights <= pop_weight_receive_transfers
+        idx_receive_transfers = household_idx_ranked_by_benefit[
+            indicator_receive_transfers
+        ]
+
+        assert r_test[idx_receive_transfers].sum() * t <= budget
+        return idx_receive_transfers
+
+    def run_opt(self, test_covariate_dataset):
+
+        if self.budget_to_households_map is None:
+            raise ValueError(
+                "Must run optimize_transfers_for_budget_grid before run_opt for "
+                "binary targeting"
+            )
+
+        assert self.budget is not None
+
+        if self.budget not in self.budget_to_households_map.keys():
+            raise ValueError(
+                f"budget {self.budget} was not included in list provided to "
+                "optimize_transfers_for_budget_grid."
+            )
+
+        indices_to_receive_transfers = self.budget_to_households_map[self.budget]
+        best_t = self.budget_to_t_map[self.budget]
+
+        assignments = {i: [(0.0, 1.0)] for i in range(len(test_covariate_dataset))}
+        for i in indices_to_receive_transfers:
+            assignments[i] = [(best_t, 1.0)]
+        self.assignments = assignments
+        return assignments
+
+
+class BinaryGapTargetedTransfers(BinaryTargetedTransfers):
+    def __init__(self, c_bar=2.15, budget=None, n_transfer_values=20):
+
+        super().__init__(
+            c_bar=c_bar, budget=budget, n_transfer_values=n_transfer_values
+        )
+
+        self.name = "binary_gap"
+
+    def fit(
+        self,
+        train_dataset,
+        n_layers=1,
+        n_hidden_units=256,
+        lr=5e-3,
+        n_epochs=300,
+        seed=123456,
+    ):
+
+        # For each transfer size t, fit benefit estimator using training data
+        self.t_to_household_estimator_map = dict()
+        for transfer_size in self.candidate_t_values:
+            self.t_to_household_estimator_map[transfer_size] = (
+                get_conditional_improvement_regressor(
+                    loss_type="gap",
+                    dataset=train_dataset,
+                    t=transfer_size,
+                    c_bar=self.c_bar,
+                    n_layers=n_layers,
+                    n_hidden_units=n_hidden_units,
+                    lr=lr,
+                    n_epochs=n_epochs,
+                    seed=seed,
+                )
+            )
+
+
+class BinaryRateTargetedTransfers(BinaryTargetedTransfers):
+    def __init__(self, c_bar=2.15, budget=None, n_transfer_values=20):
+
+        super().__init__(
+            c_bar=c_bar, budget=budget, n_transfer_values=n_transfer_values
+        )
+
+        self.name = "binary_rate"
+
+    def fit(
+        self,
+        train_dataset,
+        n_layers=1,
+        n_hidden_units=256,
+        lr=5e-3,
+        n_epochs=300,
+        seed=123456,
+    ):
+
+        # For each transfer size t, fit benefit estimator using training data
+        self.t_to_household_estimator_map = dict()
+        for transfer_size in self.candidate_t_values:
+            self.t_to_household_estimator_map[transfer_size] = (
+                get_conditional_improvement_regressor(
+                    loss_type="rate",
+                    dataset=train_dataset,
+                    t=transfer_size,
+                    c_bar=self.c_bar,
+                    n_layers=n_layers,
+                    n_hidden_units=n_hidden_units,
+                    lr=lr,
+                    n_epochs=n_epochs,
+                    seed=seed,
+                )
+            )
 
 
 class GapTargetedTransfers(TargetedTransfers):
@@ -291,153 +481,6 @@ class GapTargetedTransfers(TargetedTransfers):
         return all_assignments[idx - 1]
 
 
-class BinaryGapTargetedTransfers(TargetedTransfers):
-    def __init__(self, c_bar=2.15, budget=None):
-
-        super().__init__(c_bar=c_bar, budget=budget)
-
-        self.name = "binary_gap"
-        self.t_to_household_estimator_map = None
-        self.t = None
-
-    def fit(
-        self,
-        train_dataset,
-        n_transfer_values=20,
-        n_layers=1,
-        n_hidden_units=256,
-        lr=5e-3,
-        n_epochs=300,
-        seed=123456,
-    ):
-
-        # For each transfer size t, fit benefit estimator using training data
-        self.t_to_household_estimator_map = dict()
-
-        transfer_sizes = np.linspace(0.0, 2.15, n_transfer_values)
-
-        for transfer_size in transfer_sizes:
-            self.t_to_household_estimator_map[transfer_size] = (
-                get_conditional_gap_improvement_regressor(
-                    train_dataset,
-                    t=transfer_size,
-                    c_bar=self.c_bar,
-                    n_layers=n_layers,
-                    n_hidden_units=n_hidden_units,
-                    lr=lr,
-                    n_epochs=n_epochs,
-                    seed=seed,
-                )
-            )
-
-    def optimize_transfers_for_budget_grid(self, test_covariate_dataset, budgets):
-        """
-        Computes transfers for each budget in the list of budgets. Enables calling
-        run_opt for each budget in the list.
-        """
-
-        if self.t_to_household_estimator_map is None:
-            raise ValueError("Need to run fit before a policy can be computed")
-
-        X_test, r_test = test_covariate_dataset.get_data()
-
-        # for each t, order the households in the test set
-        t_to_ordered_households_map = dict()
-        t_to_estimated_benefits_map = dict()
-
-        for t, household_benefit_estimator in self.t_to_household_estimator_map.items():
-
-            estimated_benefits = household_benefit_estimator(X_test)
-            t_to_estimated_benefits_map[t] = estimated_benefits
-
-            sorting_indices = np.argsort(estimated_benefits)[::-1]
-            t_to_ordered_households_map[t] = sorting_indices
-
-        # For each budget, select optimal transfers on the test set
-        self.budget_to_households_map = dict()
-        self.budget_to_t_map = dict()
-
-        for budget in budgets:
-
-            highest_estimated_benefits = -1
-            best_household_list = []
-            best_t = None
-
-            for t in self.candidate_t_values:
-
-                ordered_households = t_to_ordered_households_map[t]
-                estimated_benefits = t_to_estimated_benefits_map[t]
-
-                indices_to_receive_transfers = self._get_indices_to_receive_transfers(
-                    r_test, t, ordered_households, budget
-                )
-                total_estimated_benefits = estimated_benefits[
-                    indices_to_receive_transfers
-                ].sum()
-
-                # sanity check
-                assert total_estimated_benefits >= 0
-
-                if total_estimated_benefits > highest_estimated_benefits:
-                    highest_estimated_benefits = total_estimated_benefits
-                    best_household_list = indices_to_receive_transfers
-                    best_t = t
-
-            assert best_household_list is not None
-            assert best_t is not None
-
-            self.budget_to_households_map[budget] = best_household_list
-            self.budget_to_t_map[budget] = best_t
-
-        return t_to_estimated_benefits_map, t_to_ordered_households_map
-
-    def run_opt(self, test_covariate_dataset):
-
-        if self.budget_to_households_map is None:
-            raise ValueError(
-                "Must run optimize_transfers_for_budget_grid before run_opt for "
-                "binary gap targeting"
-            )
-
-        assert self.budget is not None
-
-        if self.budget not in self.budget_to_households_map.keys():
-            raise ValueError(
-                f"budget {self.budget} was not included in list provided to "
-                "optimize_transfers_for_budget_grid."
-            )
-
-        indices_to_receive_transfers = self.budget_to_households_map[self.budget]
-        self.t = self.budget_to_t_map[self.budget]
-
-        def transfer_function(X):
-
-            assignments = {i: [(0, 1.0)] for i in range(len(X))}
-            for i in indices_to_receive_transfers:
-                assignments[i] = [(self.t, 1.0)]
-            return assignments
-
-        self.opt_policy = transfer_function
-        return transfer_function
-
-    def _get_indices_to_receive_transfers(self, r, t, sorting_indices, budget):
-
-        r = r / r.sum()
-
-        number_of_transfers = len(sorting_indices)
-        budget_remaining = budget
-
-        for count, sorting_index in enumerate(sorting_indices):
-
-            cost = r[sorting_index] * t
-            if budget_remaining < cost:
-                number_of_transfers = count
-                break
-            budget_remaining -= cost
-
-        return sorting_indices[:number_of_transfers]
-
-
 class OracleGapTargetedTransfers(TargetedTransfers):
     """
     There is not one well-defined optimal policy to minimize the post-transfer poverty gap: As long as
@@ -475,79 +518,6 @@ class OracleGapTargetedTransfers(TargetedTransfers):
             )
 
         return self.opt_policy
-
-
-class BinaryRateTargetedTransfers(TargetedTransfers):
-
-    def __init__(
-        self,
-        c_bar=2.15,
-        budget=None,
-    ):
-
-        super().__init__(c_bar=c_bar, budget=budget)
-        self.name = "binary_rate"
-
-    def fit(
-        self,
-        train_dataset,
-        n_bins=100,
-        n_knots=4,
-        degree=4,
-        truncation_upper_value=10,
-        n_epochs=300,
-    ):
-        density_estimator = get_cond_density_estimator(
-            train_dataset,
-            n_bins=n_bins,
-            n_knots=n_knots,
-            degree=degree,
-            truncation_upper_value=truncation_upper_value,
-            n_epochs=n_epochs,
-        )
-        self.density_estimator = density_estimator
-
-    def run_opt(self, test_covariate_dataset, n_T=100):
-        """
-        Run the optimization algorithm.
-
-        :param X_test: The input features of the test data.
-        :type X_test: numpy.ndarray
-        :param r_test: The sampling weight variable of the test data. Defaults to None.
-        :type r_test: numpy.ndarray or None
-        """
-        if self.density_estimator is None:
-            assert False, "Need to first set predictor"
-        if self.unconditional_tolerance is None:
-            assert False, "Need to first set tolerance"
-
-        Ts = np.linspace(0.0, 2.15, n_T)
-        feasible_Ts = []
-        policies = []
-        costs = []
-        X_test, r_test = test_covariate_dataset.get_data()
-        cond_dists = self.density_estimator(X_test)
-
-        for T in Ts:
-            res = compute_opt_policy_knapsack(
-                test_covariate_dataset,
-                cond_dists=cond_dists,
-                raw_min_transfer_function=None,
-                tolerance=self.unconditional_tolerance,
-                transfer_amts=np.array([0.0, T]),
-                c_bar=self.c_bar,
-                compute_cond_density=self.density_estimator,
-                deterministic=True,
-            )
-            if res != False:
-                feasible_Ts.append(T)
-                policies.append(res[0])
-                costs.append(res[1])
-
-        idx = np.argmin(costs)
-        opt_binary_policy = policies[idx]
-        self.opt_policy = opt_binary_policy
-        return opt_binary_policy
 
 
 class OraclePovertyRateTargetedTransfers(TargetedTransfers):

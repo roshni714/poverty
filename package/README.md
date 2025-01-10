@@ -35,10 +35,30 @@ Poverty rate targeting.
 tt = RateTargetedTransfers(c_bar=2.15, budget=None)
 tt.fit(train_dataset)
 tt.set_budget(0.5)
-
 tt.run_opt(
    test_covariate_dataset, n_alpha=100, path="malawi_example_rate_B=0.5.csv"
 )
-
 res = tt.evaluate(test_dataset)
 ```
+
+Poverty gap targeting
+```
+tt = GapTargetedTransfers(c_bar=2.15, budget=None)
+tt.fit(train_dataset, n_regressors=5)
+tt.set_budget(0.5)
+tt.run_opt(test_covariate_dataset)
+res = tt.evaluate(test_dataset)
+```
+
+Binary gap targeting
+```
+tt = BinaryGapTargetedTransfers(c_bar=2.15, n_transfer_values=5)
+tt.fit(train_dataset)
+tt.optimize_transfers_for_budget_grid(test_covariate_dataset, budgets=[0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.15])
+tt.set_budget(0.5)
+tt.run_opt(test_covariate_dataset)
+res = tt.evaluate(test_dataset)
+```
+
+
+

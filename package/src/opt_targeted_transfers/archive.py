@@ -647,66 +647,7 @@ def compute_cost(train_dataset, policy):
     return total_cost
 
 
-def compute_opt_policy_knapsack(
-    train_dataset,
-    cond_dists,
-    raw_min_transfer_function,
-    tolerance,
-    transfer_amts,
-    c_bar,
-    compute_cond_density,
-    deterministic=False,
-):
-
-    feasible = check_knapsack_feasibility(
-        train_dataset,
-        cond_dists,
-        tolerance,
-        raw_min_transfer_function,
-        c_bar,
-        max(transfer_amts),
-    )
-    if not feasible:
-        return False
-
-    else:
-        if raw_min_transfer_function is not None:
-
-            def min_transfer_function(cond_densities):
-                raw_min_transfer_values = raw_min_transfer_function(cond_densities)
-                if len(transfer_amts) == 2 and transfer_amts[0] == 0.0:
-                    min_transfer_values = (
-                        np.array(raw_min_transfer_values) > 0
-                    ).astype(float) * transfer_amts[1]
-                else:
-                    raise NotImplementedError
-                return min_transfer_values
-
-        else:
-            min_transfer_function = None
-
-        cvx_hulls = get_convex_hulls(
-            c_bar,
-            cond_dists,
-            [transfer_amts for i in range(len(train_dataset))],
-            min_transfer_function,
-        )
-        (opt_assignment, total_transfer, prob_below_line, eta, lamb) = (
-            solve_fractional_mc_knapsack_problem(train_dataset.r, cvx_hulls, tolerance)
-        )
-        t = get_transfer_function(
-            transfer_amts=transfer_amts,
-            c_bar=c_bar,
-            eta=eta,
-            lamb=lamb,
-            compute_cond_density=compute_cond_density,
-            deterministic=deterministic,
-        )
-
-        new_total_transfer = compute_cost(train_dataset, t)
-        return t, new_total_transfer
-    
-    def get_transfer_function(
+def get_transfer_function(
     transfer_amts, c_bar, eta, lamb, compute_cond_density, deterministic=False
 ):
     """
@@ -763,10 +704,7 @@ def compute_opt_policy_knapsack(
     return t
 
 
-
-def get_alpha_transfer_function(
-    alpha, c_bar, lamb, eta, cond_density_estimator
-):
+def get_alpha_transfer_function(alpha, c_bar, lamb, eta, cond_density_estimator):
     """
     Compute the transfer function.
 
@@ -792,7 +730,7 @@ def get_alpha_transfer_function(
             c_bar,
             cond_dists=cond_densities,
         )
-        
+
         for j, cond_density in enumerate(cond_densities):
             cvx_hull = cvx_hulls[j]
             ratios = np.zeros(len(cvx_hull)).astype(np.float64)
@@ -816,10 +754,11 @@ def get_alpha_transfer_function(
                     (cvx_hull[idx][1], 1 - eta),
                 ]
             else:
-                assignments[j] = [(0., 1.0)]
+                assignments[j] = [(0.0, 1.0)]
         return assignments
 
     return t
+
 
 def check_assignments_are_equal(assignment1, assignment2):
     assert assignment1.keys() == assignment2.keys()

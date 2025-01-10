@@ -5,7 +5,7 @@ import tqdm
 import copy
 
 
-def get_conditional_gap_improvement_loss(val_dataset, predictor, t, c_bar=2.15):
+def get_conditional_improvement_loss(val_dataset, loss_type, predictor, t, c_bar=2.15):
     """
     Get the conditional gap improvement loss for a given transfer size.
 
@@ -21,9 +21,14 @@ def get_conditional_gap_improvement_loss(val_dataset, predictor, t, c_bar=2.15):
     :rtype: float
     """
     X, y, r = val_dataset.get_data()
-    current_gaps = np.maximum(c_bar - y, 0)
-    gaps_after_transfer = np.maximum(c_bar - t - y, 0)
-    benefits = current_gaps - gaps_after_transfer
+    if loss_type == "gap":
+        current_gaps = np.maximum(c_bar - y, 0)
+        gaps_after_transfer = np.maximum(c_bar - t - y, 0)
+        benefits = current_gaps - gaps_after_transfer
+    elif loss_type == "rate":
+        current_gaps = (y <= c_bar).astype(float)
+        gaps_after_transfer = (y + t <= c_bar).astype(float)
+        benefits = current_gaps - gaps_after_transfer
 
     predicted_benefits = predictor(X)
     assert predicted_benefits.shape == benefits.shape
@@ -33,8 +38,9 @@ def get_conditional_gap_improvement_loss(val_dataset, predictor, t, c_bar=2.15):
     return weighted_mse_loss
 
 
-def get_conditional_gap_improvement_regressor(
+def get_conditional_improvement_regressor(
     dataset,
+    loss_type,
     t,
     c_bar=2.15,
     n_layers=1,
@@ -71,10 +77,14 @@ def get_conditional_gap_improvement_regressor(
     X, y, r = dataset.get_data()
     X, X_mean, X_std = standardize(X)
 
-    current_gaps = np.maximum(c_bar - y, 0)
-    gaps_after_transfer = np.maximum(c_bar - t - y, 0)
-
-    benefits = current_gaps - gaps_after_transfer
+    if loss_type == "gap":
+        current_gaps = np.maximum(c_bar - y, 0)
+        gaps_after_transfer = np.maximum(c_bar - t - y, 0)
+        benefits = current_gaps - gaps_after_transfer
+    elif loss_type == "rate":
+        current_gaps = (y <= c_bar).astype(float)
+        gaps_after_transfer = (y + t <= c_bar).astype(float)
+        benefits = current_gaps - gaps_after_transfer
     assert np.min(benefits) >= 0
 
     benefits, benefits_mean, benefits_std = standardize(benefits)
@@ -105,7 +115,7 @@ def get_conditional_gap_improvement_regressor(
         )
 
         batch_size = int(len(idx_train_set) / 5)
-        print(f"Fitting conditional gap improvement for transfer size {t}")
+        print(f"Fitting conditional {loss_type} improvement for transfer size {t}")
         pbar = tqdm.tqdm(list(range(n_epochs)))
         val_losses = []
         models = []

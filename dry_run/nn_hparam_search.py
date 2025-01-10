@@ -2,14 +2,14 @@ from opt_targeted_transfers import (
     Dataset,
     get_quantile_regressor,
     get_quantile_loss,
-    get_conditional_gap_improvement_regressor,
-    get_conditional_gap_improvement_loss,
+    get_conditional_improvement_regressor,
+    get_conditional_improvement_loss,
 )
 import pandas as pd
 import numpy as np
 
 
-def get_optimal_nn_gap_improvement_parameters(
+def get_optimal_nn_improvement_parameters(loss_type,
     nn_hparam_ranges, data_generator, original_cols, ntrain, nval, outcome, weight, savepath
 ):
     """
@@ -62,7 +62,8 @@ def get_optimal_nn_gap_improvement_parameters(
                         print(
                             f"Training neural network with {n_layers} layers, {n_hidden_units} hidden units, and learning rate {lr} for transfer size {transfer_size} during trial {trial}..."
                         )
-                        model = get_conditional_gap_improvement_regressor(
+                        model = get_conditional_improvement_regressor(
+                            loss_type=loss_type,
                             dataset=train_dataset,
                             t=transfer_size,
                             c_bar=2.15,
@@ -70,8 +71,8 @@ def get_optimal_nn_gap_improvement_parameters(
                             n_hidden_units=n_hidden_units,
                             lr=lr,
                         )
-                        loss = get_conditional_gap_improvement_loss(
-                            val_dataset, model, t=transfer_size
+                        loss = get_conditional_improvement_loss(
+                            val_dataset, loss_type=loss_type, predictor=model, t=transfer_size, c_bar=2.15
                         ).item()
                         results.append(
                             {

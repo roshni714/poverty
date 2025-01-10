@@ -5,7 +5,7 @@ from density_estimation_hparam_search import get_optimal_density_estimation_para
 import os
 from nn_hparam_search import (
     get_optimal_nn_quantile_regression_parameters,
-    get_optimal_nn_gap_improvement_parameters,
+    get_optimal_nn_improvement_parameters,
 )
 
 
@@ -61,6 +61,22 @@ def main(hparamconfig="hparam_config.yaml"):
             )
             opt_hparams["rate"]["density_estimation"] = opt_density_estimation_hparams
             print(opt_density_estimation_hparams)
+    if "binary_rate" in config_hparams:
+        opt_hparams["binary_rate"] = {}
+        binary_gap = config_hparams["binary_rate"]
+        opt_nn_hparams = get_optimal_nn_improvement_parameters(
+            loss_type="rate",
+            nn_hparam_ranges=binary_gap["neural_network"],
+            data_generator=data_generator,
+            original_cols=original_cols,
+            ntrain=ntrain,
+            nval=nval,
+            outcome=outcome,
+            weight=weight,
+            savepath=f'{savedir}/nn_{name}.csv',
+        )
+        opt_hparams["binary_rate"]["neural_network"] = opt_nn_hparams
+        print(opt_nn_hparams)
     if "continuous_gap" in config_hparams:
         opt_hparams["continuous_gap"] = {}
         continuous_gap = config_hparams["continuous_gap"]
@@ -79,7 +95,8 @@ def main(hparamconfig="hparam_config.yaml"):
     if "binary_gap" in config_hparams:
         opt_hparams["binary_gap"] = {}
         binary_gap = config_hparams["binary_gap"]
-        opt_nn_hparams = get_optimal_nn_gap_improvement_parameters(
+        opt_nn_hparams = get_optimal_nn_improvement_parameters(
+            loss_type="gap",
             nn_hparam_ranges=binary_gap["neural_network"],
             data_generator=data_generator,
             original_cols=original_cols,
