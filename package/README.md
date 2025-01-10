@@ -17,7 +17,6 @@ pip install -e .
 
 Load simple dataset.
 ```
-from opt_targeted_transfers import RateTargetedTransfers
 from opt_targeted_transfers import Dataset
 from data_loaders import load_data, PATH_TO_TRAIN_DATA, PATH_TO_TEST_DATA
 
@@ -32,6 +31,8 @@ test_dataset = Dataset(df=test_data, outcome='consumption_per_capita_per_day', w
 
 Poverty rate targeting.
 ```
+from opt_targeted_transfers import RateTargetedTransfers
+
 tt = RateTargetedTransfers(c_bar=2.15, budget=None)
 tt.fit(train_dataset)
 tt.set_budget(0.5)
@@ -43,6 +44,8 @@ res = tt.evaluate(test_dataset)
 
 Poverty gap targeting
 ```
+from opt_targeted_transfers import GapTargetedTransfers
+
 tt = GapTargetedTransfers(c_bar=2.15, budget=None)
 tt.fit(train_dataset, n_regressors=5)
 tt.set_budget(0.5)
@@ -52,12 +55,39 @@ res = tt.evaluate(test_dataset)
 
 Binary gap targeting
 ```
+from opt_targeted_transfers import BinaryGapTargetedTransfers
+
 tt = BinaryGapTargetedTransfers(c_bar=2.15, n_transfer_values=5)
 tt.fit(train_dataset)
 tt.optimize_transfers_for_budget_grid(test_covariate_dataset, budgets=[0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.15])
 tt.set_budget(0.5)
 tt.run_opt(test_covariate_dataset)
 res = tt.evaluate(test_dataset)
+```
+
+Binary rate targeting
+```
+from opt_targeted_transfers import BinaryRateTargetedTransfers
+
+tt = BinaryGapTargetedTransfers(c_bar=2.15, n_transfer_values=5)
+tt.fit(train_dataset)
+tt.optimize_transfers_for_budget_grid(test_covariate_dataset, budgets=[0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.15])
+tt.set_budget(0.5)
+tt.run_opt(test_covariate_dataset)
+res = tt.evaluate(test_dataset)
+```
+
+Oracle rate and gap targeting
+```
+from opt_targeted_transfers import OracleRateTargetedTransfers, OracleGapTargetedTransfers
+
+tt = OracleGapTargetedTransfers(c_bar=2.15, n_transfer_values=5)
+tt.run_opt(test_dataset)
+tt.evaluate(test_dataset)
+
+tt = OracleGapTargetedTransfers(c_bar=2.15, n_transfer_values=5, scheme="floor")
+tt.run_opt(test_dataset)
+tt.evaluate(test_dataset)
 ```
 
 
