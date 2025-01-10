@@ -81,11 +81,11 @@ Oracle rate and gap targeting
 ```
 from opt_targeted_transfers import OracleRateTargetedTransfers, OracleGapTargetedTransfers
 
-tt = OracleGapTargetedTransfers(c_bar=2.15, n_transfer_values=5)
+tt = OracleGapTargetedTransfers(c_bar=2.15, budget=0.25)
 tt.run_opt(test_dataset)
 tt.evaluate(test_dataset)
 
-tt = OracleGapTargetedTransfers(c_bar=2.15, n_transfer_values=5, scheme="floor")
+tt = OracleGapTargetedTransfers(c_bar=2.15, budget=0.25, scheme="floor")
 tt.run_opt(test_dataset)
 tt.evaluate(test_dataset)
 ```
