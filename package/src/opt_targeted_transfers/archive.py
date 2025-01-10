@@ -1721,3 +1721,23 @@ class OraclePovertyRateTargetedTransfers(TargetedTransfers):
         )
         self.opt_policy = oracle_policy
         return oracle_policy
+    
+
+# def compute_opt_policy_knapsack(
+#     test_covariate_dataset,
+#     cond_dists,
+#     budget,
+#     transfer_amts,
+#     c_bar,
+# ):
+#     X_test, r_test = test_covariate_dataset.get_data()
+
+#     cvx_hulls = [
+#         cond_dists[i].get_convex_hull(np.array(transfer_amts), c_bar) for i in range(len(cond_dists))
+#     ]
+
+#     (opt_assignment, policy_cost, poverty_rate, lamb, eta) = (
+#             solve_fractional_mc_knapsack_problem(r_test, cvx_hulls, budget)
+#         )
+
+#     return opt_assignment, poverty_rate
