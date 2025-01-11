@@ -61,7 +61,7 @@ def main(hparamconfig="hparam_config.yaml"):
                 weight=weight,
                 savepath=f'{savedir}/density_estimation_{name}.csv',
             )
-            opt_hparams["rate"]["density_estimation"] = opt_density_estimation_hparams
+            opt_hparams["continuous_rate"]["density_estimation"] = opt_density_estimation_hparams
             print(opt_density_estimation_hparams)
     if "binary_rate" in config_hparams:
         opt_hparams["binary_rate"] = {}
