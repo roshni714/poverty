@@ -48,7 +48,7 @@ class TargetedTransfers:
     def fit(self, train_dataset):
         pass
 
-    def run_opt(self):
+    def run_opt(self, test_covariate_dataset):
         pass
 
     def set_budget(self, budget):
@@ -98,6 +98,37 @@ class TargetedTransfers:
             write_result(
                 path, {"consumption": y_test[i], "ev_transfer": all_transfers_ev[i]}
             )
+    
+    def compute_auc(self, test_dataset, metrics, budgets, test_covariate_dataset=None):
+        """
+        Compute the AUC for a list of budgets.
+
+        :param test_covariate_dataset: The dataset that include the covariates and weights from the test set.
+        :type test_covariate_dataset: Dataset
+        :param test_dataset: The test dataset.
+        :type test_dataset: Dataset
+        :param metrics: The metrics to evaluate the policy.
+        :type metrics: list
+        :param budgets: The list of budgets in increasing order.
+        :type budgets: list
+        :return: A dictionary of AUC values.
+        :rtype: dict
+        """
+        res = {metric: {'auc': 0., 'results': []} for metric in metrics}
+        for budget in budgets:
+            self.set_budget(budget)
+            if "oracle" in self.name:
+                self.run_opt(test_dataset)
+            else:
+                self.run_opt(test_covariate_dataset=test_covariate_dataset)
+            evaluate_res = self.evaluate(test_dataset)
+            for metric in metrics:
+                res[metric]['results'].append(evaluate_res[metric])
+        
+        for metric in metrics:
+            res[metric]['auc'] = np.trapz(y=res[metric]['results'], x=budgets)
+        
+        return res
 
 
 class RateTargetedTransfers(TargetedTransfers):
@@ -201,6 +232,40 @@ class RateTargetedTransfers(TargetedTransfers):
         idx = np.argmin(poverty_rates)
         self.assignments = all_opt_assignments[idx]
         return self.assignments
+
+    def compute_auc(self, test_covariate_dataset, test_dataset, metrics, budgets, min_alpha=None, max_alpha=None,n_alpha=200, path=None):
+        """
+        Compute the AUC for a list of budgets.
+
+        :param test_covariate_dataset: The dataset that include the covariates and weights from the test set.
+        :type test_covariate_dataset: Dataset
+        :param test_dataset: The test dataset.
+        :type test_dataset: Dataset
+        :param metrics: The metrics to evaluate the policy.
+        :type metrics: list
+        :param budgets: The list of budgets in increasing order.
+        :type budgets: list
+        :return: A dictionary of AUC values.
+        :rtype: dict
+        """
+        res = {metric: {'auc': 0., 'results': []} for metric in metrics}
+        for budget in budgets:
+            self.set_budget(budget)
+            if path is not None:
+                full_path = f'budget={budget}_'+path
+            else:
+                full_path = None
+            self.run_opt(test_covariate_dataset, min_alpha=min_alpha, max_alpha=max_alpha, n_alpha=n_alpha, path=full_path)
+            evaluate_res = self.evaluate(test_dataset)
+            for metric in metrics:
+                res[metric]['results'].append(evaluate_res[metric])
+        
+        for metric in metrics:
+            res[metric]['auc'] = np.trapz(y=res[metric]['results'], x=budgets)
+        
+        return res
+    
+    
 
 
 class BinaryTargetedTransfers(TargetedTransfers):
@@ -471,7 +536,6 @@ class GapTargetedTransfers(TargetedTransfers):
                 assignments[i].append((transfer[i].item(), 1.0))
             cost = policy_cost(test_covariate_dataset, assignments)
             costs.append(cost)
-            print("Quantile:", quantile, "Cost: ", cost)
             all_assignments.append(assignments)
         # Get the assignments that have cost lower than budget
         idx = bisect_left(costs, self.budget)
@@ -479,6 +543,7 @@ class GapTargetedTransfers(TargetedTransfers):
 
         # TODO: Add back interpolation here if idx-1 is between two entries.
         return all_assignments[idx - 1]
+
 
 
 class OracleGapTargetedTransfers(TargetedTransfers):

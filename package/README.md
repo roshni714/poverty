@@ -40,6 +40,8 @@ tt.run_opt(
    test_covariate_dataset, n_alpha=100, path="malawi_example_rate_B=0.5.csv"
 )
 res = tt.evaluate(test_dataset)
+auc_res = tt.compute_auc(test_covariate_dataset=test_covariate_dataset, test_dataset=test_dataset, metrics=["post_transfer_poverty_rate",
+                                                              "post_transfer_poverty_gap"], budgets=[0.05, 0.1, 0.5, 1.0, 2.0])
 ```
 
 Poverty gap targeting
@@ -63,6 +65,8 @@ tt.optimize_transfers_for_budget_grid(test_covariate_dataset, budgets=[0.1, 0.25
 tt.set_budget(0.5)
 tt.run_opt(test_covariate_dataset)
 res = tt.evaluate(test_dataset)
+auc_res = tt.compute_auc(test_covariate_dataset=test_covariate_dataset, test_dataset=test_dataset, metrics=["post_transfer_poverty_rate",
+                                                              "post_transfer_poverty_gap"], budgets=[0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.15])
 ```
 
 Binary rate targeting
@@ -75,6 +79,8 @@ tt.optimize_transfers_for_budget_grid(test_covariate_dataset, budgets=[0.1, 0.25
 tt.set_budget(0.5)
 tt.run_opt(test_covariate_dataset)
 res = tt.evaluate(test_dataset)
+auc_res = tt.compute_auc(test_covariate_dataset=test_covariate_dataset, test_dataset=test_dataset, metrics=["post_transfer_poverty_rate",
+                                                              "post_transfer_poverty_gap"], budgets=[0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.15])
 ```
 
 Oracle rate and gap targeting
@@ -83,11 +89,16 @@ from opt_targeted_transfers import OracleRateTargetedTransfers, OracleGapTargete
 
 tt = OracleGapTargetedTransfers(c_bar=2.15, budget=0.25)
 tt.run_opt(test_dataset)
-tt.evaluate(test_dataset)
+res = tt.evaluate(test_dataset)
+auc_res = tt.compute_auc(test_dataset=test_dataset, metrics=["post_transfer_poverty_rate",
+                                                              "post_transfer_poverty_gap"], budgets=[0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.15])
 
 tt = OracleGapTargetedTransfers(c_bar=2.15, budget=0.25, scheme="floor")
 tt.run_opt(test_dataset)
-tt.evaluate(test_dataset)
+res = tt.evaluate(test_dataset)
+auc_res = tt.compute_auc(test_dataset=test_dataset, metrics=["post_transfer_poverty_rate",
+                                                              "post_transfer_poverty_gap"], budgets=[0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.15])
+
 ```
 
 

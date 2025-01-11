@@ -45,9 +45,11 @@ def main(hparamconfig="hparam_config.yaml"):
 
     name = hparamconfig.split("/")[1].split(".yaml")[0]
 
-    if "rate" in config_hparams:
-        opt_hparams["rate"] = {}
-        rate = config_hparams["rate"]
+    print(config_hparams)
+
+    if "continuous_rate" in config_hparams:
+        opt_hparams["continuous_rate"] = {}
+        rate = config_hparams["continuous_rate"]
         if "density_estimation" in rate:
             opt_density_estimation_hparams = get_optimal_density_estimation_parameters(
                 density_estimation_hparam_ranges=rate["density_estimation"],

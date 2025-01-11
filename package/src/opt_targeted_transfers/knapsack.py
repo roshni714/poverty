@@ -184,7 +184,7 @@ def compute_alpha_opt_policies(
     print("Alpha range: {}, {}".format(alphas[0], alphas[-1]))
     results_file = path
 
-    if os.path.exists(results_file):
+    if path is not None and os.path.exists(results_file):
         os.remove(results_file)
 
     for alpha in tqdm(alphas):

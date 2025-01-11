@@ -37,12 +37,15 @@ OUTPUT_PATH = (
 def generate_hparam_run():
 
     configs = [
-        #"gan_rate.yaml",
-        #"gt_rate.yaml",
-        #'gan_binary_gap.yaml',
-        #'gan_continuous_gap.yaml',
-        #'gt_binary_gap.yaml',
-        'gt_continuous_gap.yaml']
+            "gan_continuous_rate.yaml",
+            "gt_continuous_rate.yaml",
+            "gan_binary_rate.yaml",
+            "gt_binary_rate.yaml",
+            'gan_binary_gap.yaml',
+            'gan_continuous_gap.yaml',
+            'gt_binary_gap.yaml',
+            'gt_continuous_gap.yaml'
+    ]
 
     for config in configs:
         exp_id = config
