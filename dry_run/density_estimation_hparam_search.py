@@ -25,7 +25,7 @@ def get_optimal_density_estimation_parameters(
         outcome (str): Outcome variable.
         weight (str): Weight variable.
         savepath (str): Path to save results.
-        
+
 
     Returns:
         opt_params (dict): Optimal hyperparameters for density estimation.
@@ -63,7 +63,6 @@ def get_optimal_density_estimation_parameters(
     ordered_features, _ = forward_selection(
         train_dataset, val_dataset, max_features=max(n_features_range)
     )
-
 
     results = []
     for trial in range(3):

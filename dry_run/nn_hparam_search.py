@@ -9,8 +9,17 @@ import pandas as pd
 import numpy as np
 from constants import C_BAR
 
-def get_optimal_nn_improvement_parameters(loss_type,
-    nn_hparam_ranges, data_generator, original_cols, ntrain, nval, outcome, weight, savepath
+
+def get_optimal_nn_improvement_parameters(
+    loss_type,
+    nn_hparam_ranges,
+    data_generator,
+    original_cols,
+    ntrain,
+    nval,
+    outcome,
+    weight,
+    savepath,
 ):
     """
     Get optimal neural network hyperparameters for gap improvement.
@@ -44,7 +53,7 @@ def get_optimal_nn_improvement_parameters(loss_type,
         lr_range = [5e-3]
 
     results = []
-    transfer_sizes = [0.5, 1., 1.5]
+    transfer_sizes = [0.5, 1.0, 1.5]
 
     for trial in range(3):
         train_df = data_generator(nsamples=ntrain, seed=54734234 + trial)
@@ -72,7 +81,11 @@ def get_optimal_nn_improvement_parameters(loss_type,
                             lr=lr,
                         )
                         loss = get_conditional_improvement_loss(
-                            val_dataset, loss_type=loss_type, predictor=model, t=transfer_size, c_bar=C_BAR
+                            val_dataset,
+                            loss_type=loss_type,
+                            predictor=model,
+                            t=transfer_size,
+                            c_bar=C_BAR,
                         ).item()
                         results.append(
                             {
@@ -96,7 +109,14 @@ def get_optimal_nn_improvement_parameters(loss_type,
 
 
 def get_optimal_nn_quantile_regression_parameters(
-    nn_hparam_ranges, data_generator, original_cols, ntrain, nval, outcome, weight, savepath
+    nn_hparam_ranges,
+    data_generator,
+    original_cols,
+    ntrain,
+    nval,
+    outcome,
+    weight,
+    savepath,
 ):
     """
     Get optimal neural network hyperparameters for quantile regression.

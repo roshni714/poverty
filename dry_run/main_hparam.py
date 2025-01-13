@@ -59,9 +59,11 @@ def main(hparamconfig="hparam_config.yaml"):
                 nval=nval,
                 outcome=outcome,
                 weight=weight,
-                savepath=f'{savedir}/density_estimation_{name}.csv',
+                savepath=f"{savedir}/density_estimation_{name}.csv",
             )
-            opt_hparams["continuous_rate"]["density_estimation"] = opt_density_estimation_hparams
+            opt_hparams["continuous_rate"][
+                "density_estimation"
+            ] = opt_density_estimation_hparams
             print(opt_density_estimation_hparams)
     if "binary_rate" in config_hparams:
         opt_hparams["binary_rate"] = {}
@@ -75,7 +77,7 @@ def main(hparamconfig="hparam_config.yaml"):
             nval=nval,
             outcome=outcome,
             weight=weight,
-            savepath=f'{savedir}/nn_{name}.csv',
+            savepath=f"{savedir}/nn_{name}.csv",
         )
         opt_hparams["binary_rate"]["neural_network"] = opt_nn_hparams
         print(opt_nn_hparams)
@@ -90,7 +92,7 @@ def main(hparamconfig="hparam_config.yaml"):
             nval=nval,
             outcome=outcome,
             weight=weight,
-            savepath=f'{savedir}/nn_{name}.csv',
+            savepath=f"{savedir}/nn_{name}.csv",
         )
         opt_hparams["continuous_gap"]["neural_network"] = opt_nn_hparams
         print(opt_nn_hparams)
@@ -106,7 +108,7 @@ def main(hparamconfig="hparam_config.yaml"):
             nval=nval,
             outcome=outcome,
             weight=weight,
-            savepath=f'{savedir}/nn_{name}.csv',
+            savepath=f"{savedir}/nn_{name}.csv",
         )
         opt_hparams["binary_gap"]["neural_network"] = opt_nn_hparams
         print(opt_nn_hparams)
