@@ -1,4 +1,4 @@
-from gan_data_gen import generate_synthetic_data
+from dry_run.gan.gan_data_gen import generate_synthetic_data
 import dill
 import pandas as pd
 import numpy as np

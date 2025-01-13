@@ -1,9 +1,10 @@
 import yaml
 import argh
-from data_generators import get_wgan_data_generator, get_gt_data_generator
-from density_estimation_hparam_search import get_optimal_density_estimation_parameters
+from dry_run.hparam.data_generators import get_wgan_data_generator, get_gt_data_generator
+from dry_run.hparam.density_estimation_hparam_search import get_optimal_density_estimation_parameters
+from knapsack_hparam_search import get_optimal_knapsack_parameters
 import os
-from nn_hparam_search import (
+from dry_run.hparam.nn_hparam_search import (
     get_optimal_nn_quantile_regression_parameters,
     get_optimal_nn_improvement_parameters,
 )
@@ -43,6 +44,7 @@ def main(hparamconfig="hparam_config.yaml"):
 
     ntrain = data_config_params["ntrain"]
     nval = data_config_params["nval"]
+    ntest = data_config_params["ntest"]
     outcome = data_config_params["outcome"]
     weight = data_config_params["weight"]
 
@@ -67,7 +69,16 @@ def main(hparamconfig="hparam_config.yaml"):
             opt_hparams["continuous_rate"][
                 "density_estimation"
             ] = opt_density_estimation_hparams
-            print(opt_density_estimation_hparams)
+
+            opt_n_alpha = get_optimal_knapsack_parameters(rate["n_alpha"], data_generator=data_generator, 
+                                            original_cols=original_cols,
+                                            n_train=ntrain, 
+                                            n_val=nval, 
+                                            n_test=ntest,
+                                            outcome=outcome, weight=weight,
+                                            density_estimation_params=opt_density_estimation_params)
+
+            opt_hparams["continuous_rate"]["n_alpha"] = opt_n_alpha
     if "binary_rate" in config_hparams:
         opt_hparams["binary_rate"] = {}
         binary_gap = config_hparams["binary_rate"]

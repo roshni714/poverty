@@ -2,6 +2,7 @@ savedir: "hparam_results"
 data:
   ntrain: 6480
   nval: 50000
+  ntest: 4574
   outcome: consumption_per_capita_per_day
   weight: hh_wgt
   gan: 
