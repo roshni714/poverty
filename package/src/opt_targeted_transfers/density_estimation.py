@@ -31,13 +31,21 @@ def get_nll(dataset, cond_density_estimator):
 
 
 def get_cond_density_estimator(
-    dataset, n_bins=100, n_knots=4, degree=4, truncation_upper_value=10, n_epochs=300
+    train_dataset,
+    validation_dataset,
+    n_bins=100,
+    n_knots=4,
+    degree=4,
+    truncation_upper_value=10,
+    n_epochs=300,
 ):
     """
     Compute the conditional density estimator.
 
-    :param dataset: The dataset for which to compute the conditional density estimator.
-    :type dataset: Dataset
+    :param train_dataset: The training dataset for which to compute the conditional density estimator.
+    :type train_dataset: Dataset
+    :param validation_dataset: The validation dataset for which to compute the conditional density estimator.
+    :type validation_dataset: Dataset
     :param n_bins: The number of bins to use for the outcome space.
     :type n_bins: int
     :param n_knots: The number of knots to use for the B-spline basis functions.
@@ -53,9 +61,10 @@ def get_cond_density_estimator(
              with shape (N, D), where D is the same as the dimension of X in the dataset.
     :rtype: Callable[[np.ndarray], np.ndarray]
     """
-    if len(dataset.covs) == 0:
+    if len(train_dataset.covs) == 0:
         helper = lindsey_method(
-            dataset,
+            train_dataset,
+            validation_dataset,
             n_bins=n_bins,
             n_knots=n_knots,
             degree=degree,
@@ -65,7 +74,8 @@ def get_cond_density_estimator(
 
     else:
         helper = lindsey_method_with_covariates(
-            dataset,
+            train_dataset,
+            validation_dataset,
             n_bins=n_bins,
             n_knots=n_knots,
             degree=degree,
@@ -93,6 +103,7 @@ def fit_carrier_function(y, r):
 
 def lindsey_method(
     train_dataset,
+    validation_dataset,
     n_bins=100,
     n_knots=4,
     degree=3,
@@ -105,6 +116,8 @@ def lindsey_method(
 
     :param train_dataset: The training dataset for which to apply the Lindsey method.
     :type train_dataset: Dataset
+    :param validation_dataset: The validation dataset for which to apply the Lindsey method.
+    :type validation_dataset: Dataset
     :param n_bins: The number of bins to use for the outcome space.
     :type n_bins: int
     :param n_knots: The number of knots to use for the spline basis functions.
@@ -125,10 +138,14 @@ def lindsey_method(
     # Get data. Truncate outcome because we only care about
     # accurate density estimation for units with Y < poverty line.
     # Standardize Y.
-    _, y, r = train_dataset.get_data()
-    n = len(y)
-    y = np.clip(y, None, truncation_upper_value)
-    y, y_mean, y_std = standardize(y)
+    _, y_train, r_train = train_dataset.get_data()
+    _, y_val, r_val = validation_dataset.get_data()
+    n_train = len(y_train)
+    n_val = len(y_val)
+    y_train = np.clip(y_train, None, truncation_upper_value)
+    y_val = np.clip(y_val, None, truncation_upper_value)
+    y_train, y_mean, y_std = standardize(y_train)
+    y_val = (y_val - y_mean) / y_std
 
     # Define range where learned density is well defined.
     lower = (0.0 - y_mean) / y_std
@@ -138,13 +155,13 @@ def lindsey_method(
     bin_ends = np.linspace(lower, upper, n_bins)
 
     # Fit carrier density (Y marginal) and evaluate on bin boundaries.
-    kde = fit_carrier_function(y, r)
+    kde = fit_carrier_function(y_train, r_train)
     front = kde.evaluate(bin_ends)
 
     # Get B-spline basis functions.
     spline = SplineTransformer(n_knots=n_knots, degree=degree, knots="quantile")
     # This sets knots at evenly spaced quantiles of Y.
-    spline.fit(y.reshape(-1, 1))
+    spline.fit(y_train.reshape(-1, 1))
 
     # Get basis representation of bin boundaries.
     bin_basis_elements = spline.transform(bin_ends.reshape(-1, 1))
@@ -154,12 +171,19 @@ def lindsey_method(
     )  # n_bins x k
 
     # Get basis representation of sampled Y values.
-    basis_matrix = torch.tensor(
-        spline.transform(y.reshape(-1, 1)).reshape(n, k), dtype=torch.float64
+    basis_matrix_train = torch.tensor(
+        spline.transform(y_train.reshape(-1, 1)).reshape(n_train, k),
+        dtype=torch.float64,
     )  # n x k
 
-    r = torch.tensor(r, dtype=torch.float64)
-    y = torch.tensor(y, dtype=torch.float64)
+    basis_matrix_val = torch.tensor(
+        spline.transform(y_val.reshape(-1, 1)).reshape(n_val, k), dtype=torch.float64
+    )  # n x k
+
+    r_train = torch.tensor(r_train, dtype=torch.float64)
+    y_train = torch.tensor(y_train, dtype=torch.float64)
+    r_val = torch.tensor(r_val, dtype=torch.float64)
+    y_val = torch.tensor(y_val, dtype=torch.float64)
     bin_ends = torch.tensor(bin_ends, dtype=torch.float64)
     front = torch.tensor(front, dtype=torch.float64)
     theta = torch.nn.Parameter(
@@ -168,8 +192,8 @@ def lindsey_method(
 
     unscaled_bin_ends = bin_ends * y_std + y_mean
 
-    def glm_nll(theta, idx):
-        res = torch.matmul(basis_matrix[idx, :], theta).squeeze()  # n
+    def glm_nll(theta, basis_matrix):
+        res = torch.matmul(basis_matrix, theta).squeeze()  # n
         norm_res = torch.exp(
             torch.matmul(bin_basis_elements, theta)
         ).squeeze()  # n_bins  x1
@@ -179,24 +203,21 @@ def lindsey_method(
         return nll
 
     optimizer = torch.optim.Adam([theta], lr=1e-2)
-    batch_size = int(len(y) / 3)
+    batch_size = int(len(y_train) / 3)
     print("Fitting conditional densities vs glm spline method...")
     pbar = tqdm.tqdm(list(range(n_epochs)))
-    train_prop = 0.7
-    idx_train_set, idx_val_set = list(range(int(train_prop * len(y)))), list(
-        range(int(train_prop * len(y)), len(y))
-    )
+
     thetas = []
     val_losses = []
     for epoch in pbar:
         if epoch % 25 == 0:
-            val_loss = torch.sum(glm_nll(theta, idx_val_set) * r[idx_val_set])
+            val_loss = torch.sum(glm_nll(theta, basis_matrix_val) * r_val)
             val_losses.append(val_loss.detach().item())
             thetas.append(theta.detach().clone())
 
-        idx = np.random.choice(idx_train_set, size=batch_size)
+        idx = np.random.choice(len(y_train), size=batch_size)
         optimizer.zero_grad()
-        loss = torch.sum(glm_nll(theta, idx) * r[idx])
+        loss = torch.sum(glm_nll(theta, basis_matrix_train[idx, :]) * r_train[idx])
         loss.backward()
         optimizer.step()
         pbar.set_postfix({"loss": loss.item(), "val_loss": val_loss.item()})
@@ -278,6 +299,7 @@ def lindsey_method(
 
 def lindsey_method_with_covariates(
     train_dataset,
+    validation_dataset,
     n_bins=100,
     n_knots=4,
     degree=3,
@@ -290,6 +312,8 @@ def lindsey_method_with_covariates(
 
     :param train_dataset: The training dataset for which to apply the Lindsey method.
     :type train_dataset: Dataset
+    :param validation_dataset: The validation dataset for which to apply the Lindsey method.
+    :type validation_dataset: Dataset
     :param n_bins: The number of bins to use for the outcome space.
     :type n_bins: int
     :param n_knots: The number of knots to use for the spline basis functions.
@@ -306,16 +330,19 @@ def lindsey_method_with_covariates(
     torch.manual_seed(seed)
     np.random.seed(seed)
 
-    X, y, r = train_dataset.get_data()
+    X_train, y_train, r_train = train_dataset.get_data()
+    X_val, y_val, r_val = validation_dataset.get_data()
 
     # Get data. Truncate outcome because we only care about
     # accurate density estimation for units with Y < poverty line.
     # Standardize Y.
-    _, y, r = train_dataset.get_data()
-    n = len(y)
-    y = np.clip(y, None, truncation_upper_value)
-    X, X_mean, X_std = standardize(X)
-    y, y_mean, y_std = standardize(y)
+    n = len(y_train)
+    y_train = np.clip(y_train, None, truncation_upper_value)
+    y_val = np.clip(y_val, None, truncation_upper_value)
+    X_train, X_mean, X_std = standardize(X_train)
+    y_train, y_mean, y_std = standardize(y_train)
+    X_val = (X_val - X_mean) / X_std
+    y_val = (y_val - y_mean) / y_std
 
     # Define range where learned density is well defined.
     lower = (0.0 - y_mean) / y_std
@@ -324,17 +351,18 @@ def lindsey_method_with_covariates(
     # Bin the outcome space.
     bin_ends = np.linspace(lower, upper, n_bins)
 
-    n = X.shape[0]
-    d = X.shape[1]
+    n_train = X_train.shape[0]
+    n_val = X_val.shape[0]
+    d = X_train.shape[1]
 
     # Fit carrier density (Y marginal) and evaluate on bin boundaries.
-    kde = fit_carrier_function(y, r)
+    kde = fit_carrier_function(y_train, r_train)
     front = kde.evaluate(bin_ends)
 
     # Get B-spline basis functions.
     spline = SplineTransformer(n_knots=n_knots, degree=degree, knots="quantile")
     # This sets knots at evenly spaced quantiles of Y.
-    spline.fit(y.reshape(-1, 1))
+    spline.fit(y_train.reshape(-1, 1))
 
     # Get basis representation of bin boundaries.
     bin_basis_elements = spline.transform(bin_ends.reshape(-1, 1))
@@ -344,13 +372,23 @@ def lindsey_method_with_covariates(
     )  # n_bins x 1 x k
 
     # Get basis representation of sampled Y values.
-    basis_matrix = torch.tensor(
-        spline.transform(y.reshape(-1, 1)).reshape(n, 1, k), dtype=torch.float64
+    basis_matrix_train = torch.tensor(
+        spline.transform(y_train.reshape(-1, 1)).reshape(n_train, 1, k),
+        dtype=torch.float64,
     )  # n x 1 x k
 
-    X = torch.tensor(X, dtype=torch.float64).reshape(n, d, 1)
-    r = torch.tensor(r, dtype=torch.float64)
-    y = torch.tensor(y, dtype=torch.float64)
+    basis_matrix_val = torch.tensor(
+        spline.transform(y_val.reshape(-1, 1)).reshape(n_val, 1, k), dtype=torch.float64
+    )  # n x 1 x k
+
+    X_train = torch.tensor(X_train, dtype=torch.float64).reshape(n_train, d, 1)
+    r_train = torch.tensor(r_train, dtype=torch.float64)
+    y_train = torch.tensor(y_train, dtype=torch.float64)
+
+    X_val = torch.tensor(X_val, dtype=torch.float64).reshape(n_val, d, 1)
+    r_val = torch.tensor(r_val, dtype=torch.float64)
+    y_val = torch.tensor(y_val, dtype=torch.float64)
+
     bin_ends = torch.tensor(bin_ends, dtype=torch.float64)
     front = torch.tensor(front, dtype=torch.float64)
 
@@ -361,10 +399,10 @@ def lindsey_method_with_covariates(
     )
     unscaled_bin_ends = bin_ends * y_std + y_mean
 
-    def glm_nll(theta, idx):
-        sub_n = len(idx)
-        params = torch.matmul(theta, X[idx, :]).reshape(sub_n, k, 1)  # n x k x 1
-        res = torch.matmul(basis_matrix[idx, :], params).squeeze()  # n x 1 x 1
+    def glm_nll(theta, X, basis_matrix):
+        sub_n = len(X)
+        params = torch.matmul(theta, X).reshape(sub_n, k, 1)  # n x k x 1
+        res = torch.matmul(basis_matrix, params).squeeze()  # n x 1 x 1
         norm_res = torch.exp(
             torch.matmul(
                 params.reshape(params.shape[0], params.shape[1]),
@@ -381,24 +419,23 @@ def lindsey_method_with_covariates(
         return nll
 
     optimizer = torch.optim.Adam([theta], lr=1e-2)
-    batch_size = int(len(X) / 3)
+    batch_size = int(n_train / 3)
     print("Fitting conditional densities vs glm spline method...")
     pbar = tqdm.tqdm(list(range(n_epochs)))
-    train_prop = 0.7
-    idx_train_set, idx_val_set = list(range(int(train_prop * len(X)))), list(
-        range(int(train_prop * len(X)), len(X))
-    )
+
     thetas = []
     val_losses = []
     for epoch in pbar:
         if epoch % 25 == 0:
-            val_loss = torch.sum(glm_nll(theta, idx_val_set) * r[idx_val_set])
+            val_loss = torch.sum(glm_nll(theta, X_val, basis_matrix_val) * r_val)
             val_losses.append(val_loss.detach().item())
             thetas.append(theta.detach().clone())
 
-        idx = np.random.choice(idx_train_set, size=batch_size)
+        idx = np.random.choice(n_train, size=batch_size, replace=True)
         optimizer.zero_grad()
-        loss = torch.sum(glm_nll(theta, idx) * r[idx])
+        loss = torch.sum(
+            glm_nll(theta, X_train[idx, :], basis_matrix_train[idx, :]) * r_train[idx]
+        )
         loss.backward()
         optimizer.step()
         pbar.set_postfix({"loss": loss.item(), "val_loss": val_loss.item()})

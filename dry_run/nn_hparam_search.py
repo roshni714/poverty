@@ -7,7 +7,7 @@ from opt_targeted_transfers import (
 )
 import pandas as pd
 import numpy as np
-
+from constants import C_BAR
 
 def get_optimal_nn_improvement_parameters(loss_type,
     nn_hparam_ranges, data_generator, original_cols, ntrain, nval, outcome, weight, savepath
@@ -66,13 +66,13 @@ def get_optimal_nn_improvement_parameters(loss_type,
                             loss_type=loss_type,
                             dataset=train_dataset,
                             t=transfer_size,
-                            c_bar=2.15,
+                            c_bar=C_BAR,
                             n_layers=n_layers,
                             n_hidden_units=n_hidden_units,
                             lr=lr,
                         )
                         loss = get_conditional_improvement_loss(
-                            val_dataset, loss_type=loss_type, predictor=model, t=transfer_size, c_bar=2.15
+                            val_dataset, loss_type=loss_type, predictor=model, t=transfer_size, c_bar=C_BAR
                         ).item()
                         results.append(
                             {

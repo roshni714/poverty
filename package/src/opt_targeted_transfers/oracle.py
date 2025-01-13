@@ -6,6 +6,7 @@ from opt_targeted_transfers.cond_dist import get_lower_cvx_hull
 import bisect
 import numpy as np
 
+
 def run_oracle_poverty_rate(test_dataset, budget, c_bar):
     # Behaves slightly wrong if multiple households have identical income and they
     # happen to fall right on the border between those receiving and not receiving
@@ -17,10 +18,11 @@ def run_oracle_poverty_rate(test_dataset, budget, c_bar):
     weighted_transfers = r_test[sorting_indices] * dist_to_line[sorting_indices]
     indicator_receive_transfers = np.cumsum(weighted_transfers) <= budget
     idx_receive_transfers = sorting_indices[indicator_receive_transfers]
-    assignments = {i: [(0., 1.0)] for i in range(len(y_test))}
+    assignments = {i: [(0.0, 1.0)] for i in range(len(y_test))}
     for idx in idx_receive_transfers:
         assignments[idx] = [(dist_to_line[idx], 1.0)]
     return assignments
+
 
 def run_oracle_poverty_gap_lift_to_line_scheme(test_dataset, budget, c_bar):
     return run_oracle_poverty_rate(test_dataset, budget, c_bar)
@@ -32,12 +34,12 @@ def run_oracle_poverty_gap_floor_scheme(test_dataset, budget, c_bar):
 
     gaps = np.maximum(c_bar - y_test, 0)
 
-    sorting_indices = np.argsort(gaps)[::-1] # sort gaps from largest to smallest
+    sorting_indices = np.argsort(gaps)[::-1]  # sort gaps from largest to smallest
     budget_remaining = budget
 
-    running_transfers = 0.
+    running_transfers = 0.0
 
-    assignments = {i: [(0., 1.0)] for i in range(len(y_test))}
+    assignments = {i: [(0.0, 1.0)] for i in range(len(y_test))}
 
     for i in sorting_indices:
         gap_contribution = gaps[i] * r_test[i]
@@ -48,9 +50,7 @@ def run_oracle_poverty_gap_floor_scheme(test_dataset, budget, c_bar):
             assignments[i] = [(gaps[i], 1.0)]
         else:
             prob = budget_remaining / gap_contribution
-            assignments[i] = [(gaps[i], prob), (0., 1- prob)]
+            assignments[i] = [(gaps[i], prob), (0.0, 1 - prob)]
             break
 
     return assignments
-
-

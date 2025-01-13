@@ -39,7 +39,8 @@ def get_conditional_improvement_loss(val_dataset, loss_type, predictor, t, c_bar
 
 
 def get_conditional_improvement_regressor(
-    dataset,
+    train_dataset,
+    validation_dataset,
     loss_type,
     t,
     c_bar=2.15,
@@ -74,26 +75,40 @@ def get_conditional_improvement_regressor(
     np.random.seed(seed)
 
     # shuffle the data
-    X, y, r = dataset.get_data()
-    X, X_mean, X_std = standardize(X)
+    X_train, y_train, r_train = train_dataset.get_data()
+    X_val, y_val, r_val = validation_dataset.get_data()
+    X_train, X_mean, X_std = standardize(X_train)
+    X_val = (X_val - X_mean) / X_std
 
     if loss_type == "gap":
-        current_gaps = np.maximum(c_bar - y, 0)
-        gaps_after_transfer = np.maximum(c_bar - t - y, 0)
-        benefits = current_gaps - gaps_after_transfer
+        current_gaps_train = np.maximum(c_bar - y_train, 0)
+        gaps_after_transfer_train = np.maximum(c_bar - t - y_train, 0)
+        benefits_train = current_gaps_train - gaps_after_transfer_train
+
+        current_gaps_val = np.maximum(c_bar - y_val, 0)
+        gaps_after_transfer_val = np.maximum(c_bar - t - y_val, 0)
+        benefits_val = current_gaps_val - gaps_after_transfer_val
+
     elif loss_type == "rate":
-        current_gaps = (y <= c_bar).astype(float)
-        gaps_after_transfer = (y + t <= c_bar).astype(float)
-        benefits = current_gaps - gaps_after_transfer
-    assert np.min(benefits) >= 0
+        current_gaps_train = (y_train <= c_bar).astype(float)
+        gaps_after_transfer_train = (y_train + t <= c_bar).astype(float)
+        benefits_train = current_gaps_train - gaps_after_transfer_train
 
-    benefits, benefits_mean, benefits_std = standardize(benefits)
+        current_gaps_val = (y_val <= c_bar).astype(float)
+        gaps_after_transfer_val = (y_val + t <= c_bar).astype(float)
+        benefits_val = current_gaps_val - gaps_after_transfer_val
 
-    if X.shape[1] == 0:
+    assert np.min(benefits_train) >= 0
+    assert np.min(benefits_val) >= 0
+
+    benefits_train, benefits_mean, benefits_std = standardize(benefits_train)
+    benefits_val = (benefits_val - benefits_mean) / benefits_std
+
+    if X_train.shape[1] == 0:
         # TODO fill in
         pass
     else:
-        d = X.shape[1]
+        d = X_train.shape[1]
         model_list = [torch.nn.Linear(d, n_hidden_units), torch.nn.ReLU()]
         for _ in range(n_layers - 1):
             model_list.append(torch.nn.Linear(n_hidden_units, n_hidden_units))
@@ -101,20 +116,15 @@ def get_conditional_improvement_regressor(
         model_list.append(torch.nn.Linear(n_hidden_units, 1))
         predictor = torch.nn.Sequential(*model_list)
 
-        def loss_function(predictor, idx):
-            predicted_benefits = predictor(torch.Tensor(X[idx, :])).squeeze()
-            actual_benefits = torch.Tensor(benefits[idx])
+        def loss_function(predictor, X, benefits):
+            predicted_benefits = predictor(torch.Tensor(X)).squeeze()
+            actual_benefits = torch.Tensor(benefits)
+            assert predicted_benefits.shape == actual_benefits.shape
             return (predicted_benefits - actual_benefits) ** 2
 
         optimizer = torch.optim.Adam(predictor.parameters(), lr=lr)
-        train_prop = 0.7
 
-        idx_train_set, idx_val_set = (
-            list(range(int(train_prop * len(X)))),
-            list(range(int(train_prop * len(X)), len(X))),
-        )
-
-        batch_size = int(len(idx_train_set) / 5)
+        batch_size = int(len(X_train) / 5)
         print(f"Fitting conditional {loss_type} improvement for transfer size {t}")
         pbar = tqdm.tqdm(list(range(n_epochs)))
         val_losses = []
@@ -124,7 +134,7 @@ def get_conditional_improvement_regressor(
             if epoch % 10 == 0:
                 predictor.eval()
                 val_loss = torch.sum(
-                    loss_function(predictor, idx_val_set) * torch.Tensor(r[idx_val_set])
+                    loss_function(predictor, X_val, benefits_val) * torch.Tensor(r_val)
                 )
                 val_losses.append(val_loss.detach().item())
                 # ideally do torch.save to save checkpoints. Google it. Avoid saving so many models
@@ -132,11 +142,13 @@ def get_conditional_improvement_regressor(
                 models.append(copy.deepcopy(predictor))
 
             predictor.train()
-            idx = np.random.choice(idx_train_set, size=batch_size)
+            idx = np.random.choice(len(X_train), size=batch_size, replace=True)
             optimizer.zero_grad()
 
-            unweighted_loss = loss_function(predictor, idx)
-            weights = torch.Tensor(r[idx])
+            unweighted_loss = loss_function(
+                predictor, X_train[idx, :], benefits_train[idx]
+            )
+            weights = torch.Tensor(r_train[idx])
             loss = torch.sum(unweighted_loss * weights)
             loss.backward()
             optimizer.step()

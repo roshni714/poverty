@@ -23,6 +23,40 @@ def standardize(z):
     return data, z_mean, z_std
 
 
+def split(dataset, frac=0.7, seed=0):
+    """
+    Split a dataset into two parts.
+
+    :param dataset: The input dataset.
+    :type dataset: Dataset
+    :param frac: The fraction of the dataset to be used for training.
+    :type frac: float
+    """
+    n = len(dataset)
+    np.random.seed(0)
+    idx = np.random.permutation(n)
+    train_idx = idx[: int(frac * n)]
+    test_idx = idx[int(frac * n) :]
+
+    weight = dataset.weight
+    train_dataset = Dataset(
+        dataset.df.iloc[train_idx].copy(deep=True),
+        outcome=dataset.outcome,
+        covs=dataset.covs,
+        weight=dataset.weight,
+    )
+    train_dataset.df[weight] = train_dataset.df[weight] / train_dataset.df[weight].sum()
+    test_dataset = Dataset(
+        dataset.df.iloc[test_idx].copy(deep=True),
+        outcome=dataset.outcome,
+        covs=dataset.covs,
+        weight=dataset.weight,
+    )
+    test_dataset.df[weight] = test_dataset.df[weight] / test_dataset.df[weight].sum()
+
+    return train_dataset, test_dataset
+
+
 class Dataset:
     def __init__(self, df, outcome=None, covs=None, weight=None):
         """

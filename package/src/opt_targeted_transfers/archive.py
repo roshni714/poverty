@@ -768,6 +768,7 @@ def check_assignments_are_equal(assignment1, assignment2):
         val2 = assignment2[key]
         assert val1 == val2, "error at key {} bc {} != {}".format(key, val1, val2)
 
+
 from opt_targeted_transfers.dataset_utils import Dataset
 from opt_targeted_transfers.prediction import get_prediction_function
 from opt_targeted_transfers.density_estimation import get_cond_density_estimator
@@ -1721,7 +1722,7 @@ class OraclePovertyRateTargetedTransfers(TargetedTransfers):
         )
         self.opt_policy = oracle_policy
         return oracle_policy
-    
+
 
 # def compute_opt_policy_knapsack(
 #     test_covariate_dataset,

@@ -45,7 +45,7 @@ class TargetedTransfers:
         self.budget = budget
         self.name = None
 
-    def fit(self, train_dataset):
+    def fit(self, train_dataset, validation_dataset):
         pass
 
     def run_opt(self, test_covariate_dataset):
@@ -98,7 +98,7 @@ class TargetedTransfers:
             write_result(
                 path, {"consumption": y_test[i], "ev_transfer": all_transfers_ev[i]}
             )
-    
+
     def compute_auc(self, test_dataset, metrics, budgets, test_covariate_dataset=None):
         """
         Compute the AUC for a list of budgets.
@@ -114,7 +114,7 @@ class TargetedTransfers:
         :return: A dictionary of AUC values.
         :rtype: dict
         """
-        res = {metric: {'auc': 0., 'results': []} for metric in metrics}
+        res = {metric: {"auc": 0.0, "results": []} for metric in metrics}
         for budget in budgets:
             self.set_budget(budget)
             if "oracle" in self.name:
@@ -123,11 +123,11 @@ class TargetedTransfers:
                 self.run_opt(test_covariate_dataset=test_covariate_dataset)
             evaluate_res = self.evaluate(test_dataset)
             for metric in metrics:
-                res[metric]['results'].append(evaluate_res[metric])
-        
+                res[metric]["results"].append(evaluate_res[metric])
+
         for metric in metrics:
-            res[metric]['auc'] = np.trapz(y=res[metric]['results'], x=budgets)
-        
+            res[metric]["auc"] = np.trapz(y=res[metric]["results"], x=budgets)
+
         return res
 
 
@@ -151,6 +151,7 @@ class RateTargetedTransfers(TargetedTransfers):
     def fit(
         self,
         train_dataset,
+        validation_dataset,
         n_bins=100,
         n_knots=4,
         degree=4,
@@ -162,6 +163,8 @@ class RateTargetedTransfers(TargetedTransfers):
 
         :param train_dataset: The dataset used for training the regressors
         :type train_dataset: Dataset
+        :param validation_dataset: The dataset used for validation.
+        :type validation_dataset: Dataset
         :param n_bins: The number of bins to use for the outcome space. Defaults to 100.
         :type n_bins: int
         :param n_knots: The number of knots to use for the spline basis functions. Defaults to 4.
@@ -175,6 +178,7 @@ class RateTargetedTransfers(TargetedTransfers):
         """
         density_estimator = get_cond_density_estimator(
             train_dataset,
+            validation_dataset,
             n_bins=n_bins,
             n_knots=n_knots,
             degree=degree,
@@ -233,7 +237,17 @@ class RateTargetedTransfers(TargetedTransfers):
         self.assignments = all_opt_assignments[idx]
         return self.assignments
 
-    def compute_auc(self, test_covariate_dataset, test_dataset, metrics, budgets, min_alpha=None, max_alpha=None,n_alpha=200, path=None):
+    def compute_auc(
+        self,
+        test_covariate_dataset,
+        test_dataset,
+        metrics,
+        budgets,
+        min_alpha=None,
+        max_alpha=None,
+        n_alpha=200,
+        path=None,
+    ):
         """
         Compute the AUC for a list of budgets.
 
@@ -248,24 +262,28 @@ class RateTargetedTransfers(TargetedTransfers):
         :return: A dictionary of AUC values.
         :rtype: dict
         """
-        res = {metric: {'auc': 0., 'results': []} for metric in metrics}
+        res = {metric: {"auc": 0.0, "results": []} for metric in metrics}
         for budget in budgets:
             self.set_budget(budget)
             if path is not None:
-                full_path = f'budget={budget}_'+path
+                full_path = f"budget={budget}_" + path
             else:
                 full_path = None
-            self.run_opt(test_covariate_dataset, min_alpha=min_alpha, max_alpha=max_alpha, n_alpha=n_alpha, path=full_path)
+            self.run_opt(
+                test_covariate_dataset,
+                min_alpha=min_alpha,
+                max_alpha=max_alpha,
+                n_alpha=n_alpha,
+                path=full_path,
+            )
             evaluate_res = self.evaluate(test_dataset)
             for metric in metrics:
-                res[metric]['results'].append(evaluate_res[metric])
-        
+                res[metric]["results"].append(evaluate_res[metric])
+
         for metric in metrics:
-            res[metric]['auc'] = np.trapz(y=res[metric]['results'], x=budgets)
-        
+            res[metric]["auc"] = np.trapz(y=res[metric]["results"], x=budgets)
+
         return res
-    
-    
 
 
 class BinaryTargetedTransfers(TargetedTransfers):
@@ -398,6 +416,7 @@ class BinaryGapTargetedTransfers(BinaryTargetedTransfers):
     def fit(
         self,
         train_dataset,
+        validation_dataset,
         n_layers=1,
         n_hidden_units=256,
         lr=5e-3,
@@ -411,7 +430,8 @@ class BinaryGapTargetedTransfers(BinaryTargetedTransfers):
             self.t_to_household_estimator_map[transfer_size] = (
                 get_conditional_improvement_regressor(
                     loss_type="gap",
-                    dataset=train_dataset,
+                    train_dataset=train_dataset,
+                    validation_dataset=validation_dataset,
                     t=transfer_size,
                     c_bar=self.c_bar,
                     n_layers=n_layers,
@@ -435,6 +455,7 @@ class BinaryRateTargetedTransfers(BinaryTargetedTransfers):
     def fit(
         self,
         train_dataset,
+        validation_dataset,
         n_layers=1,
         n_hidden_units=256,
         lr=5e-3,
@@ -448,7 +469,8 @@ class BinaryRateTargetedTransfers(BinaryTargetedTransfers):
             self.t_to_household_estimator_map[transfer_size] = (
                 get_conditional_improvement_regressor(
                     loss_type="rate",
-                    dataset=train_dataset,
+                    train_dataset=train_dataset,
+                    validation_dataset=validation_dataset,
                     t=transfer_size,
                     c_bar=self.c_bar,
                     n_layers=n_layers,
@@ -478,6 +500,7 @@ class GapTargetedTransfers(TargetedTransfers):
     def fit(
         self,
         train_dataset,
+        validation_dataset,
         n_regressors=20,
         n_layers=1,
         n_hidden_units=256,
@@ -510,7 +533,8 @@ class GapTargetedTransfers(TargetedTransfers):
         for quantile in quantiles:
             print("Fitting quantile regressor for quantile {}".format(quantile))
             quantile_regressor = get_quantile_regressor(
-                train_dataset,
+                train_dataset=train_dataset,
+                validation_dataset=validation_dataset,
                 quantile=quantile,
                 n_layers=n_layers,
                 n_hidden_units=n_hidden_units,
@@ -543,7 +567,6 @@ class GapTargetedTransfers(TargetedTransfers):
 
         # TODO: Add back interpolation here if idx-1 is between two entries.
         return all_assignments[idx - 1]
-
 
 
 class OracleGapTargetedTransfers(TargetedTransfers):
@@ -595,5 +618,5 @@ class OracleRateTargetedTransfers(TargetedTransfers):
             c_bar=self.c_bar,
             budget=self.budget,
         )
-        self.assignments=assignments
+        self.assignments = assignments
         return assignments

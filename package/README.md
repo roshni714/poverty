@@ -24,6 +24,7 @@ train_data = load_data(PATH_TO_TRAIN_DATA)
 test_data = load_data(PATH_TO_TEST_DATA)
 
 train_dataset = Dataset(df=train_data, outcome='consumption_per_capita_per_day', weight='hh_wgt', covs=['hh_size', 'urban'])
+train_dataset, validation_dataset = split(train_dataset)
 test_covariate_dataset = Dataset(df=test_data, outcome=None, weight='hh_wgt', covs=['hh_size', 'urban'])
 test_dataset = Dataset(df=test_data, outcome='consumption_per_capita_per_day', weight='hh_wgt', covs=['hh_size', 'urban'])
 
@@ -34,7 +35,7 @@ Poverty rate targeting.
 from opt_targeted_transfers import RateTargetedTransfers
 
 tt = RateTargetedTransfers(c_bar=2.15, budget=None)
-tt.fit(train_dataset)
+tt.fit(train_dataset, validation_dataset)
 tt.set_budget(0.5)
 tt.run_opt(
    test_covariate_dataset, n_alpha=100, path="malawi_example_rate_B=0.5.csv"
@@ -49,7 +50,7 @@ Poverty gap targeting
 from opt_targeted_transfers import GapTargetedTransfers
 
 tt = GapTargetedTransfers(c_bar=2.15, budget=None)
-tt.fit(train_dataset, n_regressors=5)
+tt.fit(train_dataset, validation_dataset)
 tt.set_budget(0.5)
 tt.run_opt(test_covariate_dataset)
 res = tt.evaluate(test_dataset)
@@ -60,7 +61,7 @@ Binary gap targeting
 from opt_targeted_transfers import BinaryGapTargetedTransfers
 
 tt = BinaryGapTargetedTransfers(c_bar=2.15, n_transfer_values=5)
-tt.fit(train_dataset)
+tt.fit(train_dataset, validation_dataset)
 tt.optimize_transfers_for_budget_grid(test_covariate_dataset, budgets=[0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.15])
 tt.set_budget(0.5)
 tt.run_opt(test_covariate_dataset)
@@ -74,7 +75,7 @@ Binary rate targeting
 from opt_targeted_transfers import BinaryRateTargetedTransfers
 
 tt = BinaryGapTargetedTransfers(c_bar=2.15, n_transfer_values=5)
-tt.fit(train_dataset)
+tt.fit(train_dataset, validation_dataset)
 tt.optimize_transfers_for_budget_grid(test_covariate_dataset, budgets=[0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.15])
 tt.set_budget(0.5)
 tt.run_opt(test_covariate_dataset)
