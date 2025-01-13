@@ -41,4 +41,11 @@ mkdir hparam_results
 python main_hp.py main --hparamconfig hparam_config.yml
 ```
 
+# Learning + Evaluation
+Running the following command will fit the targeted transfer methods with hyperparameters specified in the `config` YAML file. Each config file specified the outcome and weight variable of the dataset, the learning method (binary/continuous gap targeting, binary/continuous rate targeting), and the hyperparameters used for fitting that method. The script will produce csv files with evaluation and AUC results for each learning method.
+
+```
+mkdir learn_results
+python main_learn.py main --config output_gan_continuous_gap.yaml --trainpath data/train.parquet --testpath data/test.parquet --savedir learn_results
+```
 

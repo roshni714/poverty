@@ -28,6 +28,9 @@ def main(hparamconfig="hparam_config.yaml"):
     opt_hparams = {}
 
     data_config_params = config_hparams["data"]
+    opt_hparams["data"] = {}
+    opt_hparams["data"]["outcome"] = data_config_params["outcome"]
+    opt_hparams["data"]["weight"] = data_config_params["weight"]
     if "gan" in data_config_params:
         gan_config_params = data_config_params["gan"]
         objectspath = gan_config_params["objectspath"]

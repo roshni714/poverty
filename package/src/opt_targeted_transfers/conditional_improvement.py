@@ -119,7 +119,6 @@ def get_conditional_improvement_regressor(
         def loss_function(predictor, X, benefits):
             predicted_benefits = predictor(torch.Tensor(X)).squeeze()
             actual_benefits = torch.Tensor(benefits)
-            assert predicted_benefits.shape == actual_benefits.shape
             return (predicted_benefits - actual_benefits) ** 2
 
         optimizer = torch.optim.Adam(predictor.parameters(), lr=lr)
