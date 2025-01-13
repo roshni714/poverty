@@ -26,9 +26,10 @@ def run_evaluation(tt, test_covariate_dataset, test_dataset, savepath):
         metrics=["post_transfer_poverty_rate", "post_transfer_poverty_gap"],
         budgets=BUDGETS,
     )
+    new_dic = {}
     for metric in auc_res:
-        del auc_res[metric]["results"]
-    write_result(savepath + "_auc.csv", auc_res)
+        new_dic[metric] = auc_res[metric]["auc"]
+    write_result(savepath + "_auc.csv", new_dic)
 
 
 def learn_continuous_rate(
@@ -62,6 +63,7 @@ def learn_continuous_rate(
         n_bins=int(continuous_rate_params["density_estimation"]["n_bins"]),
         degree=int(continuous_rate_params["density_estimation"]["degree"]),
     )
+    all_res = []
     for budget in BUDGETS:
         tt.set_budget(budget)
         tt.run_opt(
@@ -69,14 +71,17 @@ def learn_continuous_rate(
         )
         res = tt.evaluate(test_dataset)
         write_result(savepath + ".csv", res)
-    auc_res = tt.compute_auc(
-        test_dataset=test_dataset,
-        test_covariate_dataset=test_covariate_dataset,
-        metrics=["post_transfer_poverty_rate", "post_transfer_poverty_gap"],
-        budgets=BUDGETS,
-    )
-    for metric in auc_res:
-        del auc_res[metric]["results"]
+        all_res.append(res)
+
+    auc_res = {}
+    metrics = ["post_transfer_poverty_rate", "post_transfer_poverty_gap"]
+    for metric in metrics:
+        y_items = []
+        for res in all_res:
+            y_items.append(res[metric])
+        auc = np.trapz(y_items, x=BUDGETS)
+        auc_res[metric] = auc
+
     write_result(savepath + "_auc.csv", auc_res)
 
 
@@ -121,7 +126,12 @@ def learn_continuous_gap(
         continuous_gap_params["neural_network"][hparam] = int(
             continuous_gap_params["neural_network"][hparam]
         )
-    tt.fit(train_dataset, validation_dataset, **continuous_gap_params["neural_network"])
+    tt.fit(
+        train_dataset,
+        validation_dataset,
+        n_regressors=continuous_gap_params["n_regressors"],
+        **continuous_gap_params["neural_network"]
+    )
     run_evaluation(tt, test_covariate_dataset, test_dataset, savepath)
 
 
@@ -198,23 +208,26 @@ def main(
     name = config.split("/")[1].split(".yaml")[0]
     savepath = savedir + "/" + name
 
+    METHODS = {
+        "continuous_rate": learn_continuous_rate,
+        "binary_rate": learn_binary_rate,
+        "continuous_gap": learn_continuous_gap,
+        "binary_gap": learn_binary_gap,
+    }
+
     for key in config_keys:
-        if key == "continuous_rate":
-            continuous_rate_params = config_hparam[key]
-            learn_continuous_rate(
+        if key in METHODS:
+            method = METHODS[key]
+            method(
                 train_dataset,
                 validation_dataset,
                 test_covariate_dataset,
                 test_dataset,
-                continuous_rate_params,
+                config_hparam[key],
                 savepath,
             )
-        elif key == "binary_rate":
-            binary_rate_params = config_hparam[key]
-        elif key == "continuous_gap":
-            continuous_gap_params = config_hparam[key]
-        elif key == "binary_gap":
-            binary_gap_params = config_hparam[key]
+        else:
+            continue
 
 
 if __name__ == "__main__":

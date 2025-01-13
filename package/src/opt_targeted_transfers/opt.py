@@ -145,7 +145,7 @@ class RateTargetedTransfers(TargetedTransfers):
         :type tolerance: float or None
         """
         super().__init__(c_bar=c_bar, budget=budget)
-        self.name = "rate"
+        self.name = "continuous_rate"
         self.density_estimator = None
 
     def fit(
@@ -494,7 +494,7 @@ class GapTargetedTransfers(TargetedTransfers):
         """
 
         super().__init__(c_bar=c_bar, budget=budget)
-        self.name = "gap"
+        self.name = "continuous_gap"
         self.quantile_regressors = None
 
     def fit(
