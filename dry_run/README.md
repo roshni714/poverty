@@ -34,18 +34,18 @@ python main.py generate --objectspath pickled/objects-maxepochs=3000_lr=0.001_ba
 ```
 
 # Hyperparameter Search
-Running the following command will run a hyperparameter search for all procedures and hyperparameters specified in the `hparamconfig` YAML file. The `configs` directory has example config files. In the config file, specify what data will be used for the hyperparameter search; `gan` refers to GAN-generated data and `gt` refers to re-using the ground truth training dataset. In addition, the config file should specify the hyperparameter ranges for a given learning approach (e.g. rate targeting, binary gap targeting, or continuous gap targeting). If a certain hyperparameter is not specified in the config file, the script uses a default value; see default hyperparameter values [here](https://github.com/roshni714/poverty/blob/master/dry_run/configs/default_config.yml). This script will produce a YAML file with the optimal hyperparameter values.
+Running the following command will run a hyperparameter search for all procedures and hyperparameters specified in the `hparamconfig` YAML file. The `configs` directory has example config files. In the config file, specify what data will be used for the hyperparameter search; `gan` refers to GAN-generated data and `gt` refers to re-using the ground truth training dataset. In addition, the config file should specify the hyperparameter ranges for a given learning approach (e.g. rate targeting, binary gap targeting, or continuous gap targeting). If a certain hyperparameter is not specified in the config file, the script uses a default value; see default hyperparameter values [here](https://github.com/roshni714/poverty/blob/master/dry_run/configs/default_config.yml). This script will produce a YAML file with the optimal hyperparameter values. The config file will be saved to `savedir` which is also specified by the config files.
 
 ```
-mkdir hparam_results
-python main_hp.py main --hparamconfig hparam_config.yml
+mkdir hparam/results
+python main_hparam.py main --hparamconfig hparam_config.yml
 ```
 
 # Learning + Evaluation
-Running the following command will fit the targeted transfer methods with hyperparameters specified in the `config` YAML file. Each config file specified the outcome and weight variable of the dataset, the learning method (binary/continuous gap targeting, binary/continuous rate targeting), and the hyperparameters used for fitting that method. The script will produce csv files with evaluation and AUC results for each learning method.
+Running the following command will fit the targeted transfer methods with hyperparameters specified in the `config` YAML file. Each config file specified the outcome and weight variable of the dataset, the learning method (binary/continuous gap targeting, binary/continuous rate targeting), the hyperparameters used for fitting that method, and where the results should be saved `savedir`. The script will produce csv files with evaluation and AUC results for each learning method. 
 
 ```
-mkdir learn_results
-python main_learn.py main --config output_gan_continuous_gap.yaml --trainpath data/train.parquet --testpath data/test.parquet --savedir learn_results
+mkdir learn/results
+python main_learn.py main --config output_gan_continuous_gap.yaml --trainpath data/train.parquet --testpath data/test.parquet
 ```
 

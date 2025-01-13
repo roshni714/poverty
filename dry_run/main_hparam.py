@@ -1,7 +1,12 @@
 import yaml
 import argh
-from dry_run.hparam.data_generators import get_wgan_data_generator, get_gt_data_generator
-from dry_run.hparam.density_estimation_hparam_search import get_optimal_density_estimation_parameters
+from dry_run.hparam.data_generators import (
+    get_wgan_data_generator,
+    get_gt_data_generator,
+)
+from dry_run.hparam.density_estimation_hparam_search import (
+    get_optimal_density_estimation_parameters,
+)
 from knapsack_hparam_search import get_optimal_knapsack_parameters
 import os
 from dry_run.hparam.nn_hparam_search import (
@@ -27,6 +32,7 @@ def main(hparamconfig="hparam_config.yaml"):
     savedir = config_hparams["savedir"]
 
     opt_hparams = {}
+    opt_hparams["savedir"] = "learn/results"
 
     data_config_params = config_hparams["data"]
     opt_hparams["data"] = {}
@@ -70,13 +76,17 @@ def main(hparamconfig="hparam_config.yaml"):
                 "density_estimation"
             ] = opt_density_estimation_hparams
 
-            opt_n_alpha = get_optimal_knapsack_parameters(rate["n_alpha"], data_generator=data_generator, 
-                                            original_cols=original_cols,
-                                            n_train=ntrain, 
-                                            n_val=nval, 
-                                            n_test=ntest,
-                                            outcome=outcome, weight=weight,
-                                            density_estimation_params=opt_density_estimation_params)
+            opt_n_alpha = get_optimal_knapsack_parameters(
+                rate["n_alpha"],
+                data_generator=data_generator,
+                original_cols=original_cols,
+                n_train=ntrain,
+                n_val=nval,
+                n_test=ntest,
+                outcome=outcome,
+                weight=weight,
+                density_estimation_params=opt_density_estimation_params,
+            )
 
             opt_hparams["continuous_rate"]["n_alpha"] = opt_n_alpha
     if "binary_rate" in config_hparams:
