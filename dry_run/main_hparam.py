@@ -15,15 +15,15 @@ from hparam.nn_hparam_search import (
 )
 
 
-@argh.arg("--hparamconfig", default="configs/hparam_config.yml")
-def main(hparamconfig="hparam_config.yaml"):
+@argh.arg("--config", default="hparam/configs/hparam_config.yml")
+def main(config="hparam_config.yaml"):
     """
     Main function to optimize hyperparameters.
 
     Args:
         hparamconfig (str): Path to the hyperparameter configuration file. This file contains all hyperparameter ranges that to be optimized and what data to use for the hyperparameter search.
     """
-    with open(hparamconfig) as stream:
+    with open(config) as stream:
         try:
             config_hparams = yaml.safe_load(stream)
         except yaml.YAMLError as exc:
@@ -54,7 +54,7 @@ def main(hparamconfig="hparam_config.yaml"):
     outcome = data_config_params["outcome"]
     weight = data_config_params["weight"]
 
-    name = hparamconfig.split("/")[-1].split(".yaml")[0]
+    name = config.split("/")[-1].split(".yaml")[0]
 
     print(config_hparams)
 

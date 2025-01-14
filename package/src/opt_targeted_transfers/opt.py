@@ -560,11 +560,29 @@ class GapTargetedTransfers(TargetedTransfers):
             all_assignments.append(assignments)
         # Get the assignments that have cost lower than budget
         idx = bisect_left(costs, self.budget)
-        self.assignments = all_assignments[idx - 1]
+        left_cost = costs[idx-1]
+        print(costs)
+        print(self.budget, idx)
 
-        # TODO: Add back interpolation here if idx-1 is between two entries.
-        return all_assignments[idx - 1]
+        if left_cost == self.budget or idx == len(costs):
+            self.assignments = all_assignments[idx - 1]
+            return all_assignments[idx - 1]
+        elif self.budget > left_cost:
+            right_cost = costs[idx]
+            assert self.budget > left_cost and self.budget <= right_cost
+            left_assignments = all_assignments[idx-1]
+            right_assignments = all_assignments[idx]
 
+            actual_assignments = {x_idx: [] for x_idx in range(len(X_test))}
+            for i in range(len(X_test)):
+                left_transfer = left_assignments[i][0][0]
+                right_transfer = right_assignments[i][0][0]
+                slope = (right_transfer - left_transfer) / (right_cost - left_cost)
+                intercept = left_transfer - slope * left_cost
+                actual_transfer = slope * self.budget + intercept
+                actual_assignments[i].append((actual_transfer, 1.0))
+            self.assignments = actual_assignments
+            return actual_assignments
 
 class OracleGapTargetedTransfers(TargetedTransfers):
     """

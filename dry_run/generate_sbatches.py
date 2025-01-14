@@ -61,12 +61,12 @@ def generate_hparam_run():
     configs = [
         "gan_continuous_rate.yaml",
         "gt_continuous_rate.yaml",
-        "gan_binary_rate.yaml",
-        "gt_binary_rate.yaml",
-        "gan_binary_gap.yaml",
-        "gan_continuous_gap.yaml",
-        "gt_binary_gap.yaml",
-        "gt_continuous_gap.yaml",
+        #"gan_binary_rate.yaml",
+        #"gt_binary_rate.yaml",
+        #"gan_binary_gap.yaml",
+        #"gan_continuous_gap.yaml",
+        #"gt_binary_gap.yaml",
+        #"gt_continuous_gap.yaml",
     ]
 
     for config in configs:
@@ -77,7 +77,7 @@ def generate_hparam_run():
                 SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id),
                 file=f,
             )
-            base_cmd = f"python main_hparam.py main --hparamconfig hparam/test_configs/{config}"
+            base_cmd = f"python main_hparam.py main --config hparam/test_configs/{config}"
             print(base_cmd, file=f)
             print("sleep 1", file=f)
 
