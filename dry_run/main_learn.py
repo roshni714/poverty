@@ -66,7 +66,7 @@ def learn_continuous_rate(
     for budget in BUDGETS:
         tt.set_budget(budget)
         tt.run_opt(
-            test_covariate_dataset, n_alpha=int(continuous_rate_params["n_alpha"])
+            test_covariate_dataset, n_alpha=continuous_rate_params["n_alpha"]
         )
         res = tt.evaluate(test_dataset)
         write_result(savepath + ".csv", res)
@@ -97,18 +97,12 @@ def learn_binary_rate(
     """
     print("Learning binary rate targeted transfers...")
     tt = BinaryRateTargetedTransfers(
-        c_bar=C_BAR, n_regressors=int(binary_rate_params["n_regressors"])
+        c_bar=C_BAR, n_regressors=binary_rate_params["n_regressors"]
     )
-    for hparam in binary_rate_params["neural_network"]:
-        binary_rate_params["neural_network"][hparam] = int(
-            binary_rate_params["neural_network"][hparam]
-        )
     tt.fit(
         train_dataset,
         validation_dataset,
-        n_layers=binary_rate_params["neural_network"]["n_layers"],
-        n_hidden_units=binary_rate_params["neural_network"]["n_hidden_units"],
-        lr=binary_rate_params["neural_network"]["lr"],
+        **binary_rate_params["neural_network"]
     )
     tt.optimize_transfers_for_budget_grid(test_covariate_dataset, BUDGETS)
     run_evaluation(tt, test_covariate_dataset, test_dataset, savepath)
@@ -127,18 +121,12 @@ def learn_continuous_gap(
     """
     print("Learning continuous gap targeted transfers...")
     tt = GapTargetedTransfers(
-        c_bar=C_BAR, n_regressors=int(continuous_gap_params["n_regressors"])
+        c_bar=C_BAR, n_regressors=continuous_gap_params["n_regressors"]
     )
-    for hparam in continuous_gap_params["neural_network"]:
-        continuous_gap_params["neural_network"][hparam] = int(
-            continuous_gap_params["neural_network"][hparam]
-        )
     tt.fit(
         train_dataset,
         validation_dataset,
-        n_layers=continuous_gap_params["neural_network"]["n_layers"],
-        n_hidden_units=continuous_gap_params["neural_network"]["n_hidden_units"],
-        lr=continuous_gap_params["neural_network"]["lr"],
+        **continuous_gap_params["neural_network"],
     )
     run_evaluation(tt, test_covariate_dataset, test_dataset, savepath)
 
@@ -156,18 +144,12 @@ def learn_binary_gap(
     """
     print("Learning binary gap targeted transfers...")
     tt = BinaryGapTargetedTransfers(
-        c_bar=C_BAR, n_regressors=int(binary_gap_params["n_regressors"])
+        c_bar=C_BAR, n_regressors=binary_gap_params["n_regressors"]
     )
-    for hparam in binary_gap_params["neural_network"]:
-        binary_gap_params["neural_network"][hparam] = int(
-            binary_gap_params["neural_network"][hparam]
-        )
     tt.fit(
         train_dataset,
         validation_dataset,
-        n_layers=binary_gap_params["neural_network"]["n_layers"],
-        n_hidden_units=binary_gap_params["neural_network"]["n_hidden_units"],
-        lr=binary_gap_params["neural_network"]["lr"],
+        **binary_gap_params["neural_network"],
     )
     tt.optimize_transfers_for_budget_grid(test_covariate_dataset, BUDGETS)
     run_evaluation(tt, test_covariate_dataset, test_dataset, savepath)

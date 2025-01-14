@@ -40,7 +40,7 @@ def get_optimal_n_regressors(
     """
 
     train_df = data_generator(nsamples=ntrain, seed=547396234)
-    feature_list = original_cols
+    feature_list = original_cols.copy()
     feature_list.remove(outcome)
     feature_list.remove(weight)
     train_dataset = Dataset(train_df, outcome=outcome, weight=weight, covs=feature_list)
@@ -70,9 +70,7 @@ def get_optimal_n_regressors(
             tt.fit(
                 train_dataset,
                 val_dataset,
-                n_hidden_units=neural_network_params["n_hidden_units"],
-                n_layers=neural_network_params["n_layers"],
-                lr=neural_network_params["lr"],
+                **neural_network_params,
             )
             tt.optimize_transfers_for_budget_grid(
                 test_covariate_dataset=test_covariate_dataset, budgets=BUDGETS
@@ -94,6 +92,8 @@ def get_optimal_n_regressors(
 
     df = pd.DataFrame.from_records(results)
     df.to_csv(savepath, index=False)
-    df = df.groupby(["n_transfer_values"]).mean().reset_index()
+    df = df.groupby(["n_regressors"]).mean().reset_index()
     optimal_params = df.loc[df["auc"].idxmin()].to_dict()
-    return optimal_params["n_transfer_values"]
+    for hparam in optimal_params:
+        optimal_params[hparam] = int(optimal_params[hparam])
+    return optimal_params["n_regressors"]

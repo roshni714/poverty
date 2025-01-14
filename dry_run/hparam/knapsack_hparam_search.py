@@ -34,7 +34,7 @@ def get_optimal_knapsack_parameters(
     """
 
     train_df = data_generator(nsamples=ntrain, seed=547396234)
-    feature_list = original_cols
+    feature_list = original_cols.copy()
     feature_list.remove(outcome)
     feature_list.remove(weight)
     train_dataset = Dataset(train_df, outcome=outcome, weight=weight, covs=feature_list)
@@ -72,4 +72,6 @@ def get_optimal_knapsack_parameters(
     df.to_csv(savepath, index=False)
     df = df.groupby(["n_alpha"]).mean().reset_index()
     optimal_params = df.loc[df["auc"].idxmin()].to_dict()
+    for hparam in optimal_params:
+        optimal_params[hparam] = int(optimal_params[hparam])
     return optimal_params["n_alpha"]

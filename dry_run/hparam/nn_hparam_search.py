@@ -109,6 +109,8 @@ def get_optimal_nn_improvement_parameters(
     del optimal_params["loss"]
     del optimal_params["transfer_size"]
     del optimal_params["trial"]
+    for hparam in ["n_hidden_units", "n_layers"]:
+        optimal_params[hparam] = int(optimal_params[hparam])
     return optimal_params
 
 
@@ -203,4 +205,6 @@ def get_optimal_nn_quantile_regression_parameters(
     del optimal_params["pinball_loss"]
     del optimal_params["quantile"]
     del optimal_params["trial"]
+    for hparam in ["n_hidden_units", "n_layers"]:
+        optimal_params[hparam] = int(optimal_params[hparam])
     return optimal_params

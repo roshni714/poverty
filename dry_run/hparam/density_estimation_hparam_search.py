@@ -53,7 +53,7 @@ def get_optimal_density_estimation_parameters(
 
     train_df = data_generator(nsamples=ntrain, seed=547396234)
     val_df = data_generator(nsamples=nval, seed=79809342)
-    feature_list = original_cols
+    feature_list = original_cols.copy()
     feature_list.remove(outcome)
     feature_list.remove(weight)
     train_dataset = Dataset(train_df, outcome=outcome, weight=weight, covs=feature_list)
@@ -111,4 +111,6 @@ def get_optimal_density_estimation_parameters(
     optimal_params = df.loc[df["nll"].idxmin()].to_dict()
     del optimal_params["nll"]
     del optimal_params["trial"]
+    for hparam in optimal_params:
+        optimal_params[hparam] = int(optimal_params[hparam])
     return optimal_params

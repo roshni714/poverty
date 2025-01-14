@@ -54,7 +54,7 @@ def main(hparamconfig="hparam_config.yaml"):
     outcome = data_config_params["outcome"]
     weight = data_config_params["weight"]
 
-    name = hparamconfig.split("/")[1].split(".yaml")[0]
+    name = hparamconfig.split("/")[-1].split(".yaml")[0]
 
     print(config_hparams)
 
@@ -135,6 +135,7 @@ def main(hparamconfig="hparam_config.yaml"):
         print(opt_nn_hparams)
 
         opt_hparams["continuous_gap"]["neural_network"] = opt_nn_hparams
+
         opt_n_regressors = get_optimal_n_regressors(
             continuous_gap["n_regressors"],
             loss_type="continuous_gap",
