@@ -47,7 +47,7 @@ def learn_continuous_rate(
     features, _ = forward_selection(
         train_dataset,
         validation_dataset,
-        max_features=int(continuous_rate_params["density_estimation"]["n_features"]),
+        max_features=continuous_rate_params["density_estimation"]["n_features"],
     )
     train_dataset.covs = features
     validation_dataset.covs = features
@@ -158,12 +158,10 @@ def learn_binary_gap(
 @argh.arg("--config", default="hparam_results/output_gan_continuous_rate.yaml")
 @argh.arg("--trainpath", default="data/train.parquet")
 @argh.arg("--testpath", default="data/test.parquet")
-@argh.arg("--savedir", default="learn_results")
 def main(
     config="hparam_results/output_gan_continuous_rate.yaml",
     trainpath="data/train.parquet",
     testpath="data/test.parquet",
-    savedir="learn_results",
 ):
     """
     Main function to learn and evaluate targeted transfers.

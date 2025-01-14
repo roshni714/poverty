@@ -68,6 +68,7 @@ def get_optimal_knapsack_parameters(
                 test_covariate_dataset=test_covariate_dataset,
                 metrics=["post_transfer_poverty_rate"],
                 budgets=BUDGETS,
+                n_alpha=n_alpha,
             )
             results.append(
                 {
