@@ -19,6 +19,8 @@ def run_evaluation(tt, test_covariate_dataset, test_dataset, savepath):
         tt.run_opt(test_covariate_dataset)
         res = tt.evaluate(test_dataset)
         write_result(savepath + ".csv", res)
+        tt.evaluate_equity(test_dataset, savepath + f"_budget={budget}.csv")
+
     auc_res = tt.compute_auc(
         test_dataset=test_dataset,
         test_covariate_dataset=test_covariate_dataset,
@@ -65,11 +67,10 @@ def learn_continuous_rate(
     all_res = []
     for budget in BUDGETS:
         tt.set_budget(budget)
-        tt.run_opt(
-            test_covariate_dataset, n_alpha=continuous_rate_params["n_alpha"]
-        )
+        tt.run_opt(test_covariate_dataset, n_alpha=continuous_rate_params["n_alpha"])
         res = tt.evaluate(test_dataset)
         write_result(savepath + ".csv", res)
+        tt.evaluate_equity(test_dataset, savepath + f"_budget={budget}.csv")
         all_res.append(res)
 
     auc_res = {}
@@ -99,11 +100,7 @@ def learn_binary_rate(
     tt = BinaryRateTargetedTransfers(
         c_bar=C_BAR, n_regressors=binary_rate_params["n_regressors"]
     )
-    tt.fit(
-        train_dataset,
-        validation_dataset,
-        **binary_rate_params["neural_network"]
-    )
+    tt.fit(train_dataset, validation_dataset, **binary_rate_params["neural_network"])
     tt.optimize_transfers_for_budget_grid(test_covariate_dataset, BUDGETS)
     run_evaluation(tt, test_covariate_dataset, test_dataset, savepath)
 
