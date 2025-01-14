@@ -1,5 +1,9 @@
-from opt_targeted_transfers import BinaryRateTargetedTransfers, BinaryGapTargetedTransfers, GapTargetedTransfers
-from opt_targeted_transfers import Dataset
+from opt_targeted_transfers import (
+    BinaryRateTargetedTransfers,
+    BinaryGapTargetedTransfers,
+    GapTargetedTransfers,
+)
+from opt_targeted_transfers import Dataset, split
 import pandas as pd
 from constants import C_BAR, BUDGETS
 
@@ -10,7 +14,6 @@ def get_optimal_n_regressors(
     data_generator,
     original_cols,
     ntrain,
-    nval,
     ntest,
     outcome,
     weight,
@@ -37,12 +40,10 @@ def get_optimal_n_regressors(
     """
 
     train_df = data_generator(nsamples=ntrain, seed=547396234)
-    val_df = data_generator(nsamples=nval, seed=79809342)
     feature_list = original_cols
     feature_list.remove(outcome)
     feature_list.remove(weight)
     train_dataset = Dataset(train_df, outcome=outcome, weight=weight, covs=feature_list)
-    val_dataset = Dataset(val_df, outcome=outcome, weight=weight, covs=feature_list)
 
     if loss_type == "binary_rate":
         TT = BinaryRateTargetedTransfers
@@ -63,10 +64,19 @@ def get_optimal_n_regressors(
         test_dataset = Dataset(
             test_df, outcome=outcome, weight=weight, covs=feature_list
         )
+        train_dataset, val_dataset = split(train_dataset)
         for n_regressors in n_regressors_range:
-            tt = TT(c_bar=C_BAR, n_regressors = n_regressors)
-            tt.fit(train_dataset, val_dataset, **neural_network_params)
-            tt.optimize_transfers_for_budget_grid(test_covariate_dataset=test_covariate_dataset, budgets=BUDGETS)
+            tt = TT(c_bar=C_BAR, n_regressors=n_regressors)
+            tt.fit(
+                train_dataset,
+                val_dataset,
+                n_hidden_units=neural_network_params["n_hidden_units"],
+                n_layers=neural_network_params["n_layers"],
+                lr=neural_network_params["lr"],
+            )
+            tt.optimize_transfers_for_budget_grid(
+                test_covariate_dataset=test_covariate_dataset, budgets=BUDGETS
+            )
 
             res = tt.compute_auc(
                 test_dataset=test_dataset,

@@ -5,7 +5,9 @@ import tqdm
 import copy
 
 
-def get_conditional_improvement_loss(val_dataset, loss_type, predictor, t, c_bar=2.15):
+def get_conditional_improvement_loss(
+    validation_dataset, loss_type, predictor, t, c_bar=2.15
+):
     """
     Get the conditional gap improvement loss for a given transfer size.
 
@@ -20,7 +22,7 @@ def get_conditional_improvement_loss(val_dataset, loss_type, predictor, t, c_bar
     :return: The conditional gap improvement loss.
     :rtype: float
     """
-    X, y, r = val_dataset.get_data()
+    X, y, r = validation_dataset.get_data()
     if loss_type == "binary_gap":
         current_gaps = np.maximum(c_bar - y, 0)
         gaps_after_transfer = np.maximum(c_bar - t - y, 0)

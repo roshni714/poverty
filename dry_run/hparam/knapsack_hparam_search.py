@@ -1,5 +1,5 @@
 from opt_targeted_transfers import RateTargetedTransfers
-from opt_targeted_transfers import Dataset
+from opt_targeted_transfers import Dataset, split
 import pandas as pd
 from constants import C_BAR, BUDGETS
 
@@ -9,7 +9,6 @@ def get_optimal_knapsack_parameters(
     data_generator,
     original_cols,
     ntrain,
-    nval,
     ntest,
     outcome,
     weight,
@@ -35,14 +34,13 @@ def get_optimal_knapsack_parameters(
     """
 
     train_df = data_generator(nsamples=ntrain, seed=547396234)
-    val_df = data_generator(nsamples=nval, seed=79809342)
     feature_list = original_cols
     feature_list.remove(outcome)
     feature_list.remove(weight)
     train_dataset = Dataset(train_df, outcome=outcome, weight=weight, covs=feature_list)
-    val_dataset = Dataset(val_df, outcome=outcome, weight=weight, covs=feature_list)
 
     tt = RateTargetedTransfers(c_bar=C_BAR)
+    train_dataset, val_dataset = split(train_dataset)
     tt.fit(train_dataset, val_dataset, **density_estimation_params)
 
     results = []

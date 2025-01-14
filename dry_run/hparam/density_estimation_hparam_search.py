@@ -1,4 +1,4 @@
-from opt_targeted_transfers import get_cond_density_estimator, Dataset, get_nll
+from opt_targeted_transfers import get_cond_density_estimator, Dataset, get_nll, split
 from feature_selection import forward_selection
 import pandas as pd
 
@@ -76,7 +76,7 @@ def get_optimal_density_estimation_parameters(
                 weight=weight,
                 covs=ordered_features[:n_features],
             )
-            val_dataset = Dataset(
+            big_val_dataset = Dataset(
                 val_df,
                 outcome=outcome,
                 weight=weight,
@@ -85,13 +85,15 @@ def get_optimal_density_estimation_parameters(
             for degree in degree_range:
                 for n_bins in n_bins_range:
                     for n_knots in n_knots_range:
+                        train_dataset, val_dataset = split(train_dataset)
                         density_estimator = get_cond_density_estimator(
-                            train_dataset,
+                            train_dataset=train_dataset,
+                            validation_dataset=val_dataset,
                             degree=degree,
                             n_bins=n_bins,
                             n_knots=n_knots,
                         )
-                        nll = get_nll(val_dataset, density_estimator)
+                        nll = get_nll(big_val_dataset, density_estimator)
                         results.append(
                             {
                                 "n_features": n_features,

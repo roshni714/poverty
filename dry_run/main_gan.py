@@ -1,6 +1,8 @@
 from gan.gan_data_gen import (
     load_data_for_wgan,
     train_wgan,
+)
+from hparam.data_generators import (
     generate_synthetic_data,
 )
 import argh

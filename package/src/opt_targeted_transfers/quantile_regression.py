@@ -7,7 +7,7 @@ import copy
 from opt_targeted_transfers.dataset_utils import standardize
 
 
-def get_quantile_loss(val_dataset, quantile_regressor, quantile):
+def get_quantile_loss(validation_dataset, quantile_regressor, quantile):
     """
     Get the pinball loss for a given quantile regressor.
 
@@ -20,7 +20,7 @@ def get_quantile_loss(val_dataset, quantile_regressor, quantile):
     :return: The pinball loss.
     :rtype: float
     """
-    X, y, r = val_dataset.get_data()
+    X, y, r = validation_dataset.get_data()
     y_pred = quantile_regressor(X)
     assert y_pred.shape == y.shape
     pinball_loss = quantile * np.maximum(y - y_pred, 0) + (1 - quantile) * np.maximum(

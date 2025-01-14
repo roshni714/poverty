@@ -73,7 +73,7 @@ class TargetedTransfers:
             {
                 "budget": self.budget,
                 "policy_type": self.name,
-                "d": d, 
+                "d": d,
             }
         )
         return result
@@ -408,9 +408,7 @@ class BinaryTargetedTransfers(TargetedTransfers):
 class BinaryGapTargetedTransfers(BinaryTargetedTransfers):
     def __init__(self, c_bar=2.15, budget=None, n_regressors=20):
 
-        super().__init__(
-            c_bar=c_bar, budget=budget, n_regressors=n_regressors
-        )
+        super().__init__(c_bar=c_bar, budget=budget, n_regressors=n_regressors)
 
         self.name = "binary_gap"
 
@@ -447,9 +445,7 @@ class BinaryGapTargetedTransfers(BinaryTargetedTransfers):
 class BinaryRateTargetedTransfers(BinaryTargetedTransfers):
     def __init__(self, c_bar=2.15, budget=None, n_regressors=20):
 
-        super().__init__(
-            c_bar=c_bar, budget=budget, n_regressors=n_regressors
-        )
+        super().__init__(c_bar=c_bar, budget=budget, n_regressors=n_regressors)
 
         self.name = "binary_rate"
 

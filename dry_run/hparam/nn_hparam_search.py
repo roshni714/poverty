@@ -1,5 +1,6 @@
 from opt_targeted_transfers import (
     Dataset,
+    split,
     get_quantile_regressor,
     get_quantile_loss,
     get_conditional_improvement_regressor,
@@ -62,7 +63,7 @@ def get_optimal_nn_improvement_parameters(
         covs.remove(outcome)
         covs.remove(weight)
         train_dataset = Dataset(train_df, outcome=outcome, weight=weight, covs=covs)
-        val_dataset = Dataset(val_df, outcome=outcome, weight=weight, covs=covs)
+        big_val_dataset = Dataset(val_df, outcome=outcome, weight=weight, covs=covs)
 
         for transfer_size in transfer_sizes:
             for n_layers in n_layers_range:
@@ -71,9 +72,12 @@ def get_optimal_nn_improvement_parameters(
                         print(
                             f"Training neural network with {n_layers} layers, {n_hidden_units} hidden units, and learning rate {lr} for transfer size {transfer_size} during trial {trial}..."
                         )
+                        train_dataset, val_dataset = split(train_dataset)
+
                         model = get_conditional_improvement_regressor(
                             loss_type=loss_type,
-                            dataset=train_dataset,
+                            train_dataset=train_dataset,
+                            validation_dataset=val_dataset,
                             t=transfer_size,
                             c_bar=C_BAR,
                             n_layers=n_layers,
@@ -81,7 +85,7 @@ def get_optimal_nn_improvement_parameters(
                             lr=lr,
                         )
                         loss = get_conditional_improvement_loss(
-                            val_dataset,
+                            big_val_dataset,
                             loss_type=loss_type,
                             predictor=model,
                             t=transfer_size,
@@ -158,7 +162,7 @@ def get_optimal_nn_quantile_regression_parameters(
         covs.remove(outcome)
         covs.remove(weight)
         train_dataset = Dataset(train_df, outcome=outcome, weight=weight, covs=covs)
-        val_dataset = Dataset(val_df, outcome=outcome, weight=weight, covs=covs)
+        big_val_dataset = Dataset(val_df, outcome=outcome, weight=weight, covs=covs)
 
         for quantile in quantiles:
             for n_layers in n_layers_range:
@@ -167,15 +171,17 @@ def get_optimal_nn_quantile_regression_parameters(
                         print(
                             f"Training neural network with {n_layers} layers, {n_hidden_units} hidden units, and learning rate {lr} for quantile {quantile} during trial {trial}..."
                         )
+                        train_dataset, val_dataset = split(train_dataset)
                         model = get_quantile_regressor(
-                            dataset=train_dataset,
+                            train_dataset=train_dataset,
+                            validation_dataset=val_dataset,
                             quantile=quantile,
                             n_layers=n_layers,
                             n_hidden_units=n_hidden_units,
                             lr=lr,
                         )
                         pinball_loss = get_quantile_loss(
-                            val_dataset=val_dataset,
+                            validation_dataset=big_val_dataset,
                             quantile_regressor=model,
                             quantile=quantile,
                         ).item()
