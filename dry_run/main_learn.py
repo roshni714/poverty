@@ -10,7 +10,7 @@ from opt_targeted_transfers import (
     write_result,
     split,
 )
-from data_loader import load_datasets
+from dry_run.learn.data_loader import load_datasets
 from constants import C_BAR, BUDGETS
 
 

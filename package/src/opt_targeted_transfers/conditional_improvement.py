@@ -21,11 +21,11 @@ def get_conditional_improvement_loss(val_dataset, loss_type, predictor, t, c_bar
     :rtype: float
     """
     X, y, r = val_dataset.get_data()
-    if loss_type == "gap":
+    if loss_type == "binary_gap":
         current_gaps = np.maximum(c_bar - y, 0)
         gaps_after_transfer = np.maximum(c_bar - t - y, 0)
         benefits = current_gaps - gaps_after_transfer
-    elif loss_type == "rate":
+    elif loss_type == "binary_rate":
         current_gaps = (y <= c_bar).astype(float)
         gaps_after_transfer = (y + t <= c_bar).astype(float)
         benefits = current_gaps - gaps_after_transfer
@@ -80,7 +80,7 @@ def get_conditional_improvement_regressor(
     X_train, X_mean, X_std = standardize(X_train)
     X_val = (X_val - X_mean) / X_std
 
-    if loss_type == "gap":
+    if loss_type == "binary_gap":
         current_gaps_train = np.maximum(c_bar - y_train, 0)
         gaps_after_transfer_train = np.maximum(c_bar - t - y_train, 0)
         benefits_train = current_gaps_train - gaps_after_transfer_train
@@ -89,7 +89,7 @@ def get_conditional_improvement_regressor(
         gaps_after_transfer_val = np.maximum(c_bar - t - y_val, 0)
         benefits_val = current_gaps_val - gaps_after_transfer_val
 
-    elif loss_type == "rate":
+    elif loss_type == "binary_rate":
         current_gaps_train = (y_train <= c_bar).astype(float)
         gaps_after_transfer_train = (y_train + t <= c_bar).astype(float)
         benefits_train = current_gaps_train - gaps_after_transfer_train

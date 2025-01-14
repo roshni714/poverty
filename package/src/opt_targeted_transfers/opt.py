@@ -71,8 +71,9 @@ class TargetedTransfers:
         d = len(test_dataset.covs)
         result.update(
             {
+                "budget": self.budget,
                 "policy_type": self.name,
-                "d": d,
+                "d": d, 
             }
         )
         return result
@@ -287,13 +288,13 @@ class RateTargetedTransfers(TargetedTransfers):
 
 
 class BinaryTargetedTransfers(TargetedTransfers):
-    def __init__(self, c_bar=2.15, budget=None, n_transfer_values=20):
+    def __init__(self, c_bar=2.15, budget=None, n_regressors=20):
 
         super().__init__(c_bar=c_bar, budget=budget)
 
         self.t_to_household_estimator_map = None
-        self.n_transfer_values = n_transfer_values
-        self.candidate_t_values = np.linspace(0.01, self.c_bar, self.n_transfer_values)
+        self.n_regressors = n_regressors
+        self.candidate_t_values = np.linspace(0.01, self.c_bar, self.n_regressors)
 
     def fit(
         self,
@@ -405,10 +406,10 @@ class BinaryTargetedTransfers(TargetedTransfers):
 
 
 class BinaryGapTargetedTransfers(BinaryTargetedTransfers):
-    def __init__(self, c_bar=2.15, budget=None, n_transfer_values=20):
+    def __init__(self, c_bar=2.15, budget=None, n_regressors=20):
 
         super().__init__(
-            c_bar=c_bar, budget=budget, n_transfer_values=n_transfer_values
+            c_bar=c_bar, budget=budget, n_regressors=n_regressors
         )
 
         self.name = "binary_gap"
@@ -429,7 +430,7 @@ class BinaryGapTargetedTransfers(BinaryTargetedTransfers):
         for transfer_size in self.candidate_t_values:
             self.t_to_household_estimator_map[transfer_size] = (
                 get_conditional_improvement_regressor(
-                    loss_type="gap",
+                    loss_type=self.name,
                     train_dataset=train_dataset,
                     validation_dataset=validation_dataset,
                     t=transfer_size,
@@ -444,10 +445,10 @@ class BinaryGapTargetedTransfers(BinaryTargetedTransfers):
 
 
 class BinaryRateTargetedTransfers(BinaryTargetedTransfers):
-    def __init__(self, c_bar=2.15, budget=None, n_transfer_values=20):
+    def __init__(self, c_bar=2.15, budget=None, n_regressors=20):
 
         super().__init__(
-            c_bar=c_bar, budget=budget, n_transfer_values=n_transfer_values
+            c_bar=c_bar, budget=budget, n_regressors=n_regressors
         )
 
         self.name = "binary_rate"
@@ -468,7 +469,7 @@ class BinaryRateTargetedTransfers(BinaryTargetedTransfers):
         for transfer_size in self.candidate_t_values:
             self.t_to_household_estimator_map[transfer_size] = (
                 get_conditional_improvement_regressor(
-                    loss_type="rate",
+                    loss_type=self.name,
                     train_dataset=train_dataset,
                     validation_dataset=validation_dataset,
                     t=transfer_size,
@@ -487,13 +488,14 @@ class GapTargetedTransfers(TargetedTransfers):
     Poverty-gap targeting.
     """
 
-    def __init__(self, c_bar=2.15, budget=None):
+    def __init__(self, c_bar=2.15, budget=None, n_regressors=20):
         """
         :param c_bar: The minimum threshold value (poverty line). Defaults to 2.15.
         :type c_bar: float
         """
 
         super().__init__(c_bar=c_bar, budget=budget)
+        self.n_regressors = n_regressors
         self.name = "continuous_gap"
         self.quantile_regressors = None
 
@@ -501,7 +503,6 @@ class GapTargetedTransfers(TargetedTransfers):
         self,
         train_dataset,
         validation_dataset,
-        n_regressors=20,
         n_layers=1,
         n_hidden_units=256,
         lr=5e-3,
@@ -527,7 +528,7 @@ class GapTargetedTransfers(TargetedTransfers):
         :type seed: int
         """
 
-        quantiles = np.linspace(0.05, 0.95, n_regressors)
+        quantiles = np.linspace(0.05, 0.95, self.n_regressors)
         self.quantile_regressors = dict()
 
         for quantile in quantiles:

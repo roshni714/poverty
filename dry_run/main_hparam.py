@@ -8,6 +8,7 @@ from dry_run.hparam.density_estimation_hparam_search import (
     get_optimal_density_estimation_parameters,
 )
 from knapsack_hparam_search import get_optimal_knapsack_parameters
+from n_regressors_hparam_search import get_optimal_n_regressors
 import os
 from dry_run.hparam.nn_hparam_search import (
     get_optimal_nn_quantile_regression_parameters,
@@ -85,16 +86,16 @@ def main(hparamconfig="hparam_config.yaml"):
                 n_test=ntest,
                 outcome=outcome,
                 weight=weight,
-                density_estimation_params=opt_density_estimation_params,
+                density_estimation_params=opt_density_estimation_hparams,
             )
 
             opt_hparams["continuous_rate"]["n_alpha"] = opt_n_alpha
     if "binary_rate" in config_hparams:
         opt_hparams["binary_rate"] = {}
-        binary_gap = config_hparams["binary_rate"]
+        binary_rate = config_hparams["binary_rate"]
         opt_nn_hparams = get_optimal_nn_improvement_parameters(
-            loss_type="rate",
-            nn_hparam_ranges=binary_gap["neural_network"],
+            loss_type="binary_rate",
+            nn_hparam_ranges=binary_rate["neural_network"],
             data_generator=data_generator,
             original_cols=original_cols,
             ntrain=ntrain,
@@ -104,7 +105,18 @@ def main(hparamconfig="hparam_config.yaml"):
             savepath=f"{savedir}/nn_{name}.csv",
         )
         opt_hparams["binary_rate"]["neural_network"] = opt_nn_hparams
-        print(opt_nn_hparams)
+
+        opt_n_regressors = get_optimal_n_regressors(binary_rate["n_regressors"],
+                                                        loss_type="binary_rate",
+                                                        data_generator=data_generator,
+                                                        original_cols=original_cols,
+                                                        n_train=ntrain,
+                                                        n_val=nval,
+                                                        n_test=ntest,
+                                                        outcome=outcome,
+                                                        weight=weight,
+                                                        neural_network_params=opt_nn_hparams)
+        opt_hparams["binary_rate"]["n_transfer_values"] = opt_n_regressors
     if "continuous_gap" in config_hparams:
         opt_hparams["continuous_gap"] = {}
         continuous_gap = config_hparams["continuous_gap"]
@@ -119,12 +131,22 @@ def main(hparamconfig="hparam_config.yaml"):
             savepath=f"{savedir}/nn_{name}.csv",
         )
         opt_hparams["continuous_gap"]["neural_network"] = opt_nn_hparams
-        print(opt_nn_hparams)
+        opt_n_regressors = get_optimal_n_regressors(continuous_gap["n_regressors"],
+                                                        loss_type="continuous_gap",
+                                                        data_generator=data_generator,
+                                                        original_cols=original_cols,
+                                                        n_train=ntrain,
+                                                        n_val=nval,
+                                                        n_test=ntest,
+                                                        outcome=outcome,
+                                                        weight=weight,
+                                                        neural_network_params=opt_nn_hparams)
+        opt_hparams["continuous_gap"]["n_regressors"] = opt_n_regressors
     if "binary_gap" in config_hparams:
         opt_hparams["binary_gap"] = {}
         binary_gap = config_hparams["binary_gap"]
         opt_nn_hparams = get_optimal_nn_improvement_parameters(
-            loss_type="gap",
+            loss_type="binary_gap",
             nn_hparam_ranges=binary_gap["neural_network"],
             data_generator=data_generator,
             original_cols=original_cols,
@@ -135,7 +157,17 @@ def main(hparamconfig="hparam_config.yaml"):
             savepath=f"{savedir}/nn_{name}.csv",
         )
         opt_hparams["binary_gap"]["neural_network"] = opt_nn_hparams
-        print(opt_nn_hparams)
+        opt_n_regressors = get_optimal_n_regressors(binary_gap["n_regressors"],
+                                                        loss_type="binary_gap",
+                                                        data_generator=data_generator,
+                                                        original_cols=original_cols,
+                                                        n_train=ntrain,
+                                                        n_val=nval,
+                                                        n_test=ntest,
+                                                        outcome=outcome,
+                                                        weight=weight,
+                                                        neural_network_params=opt_nn_hparams)
+        opt_hparams["binary_gap"]["n_regressors"] = opt_n_regressors
 
     with open(f"{savedir}/output_{name}.yaml", "w") as file:
         yaml.dump(opt_hparams, file, default_flow_style=False)
