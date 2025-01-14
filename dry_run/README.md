@@ -20,8 +20,8 @@ Before running the final command, there are a few extra packages that need to be
 Running the following command will train a WGAN on 50% of the data stored in `trainpath` and save pickled outputs (generator, data wrapper, categorical variable mapping from codes to strings) to the folder `savedir`. These objects are saved so that we can generate synthetic data without retraining.
 
 ```
-mkdir pickled
-python main_gan.py train --device cpu --savedir pickled --trainpath data/train.parquet --maxepochs 3000 --lr 1e-3 --batchsize 256 --dropout 0.1
+mkdir gan/pickled
+python main_gan.py train --device cpu --savedir gan/pickled --trainpath data/train.parquet --maxepochs 3000 --lr 1e-3 --batchsize 256 --dropout 0.1
 ```
 
 # Synthetic Data Generation

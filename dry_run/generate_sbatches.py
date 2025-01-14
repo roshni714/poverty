@@ -98,12 +98,12 @@ def generate_wgan_run():
             GPU_SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id),
             file=f,
         )
-        base_cmd = "python main.py train --device cuda --savedir pickled --trainpath data/train.parquet --maxepochs {} --lr {} --batchsize {} --dropout {}".format(
+        base_cmd = "python main_gan.py train --device cuda --savedir gan/pickled --trainpath data/train.parquet --maxepochs {} --lr {} --batchsize {} --dropout {}".format(
             maxepochs, lr, batchsize, dropout
         )
         print(base_cmd, file=f)
 
-        base_cmd = "python main.py generate --objectspath pickled/objects-maxepochs={maxepochs}_lr={lr}_batchsize={batchsize}_dropout={dropout}_trial=0.pickle --nsamples 20000 --savedir data".format(
+        base_cmd = "python main_gan.py generate --objectspath gan/pickled/objects-maxepochs={maxepochs}_lr={lr}_batchsize={batchsize}_dropout={dropout}_trial=0.pickle --nsamples 20000 --savedir data".format(
             maxepochs=maxepochs,
             lr=lr,
             batchsize=batchsize,
@@ -153,7 +153,7 @@ def generate_wgan_hparam_runs():
                             print("sleep 1", file=f)
 
 
-generate_learn_run()
+# generate_learn_run()
 # generate_hparam_run()
-# generate_wgan_run()
+generate_wgan_run()
 # generate_wgan_hparam_runs()

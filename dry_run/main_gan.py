@@ -1,12 +1,10 @@
-from dry_run.gan.gan_data_gen import (
+from gan.gan_data_gen import (
     load_data_for_wgan,
     train_wgan,
     generate_synthetic_data,
 )
 import argh
 import dill
-from datetime import datetime
-import numpy as np
 
 
 @argh.arg("--dropout", default=0.1)

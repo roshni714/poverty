@@ -10,7 +10,7 @@ from opt_targeted_transfers import (
     write_result,
     split,
 )
-from dry_run.learn.data_loader import load_datasets
+from learn.data_loader import load_datasets
 from constants import C_BAR, BUDGETS
 
 
@@ -98,7 +98,7 @@ def learn_binary_rate(
     """
     print("Learning binary rate targeted transfers...")
     tt = BinaryRateTargetedTransfers(
-        c_bar=C_BAR, n_transfer_values=int(binary_rate_params["n_transfer_values"])
+        c_bar=C_BAR, n_regressors=int(binary_rate_params["n_regressors"])
     )
     for hparam in binary_rate_params["neural_network"]:
         binary_rate_params["neural_network"][hparam] = int(
@@ -121,7 +121,7 @@ def learn_continuous_gap(
     Learn the continuous gap targeted transfers
     """
     print("Learning continuous gap targeted transfers...")
-    tt = GapTargetedTransfers(c_bar=C_BAR)
+    tt = GapTargetedTransfers(c_bar=C_BAR, n_regressors=int(continuous_gap_params["n_regressors"]))
     for hparam in continuous_gap_params["neural_network"]:
         continuous_gap_params["neural_network"][hparam] = int(
             continuous_gap_params["neural_network"][hparam]
@@ -148,7 +148,7 @@ def learn_binary_gap(
     """
     print("Learning binary gap targeted transfers...")
     tt = BinaryGapTargetedTransfers(
-        c_bar=C_BAR, n_transfer_values=int(binary_gap_params["n_transfer_values"])
+        c_bar=C_BAR, n_regressors=int(binary_gap_params["n_regressors"])
     )
     for hparam in binary_gap_params["neural_network"]:
         binary_gap_params["neural_network"][hparam] = int(

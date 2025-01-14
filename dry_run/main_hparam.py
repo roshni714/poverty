@@ -1,16 +1,15 @@
 import yaml
 import argh
-from dry_run.hparam.data_generators import (
+from hparam.data_generators import (
     get_wgan_data_generator,
     get_gt_data_generator,
 )
-from dry_run.hparam.density_estimation_hparam_search import (
+from hparam.density_estimation_hparam_search import (
     get_optimal_density_estimation_parameters,
 )
-from knapsack_hparam_search import get_optimal_knapsack_parameters
-from n_regressors_hparam_search import get_optimal_n_regressors
-import os
-from dry_run.hparam.nn_hparam_search import (
+from hparam.knapsack_hparam_search import get_optimal_knapsack_parameters
+from hparam.n_regressors_hparam_search import get_optimal_n_regressors
+from hparam.nn_hparam_search import (
     get_optimal_nn_quantile_regression_parameters,
     get_optimal_nn_improvement_parameters,
 )
