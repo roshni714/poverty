@@ -1,5 +1,6 @@
 from opt_targeted_transfers import RateTargetedTransfers
 from opt_targeted_transfers import Dataset, split
+from feature_selection import forward_selection
 import pandas as pd
 from constants import C_BAR, BUDGETS
 
@@ -39,18 +40,26 @@ def get_optimal_knapsack_parameters(
     feature_list.remove(weight)
     train_dataset = Dataset(train_df, outcome=outcome, weight=weight, covs=feature_list)
 
+    
+
     tt = RateTargetedTransfers(c_bar=C_BAR)
     train_dataset, val_dataset = split(train_dataset)
-    tt.fit(train_dataset, val_dataset, **density_estimation_params)
+
+    features, _ = forward_selection(train_dataset=train_dataset, validation_dataset=val_dataset, max_features=density_estimation_params["n_features"])
+    train_dataset.covs = features
+    val_dataset.covs = features
+
+
+    tt.fit(train_dataset, val_dataset, n_bins=density_estimation_params["n_bins"], n_knots=density_estimation_params["n_knots"], degree=density_estimation_params["degree"])
 
     results = []
     for trial in range(3):
         test_df = data_generator(nsamples=ntest, seed=79809242 + trial)
         test_covariate_dataset = Dataset(
-            test_df, outcome=None, weight=weight, covs=feature_list
+            test_df, outcome=None, weight=weight, covs=features
         )
         test_dataset = Dataset(
-            test_df, outcome=outcome, weight=weight, covs=feature_list
+            test_df, outcome=outcome, weight=weight, covs=features
         )
 
         for n_alpha in n_alpha_range:

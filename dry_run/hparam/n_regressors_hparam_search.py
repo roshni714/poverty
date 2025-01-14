@@ -72,10 +72,10 @@ def get_optimal_n_regressors(
                 val_dataset,
                 **neural_network_params,
             )
-            tt.optimize_transfers_for_budget_grid(
-                test_covariate_dataset=test_covariate_dataset, budgets=BUDGETS
-            )
-
+            if "binary" in loss_type:
+                tt.optimize_transfers_for_budget_grid(
+                    test_covariate_dataset=test_covariate_dataset, budgets=BUDGETS
+                )
             res = tt.compute_auc(
                 test_dataset=test_dataset,
                 test_covariate_dataset=test_covariate_dataset,
