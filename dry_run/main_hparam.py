@@ -118,7 +118,7 @@ def main(config="hparam_config.yaml"):
             neural_network_params=opt_nn_hparams,
             savepath=f"{savedir}/n_regressors_{name}.csv",
         )
-        opt_hparams["binary_rate"]["n_transfer_values"] = opt_n_regressors
+        opt_hparams["binary_rate"]["n_regressors"] = opt_n_regressors
     if "continuous_gap" in config_hparams:
         opt_hparams["continuous_gap"] = {}
         continuous_gap = config_hparams["continuous_gap"]
