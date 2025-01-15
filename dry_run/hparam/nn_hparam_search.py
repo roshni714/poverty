@@ -101,7 +101,6 @@ def get_optimal_nn_improvement_parameters(
                                 "trial": trial,
                             }
                         )
-                        print(loss)
     df = pd.DataFrame.from_records(results)
     df.to_csv(savepath, index=False)
     df = df.groupby(["n_layers", "n_hidden_units", "lr"]).mean().reset_index()
@@ -197,7 +196,6 @@ def get_optimal_nn_quantile_regression_parameters(
                                 "trial": trial,
                             }
                         )
-                        print(pinball_loss)
     df = pd.DataFrame.from_records(results)
     df.to_csv(savepath, index=False)
     df = df.groupby(["n_layers", "n_hidden_units", "lr"]).mean().reset_index()
