@@ -180,12 +180,14 @@ def main(
                 "continuous_gap",
                 "binary_gap",
                 "data",
+                "savedir",
             ]
             for key in config_keys
         ]
     )
 
     data_config = config_hparam["data"]
+    savedir = config_hparam["savedir"]
 
     train_dataset, validation_dataset, test_covariate_dataset, test_dataset = (
         load_datasets(
@@ -196,7 +198,7 @@ def main(
         )
     )
 
-    name = config.split("/")[1].split(".yaml")[0]
+    name = config.split("/")[-1].split(".yaml")[0]
     savepath = savedir + "/" + name
 
     METHODS = {

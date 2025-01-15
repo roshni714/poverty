@@ -157,7 +157,7 @@ def lindsey_method(
     # Fit carrier density (Y marginal) and evaluate on bin boundaries.
     kde = fit_carrier_function(y_train, r_train)
     front = kde.evaluate(bin_ends)
-
+    print(front)
     # Get B-spline basis functions.
     spline = SplineTransformer(n_knots=n_knots, degree=degree, knots="quantile")
     # This sets knots at evenly spaced quantiles of Y.
@@ -397,6 +397,7 @@ def lindsey_method_with_covariates(
             np.random.uniform(-1.0, 1.0, k * d).reshape(k, d), dtype=torch.float64
         )
     )
+
     unscaled_bin_ends = bin_ends * y_std + y_mean
 
     def glm_nll(theta, X, basis_matrix):

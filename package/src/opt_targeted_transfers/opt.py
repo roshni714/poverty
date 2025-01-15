@@ -87,11 +87,11 @@ class TargetedTransfers:
         :return: A dictionary of evaluation results.
         :rtype: dict
         """
-        if self.assigments is None:
+        if self.assignments is None:
             raise ValueError("Must run run_opt before evaluate_equity")
 
         d = len(test_dataset.covs)
-        all_transfers_ev = expected_value_transfers(test_dataset, self.assignments)
+        all_transfers_ev = expected_value_transfers(self.assignments)
 
         _, y_test, _ = test_dataset.get_data()
 

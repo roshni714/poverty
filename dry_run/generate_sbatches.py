@@ -51,7 +51,7 @@ def generate_learn_run():
                 SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id),
                 file=f,
             )
-            base_cmd = f"python main_learn.py main --config hparam_results/{config} --trainpath data/train.parquet --testpath data/test.parquet --savedir learn_results"
+            base_cmd = f"python main_learn.py main --config hparam/results/{config} --trainpath data/train.parquet --testpath data/test.parquet"
             print(base_cmd, file=f)
             print("sleep 1", file=f)
 
@@ -59,10 +59,10 @@ def generate_learn_run():
 def generate_hparam_run():
 
     configs = [
-        "gan_continuous_rate.yaml",
-        "gt_continuous_rate.yaml",
-        # "gan_binary_rate.yaml",
-        # "gt_binary_rate.yaml",
+        # "gan_continuous_rate.yaml",
+        # "gt_continuous_rate.yaml",
+        "gan_binary_rate.yaml",
+        "gt_binary_rate.yaml",
         # "gan_binary_gap.yaml",
         # "gan_continuous_gap.yaml",
         # "gt_binary_gap.yaml",

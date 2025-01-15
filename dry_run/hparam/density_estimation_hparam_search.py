@@ -67,7 +67,7 @@ def get_optimal_density_estimation_parameters(
     results = []
     for trial in range(3):
         train_df = data_generator(nsamples=ntrain, seed=1283 + trial)
-        val_df = data_generator(nsamples=nval, seed=4308 + trial)
+        val_df = data_generator(nsamples=nval, seed=6483 + trial)
 
         for n_features in n_features_range:
             train_dataset = Dataset(
@@ -76,16 +76,19 @@ def get_optimal_density_estimation_parameters(
                 weight=weight,
                 covs=ordered_features[:n_features],
             )
+
             big_val_dataset = Dataset(
                 val_df,
                 outcome=outcome,
                 weight=weight,
                 covs=ordered_features[:n_features],
             )
+
+            train_dataset, val_dataset = split(train_dataset)
+
             for degree in degree_range:
                 for n_bins in n_bins_range:
                     for n_knots in n_knots_range:
-                        train_dataset, val_dataset = split(train_dataset)
                         density_estimator = get_cond_density_estimator(
                             train_dataset=train_dataset,
                             validation_dataset=val_dataset,

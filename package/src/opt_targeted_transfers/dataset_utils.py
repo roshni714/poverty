@@ -33,21 +33,21 @@ def split(dataset, frac=0.7, seed=0):
     :type frac: float
     """
     n = len(dataset)
-    np.random.seed(0)
+    np.random.seed(seed)
     idx = np.random.permutation(n)
     train_idx = idx[: int(frac * n)]
     test_idx = idx[int(frac * n) :]
 
     weight = dataset.weight
     train_dataset = Dataset(
-        dataset.df.iloc[train_idx].copy(deep=True),
+        dataset.df.iloc[train_idx].copy(deep=True).reset_index(drop=True),
         outcome=dataset.outcome,
         covs=dataset.covs,
         weight=dataset.weight,
     )
     train_dataset.df[weight] = train_dataset.df[weight] / train_dataset.df[weight].sum()
     test_dataset = Dataset(
-        dataset.df.iloc[test_idx].copy(deep=True),
+        dataset.df.iloc[test_idx].copy(deep=True).reset_index(drop=True),
         outcome=dataset.outcome,
         covs=dataset.covs,
         weight=dataset.weight,
@@ -74,7 +74,7 @@ class Dataset:
         self.df = df
         self.outcome = outcome
         self.weight = weight
-        self.covs = covs
+        self.covs = sorted(covs)
 
     def get_data(self, normalize_weight=True):
         """
@@ -86,12 +86,13 @@ class Dataset:
         if self.covs is None:
             X = self.df[self.covs].values
         else:
+            self.covs = sorted(self.covs)
             selected_columns = [
                 col
                 for col in self.df.columns
                 if any(col.startswith(var) for var in self.covs)
             ]
-            X = self.df[selected_columns].values
+            X = self.df[sorted(selected_columns)].values
 
         if self.weight is None:
             r = np.ones(y.shape)
