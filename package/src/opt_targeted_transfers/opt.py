@@ -561,9 +561,8 @@ class GapTargetedTransfers(TargetedTransfers):
         # Get the assignments that have cost lower than budget
         idx = bisect_left(costs, self.budget)
         left_cost = costs[idx - 1]
-        print(costs)
 
-        if left_cost == self.budget or idx == len(costs):
+        if left_cost == self.budget:
             self.assignments = all_assignments[idx - 1]
             return all_assignments[idx - 1]
         elif self.budget > left_cost:
@@ -592,6 +591,18 @@ class GapTargetedTransfers(TargetedTransfers):
                 actual_assignments[i].append((actual_transfer, 1.0))
             self.assignments = actual_assignments
             return actual_assignments
+        elif self.budget > costs[-1]:
+            actual_assignments = {x_idx: [] for x_idx in range(len(X_test))}
+            for i in range(len(X_test)):
+                left_transfer = all_assignments[-1][i][0][0]
+                right_transfer = self.c_bar
+                slope = (right_transfer - left_transfer) / (self.c_bar - costs[-1])
+                intercept = left_transfer - slope * costs[-1]
+                actual_transfer = slope * self.budget + intercept
+                actual_assignments[i].append((actual_transfer, 1.0))
+            self.assignments = actual_assignments
+            return actual_assignments
+
 
 
 

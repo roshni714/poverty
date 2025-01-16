@@ -139,6 +139,7 @@ def get_alpha_convex_hulls(alpha, c_bar, cond_dists):
         c_dist.get_convex_hull(z=transfer_values[i], c_bar=c_bar)
         for i, c_dist in enumerate(cond_dists)
     ]
+
     return cvx_hulls
 
 
@@ -195,20 +196,16 @@ def compute_alpha_opt_policies(
         )
 
         (
-            opt_assignment,
-            policy_cost,
-            poverty_rate,
-            lamb,
-            eta,
+            assignments, total_cost, total_loss, lamb, eta
         ) = solve_fractional_mc_knapsack_problem(r, cvx_hulls, budget)
 
         result = {
             "alpha": alpha,
-            "policy_cost": policy_cost,
-            "poverty_rate": poverty_rate,
+            "policy_cost": total_cost,
+            "poverty_rate": total_loss,
         }
-        poverty_rates.append(policy_cost)
-        opt_assignments.append(opt_assignment)
+        poverty_rates.append(total_loss)
+        opt_assignments.append(assignments)
         if results_file is not None:
             write_result(results_file, result)
     return opt_assignments, poverty_rates, alphas
