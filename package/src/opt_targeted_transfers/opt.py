@@ -565,7 +565,7 @@ class GapTargetedTransfers(TargetedTransfers):
         if left_cost == self.budget:
             self.assignments = all_assignments[idx - 1]
             return all_assignments[idx - 1]
-        elif self.budget > left_cost:
+        elif self.budget > left_cost and idx <= len(costs) - 1:
             right_cost = costs[idx]
             assert self.budget > left_cost and self.budget <= right_cost
             left_assignments = all_assignments[idx - 1]
@@ -584,7 +584,7 @@ class GapTargetedTransfers(TargetedTransfers):
         elif self.budget < costs[0]:
             actual_assignments = {x_idx: [] for x_idx in range(len(X_test))}
             for i in range(len(X_test)):
-                left_transfer = 0.
+                left_transfer = 0.0
                 right_transfer = all_assignments[0][i][0][0]
                 slope = (right_transfer - left_transfer) / (costs[0])
                 actual_transfer = slope * self.budget
@@ -602,8 +602,6 @@ class GapTargetedTransfers(TargetedTransfers):
                 actual_assignments[i].append((actual_transfer, 1.0))
             self.assignments = actual_assignments
             return actual_assignments
-
-
 
 
 class OracleGapTargetedTransfers(TargetedTransfers):

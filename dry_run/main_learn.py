@@ -11,9 +11,13 @@ from opt_targeted_transfers import (
 )
 from learn.data_loader import load_datasets
 from constants import C_BAR, BUDGETS
+import os
 
 
 def run_evaluation(tt, test_covariate_dataset, test_dataset, savepath):
+    if os.path.exists(savepath + ".csv"):
+        os.remove(savepath + ".csv")
+
     for budget in BUDGETS:
         tt.set_budget(budget)
         tt.run_opt(test_covariate_dataset)
@@ -28,6 +32,8 @@ def run_evaluation(tt, test_covariate_dataset, test_dataset, savepath):
         metrics=["post_transfer_poverty_rate", "post_transfer_poverty_gap"],
         budgets=BUDGETS,
     )
+    if os.path.exists(savepath + "_auc.csv"):
+        os.remove(savepath + "_auc.csv")
     new_dic = {}
     for metric in auc_res:
         new_dic[metric] = auc_res[metric]["auc"]
@@ -66,6 +72,8 @@ def learn_continuous_rate(
         degree=int(continuous_rate_params["density_estimation"]["degree"]),
     )
     all_res = []
+    if os.path.exists(savepath + ".csv"):
+        os.remove(savepath + ".csv")
     for budget in BUDGETS:
         tt.set_budget(budget)
         tt.run_opt(test_covariate_dataset, n_alpha=continuous_rate_params["n_alpha"])
@@ -73,6 +81,9 @@ def learn_continuous_rate(
         write_result(savepath + ".csv", res)
         tt.evaluate_equity(test_dataset, savepath + f"_budget={budget}.csv")
         all_res.append(res)
+
+    if os.path.exists(savepath + "_auc.csv"):
+        os.remove(savepath + "_auc.csv")
 
     auc_res = {}
     metrics = ["post_transfer_poverty_rate", "post_transfer_poverty_gap"]

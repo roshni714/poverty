@@ -195,9 +195,9 @@ def compute_alpha_opt_policies(
             cond_dists=cond_dists,
         )
 
-        (
-            assignments, total_cost, total_loss, lamb, eta
-        ) = solve_fractional_mc_knapsack_problem(r, cvx_hulls, budget)
+        (assignments, total_cost, total_loss, lamb, eta) = (
+            solve_fractional_mc_knapsack_problem(r, cvx_hulls, budget)
+        )
 
         result = {
             "alpha": alpha,

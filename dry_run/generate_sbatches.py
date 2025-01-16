@@ -38,9 +38,9 @@ def generate_learn_run():
 
     configs = [
         "output_gan_continuous_rate.yaml",
-        #"output_gan_binary_rate.yaml",
-        #"output_gan_binary_gap.yaml",
-        #"output_gan_continuous_gap.yaml",
+        "output_gan_binary_rate.yaml",
+        "output_gan_binary_gap.yaml",
+        "output_gan_continuous_gap.yaml",
     ]
 
     for config in configs:
@@ -59,14 +59,14 @@ def generate_learn_run():
 def generate_hparam_run():
 
     configs = [
-        # "gan_continuous_rate.yaml",
-        # "gt_continuous_rate.yaml",
+        "gan_continuous_rate.yaml",
+        "gt_continuous_rate.yaml",
         "gan_binary_rate.yaml",
         "gt_binary_rate.yaml",
-        # "gan_binary_gap.yaml",
-        # "gan_continuous_gap.yaml",
-        # "gt_binary_gap.yaml",
-        # "gt_continuous_gap.yaml",
+        "gan_binary_gap.yaml",
+        "gan_continuous_gap.yaml",
+        "gt_binary_gap.yaml",
+        "gt_continuous_gap.yaml",
     ]
 
     for config in configs:
@@ -155,7 +155,7 @@ def generate_wgan_hparam_runs():
                             print("sleep 1", file=f)
 
 
-generate_learn_run()
-#generate_hparam_run()
+# generate_learn_run()
+generate_hparam_run()
 # generate_wgan_run()
 # generate_wgan_hparam_runs()
