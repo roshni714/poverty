@@ -18,6 +18,7 @@ def run_evaluation(tt, test_covariate_dataset, test_dataset, savepath):
         tt.set_budget(budget)
         tt.run_opt(test_covariate_dataset)
         res = tt.evaluate(test_dataset)
+        print(res)
         write_result(savepath + ".csv", res)
         tt.evaluate_equity(test_dataset, savepath + f"_budget={budget}.csv")
 
