@@ -41,19 +41,19 @@ def get_optimal_knapsack_parameters(
     train_dataset = Dataset(train_df, outcome=outcome, weight=weight, covs=feature_list)
 
     tt = RateTargetedTransfers(c_bar=C_BAR)
-    train_dataset, val_dataset = split(train_dataset)
+    new_train_dataset, new_val_dataset = split(train_dataset)
 
     features, _ = forward_selection(
-        train_dataset=train_dataset,
-        validation_dataset=val_dataset,
+        train_dataset=new_train_dataset,
+        validation_dataset=new_val_dataset,
         max_features=density_estimation_params["n_features"],
     )
-    train_dataset.covs = features
-    val_dataset.covs = features
+    new_train_dataset.covs = features
+    new_val_dataset.covs = features
 
     tt.fit(
-        train_dataset,
-        val_dataset,
+        new_train_dataset,
+        new_val_dataset,
         n_bins=density_estimation_params["n_bins"],
         n_knots=density_estimation_params["n_knots"],
         degree=density_estimation_params["degree"],

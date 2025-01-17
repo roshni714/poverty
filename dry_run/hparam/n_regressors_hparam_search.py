@@ -64,12 +64,12 @@ def get_optimal_n_regressors(
         test_dataset = Dataset(
             test_df, outcome=outcome, weight=weight, covs=feature_list
         )
-        train_dataset, val_dataset = split(train_dataset)
+        new_train_dataset, new_val_dataset = split(train_dataset)
         for n_regressors in n_regressors_range:
             tt = TT(c_bar=C_BAR, n_regressors=n_regressors)
             tt.fit(
-                train_dataset,
-                val_dataset,
+                new_train_dataset,
+                new_val_dataset,
                 **neural_network_params,
             )
             if "binary" in loss_type:

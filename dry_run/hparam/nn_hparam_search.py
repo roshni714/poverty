@@ -64,7 +64,7 @@ def get_optimal_nn_improvement_parameters(
         covs.remove(weight)
         train_dataset = Dataset(train_df, outcome=outcome, weight=weight, covs=covs)
         big_val_dataset = Dataset(val_df, outcome=outcome, weight=weight, covs=covs)
-
+        new_train_dataset, new_val_dataset = split(train_dataset)
         for transfer_size in transfer_sizes:
             for n_layers in n_layers_range:
                 for n_hidden_units in n_hidden_units_range:
@@ -72,12 +72,11 @@ def get_optimal_nn_improvement_parameters(
                         print(
                             f"Training neural network with {n_layers} layers, {n_hidden_units} hidden units, and learning rate {lr} for transfer size {transfer_size} during trial {trial}..."
                         )
-                        train_dataset, val_dataset = split(train_dataset)
 
                         model = get_conditional_improvement_regressor(
                             loss_type=loss_type,
-                            train_dataset=train_dataset,
-                            validation_dataset=val_dataset,
+                            train_dataset=new_train_dataset,
+                            validation_dataset=new_val_dataset,
                             t=transfer_size,
                             c_bar=C_BAR,
                             n_layers=n_layers,
@@ -164,7 +163,7 @@ def get_optimal_nn_quantile_regression_parameters(
         covs.remove(weight)
         train_dataset = Dataset(train_df, outcome=outcome, weight=weight, covs=covs)
         big_val_dataset = Dataset(val_df, outcome=outcome, weight=weight, covs=covs)
-
+        new_train_dataset, new_val_dataset = split(train_dataset)
         for quantile in quantiles:
             for n_layers in n_layers_range:
                 for n_hidden_units in n_hidden_units_range:
@@ -172,10 +171,9 @@ def get_optimal_nn_quantile_regression_parameters(
                         print(
                             f"Training neural network with {n_layers} layers, {n_hidden_units} hidden units, and learning rate {lr} for quantile {quantile} during trial {trial}..."
                         )
-                        train_dataset, val_dataset = split(train_dataset)
                         model = get_quantile_regressor(
-                            train_dataset=train_dataset,
-                            validation_dataset=val_dataset,
+                            train_dataset=new_train_dataset,
+                            validation_dataset=new_val_dataset,
                             quantile=quantile,
                             n_layers=n_layers,
                             n_hidden_units=n_hidden_units,

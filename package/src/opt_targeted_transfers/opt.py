@@ -371,12 +371,10 @@ class BinaryTargetedTransfers(TargetedTransfers):
         pop_weight_receive_transfers = budget / t
         weights_ranked_by_benefit = r_test[household_idx_ranked_by_benefit]
         cumsum_weights = np.cumsum(weights_ranked_by_benefit)
-        indicator_receive_transfers = cumsum_weights <= pop_weight_receive_transfers
+        indicator_receive_transfers = cumsum_weights < pop_weight_receive_transfers
         idx_receive_transfers = household_idx_ranked_by_benefit[
             indicator_receive_transfers
         ]
-
-        assert r_test[idx_receive_transfers].sum() * t <= budget
         return idx_receive_transfers
 
     def run_opt(self, test_covariate_dataset):

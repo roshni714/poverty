@@ -84,14 +84,14 @@ def get_optimal_density_estimation_parameters(
                 covs=ordered_features[:n_features],
             )
 
-            train_dataset, val_dataset = split(train_dataset)
+            new_train_dataset, new_val_dataset = split(train_dataset)
 
             for degree in degree_range:
                 for n_bins in n_bins_range:
                     for n_knots in n_knots_range:
                         density_estimator = get_cond_density_estimator(
-                            train_dataset=train_dataset,
-                            validation_dataset=val_dataset,
+                            train_dataset=new_train_dataset,
+                            validation_dataset=new_val_dataset,
                             degree=degree,
                             n_bins=n_bins,
                             n_knots=n_knots,
