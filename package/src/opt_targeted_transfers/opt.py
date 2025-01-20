@@ -16,6 +16,7 @@ from opt_targeted_transfers.evaluate import (
 )
 from opt_targeted_transfers.conditional_improvement import (
     get_conditional_improvement_regressor,
+    get_avg_estimated_benefit,
 )
 from opt_targeted_transfers.reporting import write_result
 
@@ -302,70 +303,95 @@ class BinaryTargetedTransfers(TargetedTransfers):
     ):
         pass
 
-    def optimize_transfers_for_budget_grid(self, test_covariate_dataset, budgets):
+    def get_opt_transfer_sizes_given_budget_grid(self, validation_dataset, budgets):
         """
-        Computes transfers for each budget in the list of budgets. Enables calling
+        Computes transfer size for each budget in the list of budgets. Enables calling
         run_opt for each budget in the list.
         """
 
         if self.t_to_household_estimator_map is None:
             raise ValueError("Need to run fit before a policy can be computed")
 
-        X_test, r_test = test_covariate_dataset.get_data()
-
-        # for each t, order the households in the test set
-        t_to_ordered_households_map = (
-            dict()
-        )  # rank households from largest to smallest benefit
-        t_to_estimated_benefits_map = dict()
-
-        for t, household_benefit_estimator in self.t_to_household_estimator_map.items():
-            estimated_benefits = household_benefit_estimator(X_test)
-            t_to_estimated_benefits_map[t] = estimated_benefits
-
-            sorting_indices = np.argsort(estimated_benefits)[::-1]
-            t_to_ordered_households_map[t] = sorting_indices
-
         # For each budget, select optimal transfer value on the test set
-        self.budget_to_households_map = dict()
         self.budget_to_t_map = dict()
 
-        for budget in budgets:
+        t_to_ordered_households = dict()
+        t_to_estimated_benefits = dict()
+        for t in self.candidate_t_values:
+            regressor = self.t_to_household_estimator_map[t]
+            X_val, _, _ = validation_dataset.get_data()
+            estimated_benefits = regressor(X_val)
+            ordered_households = np.argsort(estimated_benefits)[::-1]
+            t_to_ordered_households[t] = ordered_households
+            t_to_estimated_benefits[t] = estimated_benefits
 
-            highest_estimated_benefits = -1
-            best_household_list = []
+        for budget in budgets:
+            highest_estimated_benefits = -float("inf")
             best_t = None
 
             for t in self.candidate_t_values:
-                ordered_households = t_to_ordered_households_map[t]
-                estimated_benefits = t_to_estimated_benefits_map[t]
-
-                indices_to_receive_transfers = self._get_indices_to_receive_transfers(
-                    test_covariate_dataset, ordered_households, t, budget
+                threshold = self._get_threshold_to_receive_transfers(
+                    validation_dataset,
+                    t_to_estimated_benefits[t],
+                    t_to_ordered_households[t],
+                    t,
+                    budget,
                 )
-                total_estimated_benefits = (
-                    estimated_benefits[indices_to_receive_transfers]
-                    * r_test[indices_to_receive_transfers]
-                ).sum()
+                idx_to_receive_transfers = (
+                    self._get_indices_to_receive_transfers_threshold(
+                        validation_dataset, t, threshold
+                    )
+                )
+                total_estimated_benefits = self._get_avg_estimated_benefit(
+                    validation_dataset, t, idx_to_receive_transfers
+                )
 
-                # sanity check
                 assert total_estimated_benefits >= 0
-
                 if total_estimated_benefits > highest_estimated_benefits:
+                    # if this transfer size has the highest estimated benefits, then this is the best so far.
                     highest_estimated_benefits = total_estimated_benefits
-                    best_household_list = indices_to_receive_transfers
                     best_t = t
 
-            assert best_household_list is not None
             assert best_t is not None
 
-            self.budget_to_households_map[budget] = best_household_list
             self.budget_to_t_map[budget] = best_t
 
-    def _get_indices_to_receive_transfers(
+    def _get_threshold_to_receive_transfers(
+        self,
+        validation_dataset,
+        estimated_benefits,
+        household_idx_ranked_by_benefit,
+        t,
+        budget,
+    ):
+        _, _, r_val = validation_dataset.get_data()
+
+        pop_weight_receive_transfers = budget / t
+        weights_ranked_by_benefit = r_val[household_idx_ranked_by_benefit]
+        cumsum_weights = np.cumsum(weights_ranked_by_benefit)
+        indicator_receive_transfers = cumsum_weights < pop_weight_receive_transfers
+        idx_receive_transfers = household_idx_ranked_by_benefit[
+            indicator_receive_transfers
+        ]
+        threshold = estimated_benefits[idx_receive_transfers[-1]]
+        return threshold
+
+    def _get_indices_to_receive_transfers_threshold(
+        self, validation_dataset, t, threshold
+    ):
+        if self.t_to_household_estimator_map is None:
+            raise ValueError("Need to run fit before a policy can be computed")
+
+        X_val, _, _ = validation_dataset.get_data()
+
+        regressor = self.t_to_household_estimator_map[t]
+        estimated_benefits = regressor(X_val)
+        idx_receive_transfers = np.where(estimated_benefits > threshold)[0]
+        return idx_receive_transfers
+
+    def _get_indices_to_receive_transfers_exact(
         self, test_covariate_dataset, household_idx_ranked_by_benefit, t, budget
     ):
-
         _, r_test = test_covariate_dataset.get_data()
 
         pop_weight_receive_transfers = budget / t
@@ -379,28 +405,39 @@ class BinaryTargetedTransfers(TargetedTransfers):
 
     def run_opt(self, test_covariate_dataset):
 
-        if self.budget_to_households_map is None:
-            raise ValueError(
-                "Must run optimize_transfers_for_budget_grid before run_opt for "
-                "binary targeting"
-            )
+        if self.budget_to_t_map is None:
+            raise ValueError("Run get_opt_transfer_sizes_given_budget_grid first")
 
         assert self.budget is not None
 
-        if self.budget not in self.budget_to_households_map.keys():
+        if self.budget not in self.budget_to_t_map.keys():
             raise ValueError(
-                f"budget {self.budget} was not included in list provided to "
-                "optimize_transfers_for_budget_grid."
+                f"budget {self.budget} was not included provided to get_opt_transfer_sizes_given_budget_grid"
             )
 
-        indices_to_receive_transfers = self.budget_to_households_map[self.budget]
+        X_test, _ = test_covariate_dataset.get_data()
+
         best_t = self.budget_to_t_map[self.budget]
+        regressor = self.t_to_household_estimator_map[best_t]
+        estimated_benefits = regressor(X_test)
+        ordered_households = np.argsort(estimated_benefits)[::-1]
+        indices_to_receive_transfers = self._get_indices_to_receive_transfers_exact(
+            test_covariate_dataset, ordered_households, best_t, self.budget
+        )
 
         assignments = {i: [(0.0, 1.0)] for i in range(len(test_covariate_dataset))}
         for i in indices_to_receive_transfers:
             assignments[i] = [(best_t, 1.0)]
         self.assignments = assignments
         return assignments
+
+    def _get_avg_estimated_benefit(
+        self, validation_dataset, t, idx_to_receive_transfers
+    ):
+        avg_estimated_benefits = get_avg_estimated_benefit(
+            validation_dataset, self.name, idx_to_receive_transfers, t, c_bar=self.c_bar
+        )
+        return avg_estimated_benefits
 
 
 class BinaryGapTargetedTransfers(BinaryTargetedTransfers):
@@ -539,6 +576,75 @@ class GapTargetedTransfers(TargetedTransfers):
             )
             self.quantile_regressors[quantile] = quantile_regressor
 
+    def _interpolate_conditional_quantile(self, X, quantile):
+        """
+        Evaluates the expected wealth of each household at the given quantile, given its
+        predictors.
+        """
+
+        quantile_regressors = self.quantile_regressors
+        if quantile_regressors is None:
+            raise ValueError("Missing quantile regressors - run fit first.")
+
+        quantiles = list(quantile_regressors.keys())
+        quantiles.sort()
+
+        quantile_index = bisect_left(quantiles, quantile)
+
+        # if quantile_index == len(quantiles), then quantile is > all evaluated quantiles.
+        # if quantile_index == 0 then quantile is <= all evaluated quantiles.
+        # In that case for now I don't attempt to fake interpolation. This means
+        # it's important to fit a quantile near or at zero.
+        if quantile_index == len(quantiles):
+
+            baseline_quantile_wealth_level = quantile_regressors[
+                quantiles[quantile_index - 1]
+            ](X)
+
+        elif (quantile == quantiles[quantile_index]) or (quantile_index == 0):
+
+            baseline_quantile_wealth_level = quantile_regressors[
+                quantiles[quantile_index]
+            ](X)
+
+        # interpolate
+        else:
+            quantile_index_low = quantile_index - 1
+            quantile_index_high = quantile_index
+
+            assert quantile > quantiles[quantile_index_low]
+            assert quantile < quantiles[quantile_index_high]
+
+            interpolation_factor = (quantile - quantiles[quantile_index_low]) / (
+                quantiles[quantile_index_high] - quantiles[quantile_index_low]
+            )
+
+            baseline_quantile_wealth_level_low = quantile_regressors[
+                quantiles[quantile_index_low]
+            ](X)
+            baseline_quantile_wealth_level_high = quantile_regressors[
+                quantiles[quantile_index_high]
+            ](X)
+
+            baseline_quantile_wealth_level = (
+                (1 - interpolation_factor) * baseline_quantile_wealth_level_low
+                + interpolation_factor * baseline_quantile_wealth_level_high
+            )
+
+        return baseline_quantile_wealth_level
+
+    def _get_assignments_for_lambda(self, X, lambda_):
+
+        quantile_regressors = self.quantile_regressors
+        if quantile_regressors is None:
+            raise ValueError("Missing quantile regressors - run fit first.")
+        conditional_quantiles = self._interpolate_conditional_quantile(X, lambda_)
+        transfer = np.maximum(self.c_bar - conditional_quantiles, 0)
+        assignments = {x_idx: [] for x_idx in range(len(X))}
+        for i in range(len(X)):
+            assignments[i].append((transfer[i].item(), 1.0))
+        return assignments
+
     def run_opt(self, test_covariate_dataset):
         if self.quantile_regressors is None:
             raise ValueError("Missing quantile regressors - run fit first.")
@@ -546,60 +652,20 @@ class GapTargetedTransfers(TargetedTransfers):
         costs = []
         all_assignments = []
         X_test, r_test = test_covariate_dataset.get_data()
-        for quantile in reversed(sorted(self.quantile_regressors.keys())):
-            quantile_regressor = self.quantile_regressors[quantile]
-            conditional_quantile = quantile_regressor(X_test)
-            transfer = np.maximum(self.c_bar - conditional_quantile, 0)
-            assignments = {x_idx: [] for x_idx in range(len(X_test))}
-            for i in range(len(X_test)):
-                assignments[i].append((transfer[i].item(), 1.0))
+        lambda_values = reversed(np.linspace(0.01, 0.99, 200))
+        for lambda_ in lambda_values:
+            assignments = self._get_assignments_for_lambda(X_test, lambda_)
             cost = policy_cost(test_covariate_dataset, assignments)
             costs.append(cost)
             all_assignments.append(assignments)
-        # Get the assignments that have cost lower than budget
         idx = bisect_left(costs, self.budget)
-        left_cost = costs[idx - 1]
-
-        if left_cost == self.budget:
+        if idx < len(costs):
             self.assignments = all_assignments[idx - 1]
             return all_assignments[idx - 1]
-        elif self.budget > left_cost and idx <= len(costs) - 1:
-            right_cost = costs[idx]
-            assert self.budget > left_cost and self.budget <= right_cost
-            left_assignments = all_assignments[idx - 1]
-            right_assignments = all_assignments[idx]
-
-            actual_assignments = {x_idx: [] for x_idx in range(len(X_test))}
-            for i in range(len(X_test)):
-                left_transfer = left_assignments[i][0][0]
-                right_transfer = right_assignments[i][0][0]
-                slope = (right_transfer - left_transfer) / (right_cost - left_cost)
-                intercept = left_transfer - slope * left_cost
-                actual_transfer = slope * self.budget + intercept
-                actual_assignments[i].append((actual_transfer, 1.0))
-            self.assignments = actual_assignments
-            return actual_assignments
-        elif self.budget < costs[0]:
-            actual_assignments = {x_idx: [] for x_idx in range(len(X_test))}
-            for i in range(len(X_test)):
-                left_transfer = 0.0
-                right_transfer = all_assignments[0][i][0][0]
-                slope = (right_transfer - left_transfer) / (costs[0])
-                actual_transfer = slope * self.budget
-                actual_assignments[i].append((actual_transfer, 1.0))
-            self.assignments = actual_assignments
-            return actual_assignments
-        elif self.budget > costs[-1]:
-            actual_assignments = {x_idx: [] for x_idx in range(len(X_test))}
-            for i in range(len(X_test)):
-                left_transfer = all_assignments[-1][i][0][0]
-                right_transfer = self.c_bar
-                slope = (right_transfer - left_transfer) / (self.c_bar - costs[-1])
-                intercept = left_transfer - slope * costs[-1]
-                actual_transfer = slope * self.budget + intercept
-                actual_assignments[i].append((actual_transfer, 1.0))
-            self.assignments = actual_assignments
-            return actual_assignments
+        if idx == len(costs):
+            assignments = {x_idx: [(self.c_bar, 1.0)] for x_idx in range(len(X_test))}
+            self.assignments = assignments
+            return assignments
 
 
 class OracleGapTargetedTransfers(TargetedTransfers):

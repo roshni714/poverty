@@ -5,6 +5,26 @@ import tqdm
 import copy
 
 
+def get_avg_estimated_benefit(
+    validation_dataset, loss_type, idx_to_receive_transfers, t, c_bar=2.15
+):
+    X, y, r = validation_dataset.get_data()
+
+    if loss_type == "binary_gap":
+        current_gaps = np.maximum(c_bar - y, 0)
+        gaps_after_transfer = np.maximum(c_bar - t - y, 0)
+        benefits = current_gaps - gaps_after_transfer
+    elif loss_type == "binary_rate":
+        current_gaps = (y <= c_bar).astype(float)
+        gaps_after_transfer = (y + t <= c_bar).astype(float)
+        benefits = current_gaps - gaps_after_transfer
+
+    avg_estimated_benefits = np.sum(
+        benefits[idx_to_receive_transfers] * r[idx_to_receive_transfers]
+    )
+    return avg_estimated_benefits
+
+
 def get_conditional_improvement_loss(
     validation_dataset, loss_type, predictor, t, c_bar=2.15
 ):

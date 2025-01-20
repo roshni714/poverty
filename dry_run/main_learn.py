@@ -24,6 +24,8 @@ def run_evaluation(tt, test_covariate_dataset, test_dataset, savepath):
         res = tt.evaluate(test_dataset)
         print(res)
         write_result(savepath + ".csv", res)
+        if os.path.exists(savepath + f"_budget={budget}.csv"):
+            os.remove(savepath + f"_budget={budget}.csv")
         tt.evaluate_equity(test_dataset, savepath + f"_budget={budget}.csv")
 
     auc_res = tt.compute_auc(
@@ -79,6 +81,8 @@ def learn_continuous_rate(
         tt.run_opt(test_covariate_dataset, n_alpha=continuous_rate_params["n_alpha"])
         res = tt.evaluate(test_dataset)
         write_result(savepath + ".csv", res)
+        if os.path.exists(savepath + f"_budget={budget}.csv"):
+            os.remove(savepath + f"_budget={budget}.csv")
         tt.evaluate_equity(test_dataset, savepath + f"_budget={budget}.csv")
         all_res.append(res)
 
@@ -113,7 +117,7 @@ def learn_binary_rate(
         c_bar=C_BAR, n_regressors=binary_rate_params["n_regressors"]
     )
     tt.fit(train_dataset, validation_dataset, **binary_rate_params["neural_network"])
-    tt.optimize_transfers_for_budget_grid(test_covariate_dataset, BUDGETS)
+    tt.get_opt_transfer_sizes_given_budget_grid(validation_dataset, BUDGETS)
     run_evaluation(tt, test_covariate_dataset, test_dataset, savepath)
 
 
@@ -160,7 +164,7 @@ def learn_binary_gap(
         validation_dataset,
         **binary_gap_params["neural_network"],
     )
-    tt.optimize_transfers_for_budget_grid(test_covariate_dataset, BUDGETS)
+    tt.get_opt_transfer_sizes_given_budget_grid(validation_dataset, BUDGETS)
     run_evaluation(tt, test_covariate_dataset, test_dataset, savepath)
 
 
