@@ -1318,10 +1318,6 @@ class GapTargetedTransfers(TargetedTransfers):
             self.train_dataset,
         )
 
-    
-
-    
-
     def run_opt(self, X_test, lambda_):
 
         t = self._get_policy_for_lambda(X_test, lambda_)
@@ -1710,46 +1706,46 @@ def get_transfer_function(c_bar, eta, lamb):
 
 
 # Get the assignments that have cost lower than budget
-        # idx = bisect_left(costs, self.budget)
-        # left_cost = costs[idx - 1]
+# idx = bisect_left(costs, self.budget)
+# left_cost = costs[idx - 1]
 
-        # if left_cost == self.budget:
-        #     self.assignments = all_assignments[idx - 1]
-        #     return all_assignments[idx - 1]
-        # elif self.budget > left_cost and idx <= len(costs) - 1:
-        #     right_cost = costs[idx]
-        #     assert self.budget > left_cost and self.budget <= right_cost
-        #     left_assignments = all_assignments[idx - 1]
-        #     right_assignments = all_assignments[idx]
+# if left_cost == self.budget:
+#     self.assignments = all_assignments[idx - 1]
+#     return all_assignments[idx - 1]
+# elif self.budget > left_cost and idx <= len(costs) - 1:
+#     right_cost = costs[idx]
+#     assert self.budget > left_cost and self.budget <= right_cost
+#     left_assignments = all_assignments[idx - 1]
+#     right_assignments = all_assignments[idx]
 
-        #     actual_assignments = {x_idx: [] for x_idx in range(len(X_test))}
-        #     for i in range(len(X_test)):
-        #         left_transfer = left_assignments[i][0][0]
-        #         right_transfer = right_assignments[i][0][0]
-        #         slope = (right_transfer - left_transfer) / (right_cost - left_cost)
-        #         intercept = left_transfer - slope * left_cost
-        #         actual_transfer = slope * self.budget + intercept
-        #         actual_assignments[i].append((actual_transfer, 1.0))
-        #     self.assignments = actual_assignments
-        #     return actual_assignments
-        # elif self.budget < costs[0]:
-        #     actual_assignments = {x_idx: [] for x_idx in range(len(X_test))}
-        #     for i in range(len(X_test)):
-        #         left_transfer = 0.0
-        #         right_transfer = all_assignments[0][i][0][0]
-        #         slope = (right_transfer - left_transfer) / (costs[0])
-        #         actual_transfer = slope * self.budget
-        #         actual_assignments[i].append((actual_transfer, 1.0))
-        #     self.assignments = actual_assignments
-        #     return actual_assignments
-        # elif self.budget > costs[-1]:
-        #     actual_assignments = {x_idx: [] for x_idx in range(len(X_test))}
-        #     for i in range(len(X_test)):
-        #         left_transfer = all_assignments[-1][i][0][0]
-        #         right_transfer = self.c_bar
-        #         slope = (right_transfer - left_transfer) / (self.c_bar - costs[-1])
-        #         intercept = left_transfer - slope * costs[-1]
-        #         actual_transfer = slope * self.budget + intercept
-        #         actual_assignments[i].append((actual_transfer, 1.0))
-        #     self.assignments = actual_assignments
-        #     return actual_assignments
+#     actual_assignments = {x_idx: [] for x_idx in range(len(X_test))}
+#     for i in range(len(X_test)):
+#         left_transfer = left_assignments[i][0][0]
+#         right_transfer = right_assignments[i][0][0]
+#         slope = (right_transfer - left_transfer) / (right_cost - left_cost)
+#         intercept = left_transfer - slope * left_cost
+#         actual_transfer = slope * self.budget + intercept
+#         actual_assignments[i].append((actual_transfer, 1.0))
+#     self.assignments = actual_assignments
+#     return actual_assignments
+# elif self.budget < costs[0]:
+#     actual_assignments = {x_idx: [] for x_idx in range(len(X_test))}
+#     for i in range(len(X_test)):
+#         left_transfer = 0.0
+#         right_transfer = all_assignments[0][i][0][0]
+#         slope = (right_transfer - left_transfer) / (costs[0])
+#         actual_transfer = slope * self.budget
+#         actual_assignments[i].append((actual_transfer, 1.0))
+#     self.assignments = actual_assignments
+#     return actual_assignments
+# elif self.budget > costs[-1]:
+#     actual_assignments = {x_idx: [] for x_idx in range(len(X_test))}
+#     for i in range(len(X_test)):
+#         left_transfer = all_assignments[-1][i][0][0]
+#         right_transfer = self.c_bar
+#         slope = (right_transfer - left_transfer) / (self.c_bar - costs[-1])
+#         intercept = left_transfer - slope * costs[-1]
+#         actual_transfer = slope * self.budget + intercept
+#         actual_assignments[i].append((actual_transfer, 1.0))
+#     self.assignments = actual_assignments
+#     return actual_assignments
