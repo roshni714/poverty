@@ -559,7 +559,7 @@ class GapTargetedTransfers(TargetedTransfers):
         :type seed: int
         """
 
-        quantiles = np.linspace(0.05, 0.95, self.n_regressors)
+        quantiles = np.linspace(0.0, 1.0, self.n_regressors)
         self.quantile_regressors = dict()
 
         for quantile in quantiles:
@@ -652,20 +652,22 @@ class GapTargetedTransfers(TargetedTransfers):
         costs = []
         all_assignments = []
         X_test, r_test = test_covariate_dataset.get_data()
-        lambda_values = reversed(np.linspace(0.01, 0.99, 200))
+        lambda_values = reversed(np.linspace(0.0, 1.0, 200))
         for lambda_ in lambda_values:
             assignments = self._get_assignments_for_lambda(X_test, lambda_)
             cost = policy_cost(test_covariate_dataset, assignments)
             costs.append(cost)
             all_assignments.append(assignments)
         idx = bisect_left(costs, self.budget)
-        if idx < len(costs):
+        if idx == 0:
+            self.assignments = all_assignments[0]
+            return all_assignments[0]
+        if idx > 1 and idx < len(costs):
             self.assignments = all_assignments[idx - 1]
             return all_assignments[idx - 1]
         if idx == len(costs):
-            assignments = {x_idx: [(self.c_bar, 1.0)] for x_idx in range(len(X_test))}
-            self.assignments = assignments
-            return assignments
+            self.assignments = all_assignments[-1]
+            return all_assignments[-1]
 
 
 class OracleGapTargetedTransfers(TargetedTransfers):

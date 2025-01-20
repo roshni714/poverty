@@ -1318,82 +1318,9 @@ class GapTargetedTransfers(TargetedTransfers):
             self.train_dataset,
         )
 
-    def _get_baseline_wealth_at_quantile(self, X, quantile):
-        """
-        Evaluates the expected wealth of each household at the given quantile, given its
-        predictors.
-        """
+    
 
-        quantile_regressors = self.quantile_regressors
-        if quantile_regressors is None:
-            raise ValueError("Missing quantile regressors - run fit first.")
-
-        quantiles = list(quantile_regressors.keys())
-        quantiles.sort()
-
-        quantile_index = bisect_left(quantiles, quantile)
-
-        # if quantile_index == len(quantiles), then quantile is > all evaluated quantiles.
-        # if quantile_index == 0 then quantile is <= all evaluated quantiles.
-        # In that case for now I don't attempt to fake interpolation. This means
-        # it's important to fit a quantile near or at zero.
-        if quantile_index == len(quantiles):
-
-            baseline_quantile_wealth_level = quantile_regressors[
-                quantiles[quantile_index - 1]
-            ](X)
-
-        elif (quantile == quantiles[quantile_index]) or (quantile_index == 0):
-
-            baseline_quantile_wealth_level = quantile_regressors[
-                quantiles[quantile_index]
-            ](X)
-
-        # interpolate
-        else:
-            quantile_index_low = quantile_index - 1
-            quantile_index_high = quantile_index
-
-            assert quantile > quantiles[quantile_index_low]
-            assert quantile < quantiles[quantile_index_high]
-
-            interpolation_factor = (quantile - quantiles[quantile_index_low]) / (
-                quantiles[quantile_index_high] - quantiles[quantile_index_low]
-            )
-
-            baseline_quantile_wealth_level_low = quantile_regressors[
-                quantiles[quantile_index_low]
-            ](X)
-            baseline_quantile_wealth_level_high = quantile_regressors[
-                quantiles[quantile_index_high]
-            ](X)
-
-            baseline_quantile_wealth_level = (
-                (1 - interpolation_factor) * baseline_quantile_wealth_level_low
-                + interpolation_factor * baseline_quantile_wealth_level_high
-            )
-
-        return baseline_quantile_wealth_level
-
-    def _get_policy_for_lambda(self, X, lambda_):
-
-        quantile_regressors = self.quantile_regressors
-        if quantile_regressors is None:
-            raise ValueError("Missing quantile regressors - run fit first.")
-
-        baseline_lambda_quantile_wealth_level = self._get_baseline_wealth_at_quantile(
-            X, lambda_
-        )
-
-        transfer = np.maximum(self.c_bar - baseline_lambda_quantile_wealth_level, 0)
-
-        def t(X):
-            assignments = {x_idx: [] for x_idx in range(len(X))}
-            for i in range(len(X)):
-                assignments[i].append((transfer[i].item(), 1.0))
-            return assignments
-
-        return t
+    
 
     def run_opt(self, X_test, lambda_):
 
