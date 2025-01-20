@@ -62,7 +62,7 @@ from opt_targeted_transfers import BinaryGapTargetedTransfers
 
 tt = BinaryGapTargetedTransfers(c_bar=2.15, n_transfer_values=5)
 tt.fit(train_dataset, validation_dataset)
-tt.optimize_transfers_for_budget_grid(test_covariate_dataset, budgets=[0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.15])
+tt.get_opt_transfer_sizes_given_budget_grid(validation_dataset, budgets=[0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.15])
 tt.set_budget(0.5)
 tt.run_opt(test_covariate_dataset)
 res = tt.evaluate(test_dataset)
@@ -76,7 +76,7 @@ from opt_targeted_transfers import BinaryRateTargetedTransfers
 
 tt = BinaryGapTargetedTransfers(c_bar=2.15, n_transfer_values=5)
 tt.fit(train_dataset, validation_dataset)
-tt.optimize_transfers_for_budget_grid(test_covariate_dataset, budgets=[0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.15])
+tt.get_opt_transfer_sizes_given_budget_grid(validation_dataset, budgets=[0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 2.15])
 tt.set_budget(0.5)
 tt.run_opt(test_covariate_dataset)
 res = tt.evaluate(test_dataset)
