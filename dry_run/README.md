@@ -21,7 +21,7 @@ Running the following command will train a WGAN on 50% of the data stored in `tr
 
 ```
 mkdir gan/pickled
-python main_gan.py train --device cpu --savedir gan/pickled --trainpath data/train.parquet --maxepochs 3000 --lr 1e-3 --batchsize 256 --dropout 0.1
+python main_gan.py train --device cpu --savedir gan/pickled --trainpath data/train.parquet --summarypath data/summary_2019.parquet --maxepochs 3000 --lr 1e-3 --batchsize 256 --dropout 0.1
 ```
 
 # Synthetic Data Generation
@@ -45,6 +45,6 @@ Running the following command will fit the targeted transfer methods with hyperp
 
 ```
 mkdir learn/results
-python main_learn.py main --config output_gan_continuous_gap.yaml --trainpath data/train.parquet --testpath data/test.parquet
+python main_learn.py main --config output_gan_continuous_gap.yaml --trainpath data/train.parquet --testpath data/test.parquet --summarypath data/summary_2019.parquet
 ```
 

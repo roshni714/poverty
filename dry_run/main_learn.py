@@ -171,10 +171,12 @@ def learn_binary_gap(
 @argh.arg("--config", default="hparam_results/output_gan_continuous_rate.yaml")
 @argh.arg("--trainpath", default="data/train.parquet")
 @argh.arg("--testpath", default="data/test.parquet")
+@argh.arg("--summarypath", default="data/summary_2019.parquet")
 def main(
     config="hparam_results/output_gan_continuous_rate.yaml",
     trainpath="data/train.parquet",
     testpath="data/test.parquet",
+    summarypath="data/summary_2019.parquet",
 ):
     """
     Main function to learn and evaluate targeted transfers.
@@ -209,6 +211,7 @@ def main(
         load_datasets(
             trainpath,
             testpath,
+            summarypath,
             outcome=data_config["outcome"],
             weight=data_config["weight"],
         )

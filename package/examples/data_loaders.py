@@ -67,24 +67,24 @@ def _load_data(path):
     # it should be handled by prior data preprocessing code
 
     # compute outcome conversion factor
-    a = 340.2 / 430.05  # Malawi CPI in 2017 USD / Malawi CPI in 2019 USD
-    b = 241.98  # Malawi Kwacha to USD exchange rate in 2017
-    adulteq = data["adulteq"]
+    #a = 340.2 / 430.05  # Malawi CPI in 2017 USD / Malawi CPI in 2019 USD
+    #b = 241.98  # Malawi Kwacha to USD exchange rate in 2017
+    #adulteq = data["adulteq"]
     # can alternatively implement this as data["num_adults"] + alpha * data["num_children"]
     # where alpha is in (0, 1).
-    conversion_factor = (a / b) * (1 / 365) * (1 / adulteq)
-    data["consumption_per_capita_per_day"] = data["rexpagg"] * conversion_factor
+    # conversion_factor = (a / b) * (1 / 365) * (1 / adulteq)
+    # data["consumption_per_capita_per_day"] = data["rexpagg"] * conversion_factor
     # data["consumption_per_capita_per_day"] = np.clip(
     #     data["consumption_per_capita_per_day"], 0, truncation_upper_value
     # )
 
     # we include hh_wgt and consumption_per_capita_per_day so that
     # we can synthetically generate samples from the joint distribution (X, Y, R)
-    durable_verifiable_covariates = list(
-        pd.read_csv(PATH_TO_DURABLE_VERIFIABLE)["Covariates"]
-    )
+    # durable_verifiable_covariates = list(
+    #    pd.read_csv(PATH_TO_DURABLE_VERIFIABLE)["Covariates"]
+    #)
 
-    data = data[
-        durable_verifiable_covariates + ["consumption_per_capita_per_day", "hh_wgt"]
-    ]
+    #data = data[
+    #    durable_verifiable_covariates + ["consumption_per_capita_per_day", "hh_wgt"]
+    #]
     return data.reset_index(drop=True)

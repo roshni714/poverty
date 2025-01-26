@@ -4,7 +4,7 @@ import numpy as np
 import dill
 
 
-def load_data_for_wgan(path):
+def load_data_for_wgan(path, summary_path):
     """
     Load data for WGAN training.
 
@@ -15,43 +15,8 @@ def load_data_for_wgan(path):
         data_for_wgan (pd.DataFrame): Data for WGAN training.
         data_wrapper (wgan.DataWrapper): DataWrapper object for WGAN training.
     """
-    data = pd.read_parquet(path)
-
-    # some of this preprocessing code should eventually be deprecated because
-    # it should be handled by prior data preprocessing code
-
-    # compute outcome conversion factor
-    a = 340.2 / 430.05  # Malawi CPI in 2017 USD / Malawi CPI in 2019 USD
-    b = 241.98  # Malawi Kwacha to USD exchange rate in 2017
-    adulteq = data["adulteq"]
-    # can alternatively implement this as data["num_adults"] + alpha * data["num_children"]
-    # where alpha is in (0, 1).
-    conversion_factor = (a / b) * (1 / 365) * (1 / adulteq)
-    data["consumption_per_capita_per_day"] = data["rexpagg"] * conversion_factor
-    # data["consumption_per_capita_per_day"] = np.clip(
-    #     data["consumption_per_capita_per_day"], 0, truncation_upper_value
-    # )
-
-    # we include hh_wgt and consumption_per_capita_per_day so that
-    # we can synthetically generate samples from the joint distribution (X, Y, R)
-    durable_verifiable_covariates = list(
-        pd.read_csv("data/durable_verifiable_covariates.csv")["Covariates"]
-    )
-
-    data = data[
-        durable_verifiable_covariates + ["consumption_per_capita_per_day", "hh_wgt"]
-    ]
-
-    # Log transform continuous variables that must be positive
-    positive_features = [
-        "consumption_per_capita_per_day",
-        "hh_wgt",
-        "popdensity",
-        "yearly_rent",
-    ]
-    for feature in positive_features:
-        data["log_" + feature] = np.log(np.clip(data[feature], 1e-5, None))
-    data.drop(columns=positive_features, inplace=True)
+    data = pd.read_parquet(path).reset_index(drop=True)
+    summary = pd.read_parquet(summary_path)
 
     # Randomly select 50% of the data for training the WGAN
     rng = np.random.default_rng(145745893)
@@ -60,31 +25,19 @@ def load_data_for_wgan(path):
 
     # Identify which columns are continuous vs. categorical for the WGAN wrapper.
 
-    numeric_columns = set(data_for_wgan.select_dtypes(include=[np.number]).columns)
-
-    # Treat integer-valued columns as categorical for synthetic data generation
-    # (not necessary to do this for learning)
-    integer_columns = set(
-        [
-            col
-            for col in numeric_columns
-            if np.all(data[col].apply(lambda x: int(x) == x))
-        ]
+    numeric_columns = summary[summary["type"] == "numeric"]["covariate"].tolist()
+    partial_categorical_columns = set(
+        summary[summary["type"] == "categorical"]["covariate"]
+    )
+    enforced_categorical_columns = {c for c in data.columns if c.endswith("_nan")}
+    categorical_columns = list(
+        partial_categorical_columns.union(enforced_categorical_columns)
     )
 
-    non_numeric_columns = set(
-        data_for_wgan.select_dtypes(exclude=[np.number, np.datetime64]).columns
-    )
-
-    enforced_categorical = {c for c in numeric_columns if c.endswith("_nan")}
-    numeric_columns = list(numeric_columns - enforced_categorical - integer_columns)
-    actual_categorical = list(non_numeric_columns | enforced_categorical)
-    wgan_categorical = list(
-        non_numeric_columns | enforced_categorical | integer_columns
-    )
+    assert len(numeric_columns) + len(categorical_columns) == len(data_for_wgan.columns)
 
     categorical_mapping = {}
-    for col in actual_categorical:
+    for col in categorical_columns:
         categorical_mapping[col] = dict(
             zip(
                 data_for_wgan[col].astype("category").cat.codes,
@@ -96,7 +49,7 @@ def load_data_for_wgan(path):
     data_wrapper = wgan.DataWrapper(
         data_for_wgan,
         continuous_vars=numeric_columns,
-        categorical_vars=wgan_categorical,
+        categorical_vars=categorical_columns,
     )
     return data_for_wgan, data_wrapper, categorical_mapping
 
@@ -166,3 +119,57 @@ def get_mean_std_error(df1, df2):
     std_rmae = np.mean(np.abs((std1 - std2) / std1.clip(1.0, None)))
 
     return mean_rmae, std_rmae
+
+
+# some of this preprocessing code should eventually be deprecated because
+# it should be handled by prior data preprocessing code
+
+# compute outcome conversion factor
+# a = 340.2 / 430.05  # Malawi CPI in 2017 USD / Malawi CPI in 2019 USD
+# b = 241.98  # Malawi Kwacha to USD exchange rate in 2017
+# adulteq = data["adulteq"]
+# can alternatively implement this as data["num_adults"] + alpha * data["num_children"]
+# where alpha is in (0, 1).
+# conversion_factor = (a / b) * (1 / 365) * (1 / adulteq)
+# data["consumption_per_capita_per_day"] = data["rexpagg"] #* conversion_factor
+# data["consumption_per_capita_per_day"] = np.clip(
+#     data["consumption_per_capita_per_day"], 0, truncation_upper_value
+# )
+
+# we include hh_wgt and consumption_per_capita_per_day so that
+# we can synthetically generate samples from the joint distribution (X, Y, R)
+# durable_verifiable_covariates = list(
+#    pd.read_csv("data/durable_verifiable_covariates.csv")["Covariates"]
+# )
+
+# data = data[
+#    durable_verifiable_covariates + ["consumption_per_capita_per_day", "hh_wgt"]
+# ]
+
+# Log transform continuous variables that must be positive
+# features_to_be_log_transformed = summary[(summary["minimum"] >= 0.) & (summary["type"] == 'numeric')]["covariate"].tolist()
+# small_maximum = []
+# for feature in features_to_be_log_transformed:
+#     if data[feature].max() < 100:
+#         small_maximum.append(feature)
+# features_to_be_log_transformed = list(set(features_to_be_log_transformed) - set(small_maximum))
+# log_cols = []
+# new_rows = []
+# for feature in features_to_be_log_transformed:
+#     log_cols.append(pd.Series(np.log(np.clip(data[feature], 1e-5, None)), name="log_" + feature))
+#     new_rows.append({'covariate': "log_" + feature,
+#                                   'missing_count': summary[summary['covariate']==feature]['missing_count'].values[0].item(),
+#                                    "median": np.log(summary[summary['covariate']==feature]['median'].values[0]),
+#                                    'mean': np.mean(np.log(data[feature].clip(1e-5, None))),
+#                                    'std': np.std(np.log(data[feature].clip(1e-5, None))),
+#                                    'missing_fraction': summary[summary['covariate']==feature]['missing_fraction'].values[0].item(),
+#                                    'description': 'Log transformation ' + summary[summary['covariate']==feature]['description'].values[0],
+#                                    'module': summary[summary['covariate']==feature]['module'].values[0],
+#                                    'type': summary[summary['covariate']==feature]['type'].values[0],
+#                                    "minimum": np.log(summary[summary['covariate']==feature]['minimum'].values[0] + 1e-5),
+#                                    'columns': summary[summary['covariate']==feature]['columns'].values[0]})
+# data.drop(columns=features_to_be_log_transformed, inplace=True)
+# data = pd.concat([data] + log_cols, axis=1)
+# new_row_df = pd.DataFrame(new_rows)
+# summary.drop(summary[summary['covariate'].isin(features_to_be_log_transformed)].index, inplace=True)
+# summary = pd.concat([summary, new_row_df], axis=0).reset_index(drop=True)

@@ -32,17 +32,17 @@ def generate_synthetic_data(
         + data_wrapper.variables["categorical"]
     )
     synthetic_df.drop(columns=[0], inplace=True)
-    for feature in vars:
-        if feature.startswith("log_"):
-            new_feature_name = feature[4:]
-            synthetic_df[new_feature_name] = np.exp(synthetic_df[feature])
-            synthetic_df.drop(columns=[feature], inplace=True)
+    # for feature in vars:
+    #     if feature.startswith("log_"):
+    #         new_feature_name = feature[4:]
+    #         synthetic_df[new_feature_name] = np.exp(synthetic_df[feature])
+    #         synthetic_df.drop(columns=[feature], inplace=True)
     for col in categorical_mapping:
         synthetic_df[col] = synthetic_df[col].map(categorical_mapping[col])
     return synthetic_df
 
 
-def convert_to_onehot(df):
+def convert_to_onehot(df, summary):
     """
     Convert categorical columns to one-hot encoding.
 
@@ -51,17 +51,12 @@ def convert_to_onehot(df):
     :return new_df: The input data with one-hot encoding.
     :rtype: pandas.DataFrame
     """
-    numeric_columns = set(df.select_dtypes(include=[np.number]).columns)
-    non_numeric_columns = set(
-        df.select_dtypes(exclude=[np.number, np.datetime64]).columns
-    )
+    categorical_columns = summary[summary["type"] == "categorical"][
+        "covariate"
+    ].tolist()
 
-    enforced_categorical = {c for c in numeric_columns if c.endswith("_nan")}
-    numeric_columns = list(numeric_columns - enforced_categorical)
-    all_non_numeric_columns = list(non_numeric_columns | enforced_categorical)
-
-    one_hot = pd.get_dummies(df[all_non_numeric_columns]).astype(np.float32)
-    df.drop(columns=all_non_numeric_columns, inplace=True)
+    one_hot = pd.get_dummies(df[categorical_columns]).astype(np.float32)
+    df.drop(columns=categorical_columns, inplace=True)
     new_df = pd.concat([df, one_hot], axis=1)
     return new_df
 
@@ -89,7 +84,7 @@ def add_missing_columns(df_synthetic, categorical_mapping):
     return df
 
 
-def get_wgan_data_generator(objectspath):
+def get_wgan_data_generator(objectspath, summarypath):
     """
     Load a trained WGAN generator and data wrapper from disk and return a data generator function.
 
@@ -105,6 +100,8 @@ def get_wgan_data_generator(objectspath):
         data_wrapper = objects["data_wrapper"]
         categorical_mapping = objects["categorical_mapping"]
 
+    summary = pd.read_parquet(summarypath)
+
     small_df = generate_synthetic_data(
         generator, data_wrapper, categorical_mapping, 1, 0
     )
@@ -114,7 +111,7 @@ def get_wgan_data_generator(objectspath):
         df_synthetic = generate_synthetic_data(
             generator, data_wrapper, categorical_mapping, nsamples, seed
         )
-        df_synthetic_one_hot = convert_to_onehot(df_synthetic)
+        df_synthetic_one_hot = convert_to_onehot(df_synthetic, summary)
         df_synthetic_final = add_missing_columns(
             df_synthetic_one_hot, categorical_mapping
         )
@@ -123,7 +120,7 @@ def get_wgan_data_generator(objectspath):
     return data_generator, original_cols
 
 
-def get_gt_data_generator(trainpath):
+def get_gt_data_generator(trainpath, summarypath):
     """
     Load the ground truth training dataset and return a data generator function.
 
@@ -134,33 +131,34 @@ def get_gt_data_generator(trainpath):
         data_generator (function): A function that generates samples from the ground truth dataset.
     """
 
-    data = pd.read_parquet(trainpath)
+    data = pd.read_parquet(trainpath).reset_index(drop=True)
+    summary = pd.read_parquet(summarypath)
 
     # some of this preprocessing code should eventually be deprecated because
     # it should be handled by prior data preprocessing code
 
     # compute outcome conversion factor
-    a = 340.2 / 430.05  # Malawi CPI in 2017 USD / Malawi CPI in 2019 USD
-    b = 241.98  # Malawi Kwacha to USD exchange rate in 2017
-    adulteq = data["adulteq"]
+    # a = 340.2 / 430.05  # Malawi CPI in 2017 USD / Malawi CPI in 2019 USD
+    # b = 241.98  # Malawi Kwacha to USD exchange rate in 2017
+    # adulteq = data["adulteq"]
     # can alternatively implement this as data["num_adults"] + alpha * data["num_children"]
     # where alpha is in (0, 1).
-    conversion_factor = (a / b) * (1 / 365) * (1 / adulteq)
-    data["consumption_per_capita_per_day"] = data["rexpagg"] * conversion_factor
+    # conversion_factor = (a / b) * (1 / 365) * (1 / adulteq)
+    # data["consumption_per_capita_per_day"] = data["rexpagg"] * conversion_factor
 
     # we include hh_wgt and consumption_per_capita_per_day so that
     # we can synthetically generate samples from the joint distribution (X, Y, R)
-    durable_verifiable_covariates = list(
-        pd.read_csv("data/durable_verifiable_covariates.csv")["Covariates"]
-    )
+    # durable_verifiable_covariates = list(
+    #    pd.read_csv("data/durable_verifiable_covariates.csv")["Covariates"]
+    # )
 
-    data = data[
-        durable_verifiable_covariates + ["consumption_per_capita_per_day", "hh_wgt"]
-    ]
+    # data = data[
+    #    durable_verifiable_covariates + ["consumption_per_capita_per_day", "hh_wgt"]
+    # ]
 
     original_cols = data.columns.tolist()
 
-    data = convert_to_onehot(data)
+    data = convert_to_onehot(data, summary)
 
     def data_generator(nsamples, seed):
         rng = np.random.default_rng(seed)

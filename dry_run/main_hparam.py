@@ -41,12 +41,18 @@ def main(config="hparam_config.yaml"):
     if "gan" in data_config_params:
         gan_config_params = data_config_params["gan"]
         objectspath = gan_config_params["objectspath"]
-        data_generator, original_cols = get_wgan_data_generator(objectspath)
+        summarypath = gan_config_params["summarypath"]
+        data_generator, original_cols = get_wgan_data_generator(
+            objectspath, summarypath=summarypath
+        )
 
     elif "gt" in data_config_params:
         gt_config_params = data_config_params["gt"]
         trainpath = gt_config_params["trainpath"]
-        data_generator, original_cols = get_gt_data_generator(trainpath)
+        summarypath = gt_config_params["summarypath"]
+        data_generator, original_cols = get_gt_data_generator(
+            trainpath, summarypath=summarypath
+        )
 
     ntrain = data_config_params["ntrain"]
     nval = data_config_params["nval"]

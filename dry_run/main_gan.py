@@ -14,11 +14,13 @@ import dill
 @argh.arg("--maxepochs", default=2000)
 @argh.arg("--lr", default=1e-3)
 @argh.arg("--trainpath", default="data/train.parquet")
+@argh.arg("--summarypath", default="data/summary_2019.parquet")
 @argh.arg("--savedir", default="pickled")
 @argh.arg("--device", default="cuda")
 @argh.arg("--trial", default=0)
 def train(
     trainpath="data/train.parquet",
+    summarypath="data/summary_2019.parquet",
     savedir="models",
     device="cuda",
     maxepochs=2000,
@@ -27,7 +29,7 @@ def train(
     dropout=0.1,
     trial=0,
 ):
-    data, data_wrapper, categorical_mapping = load_data_for_wgan(trainpath)
+    data, data_wrapper, categorical_mapping = load_data_for_wgan(trainpath, summarypath)
     generator = train_wgan(
         data,
         data_wrapper,
