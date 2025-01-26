@@ -109,11 +109,21 @@ def get_mean_std_error(df1, df2):
         mean_rmse (float): Mean RMSE between the two DataFrames.
         std_rmse (float): Standard deviation RMSE between the two DataFrames.
     """
-    mean1 = df1[df1.columns].mean()
-    mean2 = df2[df1.columns].mean()
 
-    std1 = df1[df1.columns].std()
-    std2 = df2[df1.columns].std()
+    pos_vars = ["hh_wgt", "consumption_per_capita_per_day", "popdensity", "yearly_rent"]
+    df1_new = df1.copy()
+    df2_new = df2.copy()
+    for var in pos_vars:
+        df1_new[var] = np.log(df1_new["log_" + var] + 1e-5)
+        df2_new[var] = np.log(df2_new["log_" + var] + 1e-5)
+        df1_new = df1_new.drop(columns=[var])
+        df2_new = df2_new.drop(columns=[var])
+
+    mean1 = df1_new[df1_new.columns].mean()
+    mean2 = df2_new[df1_new.columns].mean()
+
+    std1 = df1_new[df1_new.columns].std()
+    std2 = df2_new[df1_new.columns].std()
 
     mean_rmae = np.mean(np.abs((mean1 - mean2) / mean1.clip(1.0, None)))
     std_rmae = np.mean(np.abs((std1 - std2) / std1.clip(1.0, None)))
