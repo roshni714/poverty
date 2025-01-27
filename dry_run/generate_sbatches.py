@@ -41,10 +41,10 @@ def generate_learn_run():
         # "output_gan_binary_rate.yaml",
         # "output_gan_binary_gap.yaml",
         # "output_gan_continuous_gap.yaml",
-        "output_gt_continuous_rate.yaml",
-        "output_gt_binary_rate.yaml",
+        #"output_gt_continuous_rate.yaml",
+        #"output_gt_binary_rate.yaml",
         "output_gt_binary_gap.yaml",
-        "output_gt_continuous_gap.yaml",
+        #"output_gt_continuous_gap.yaml",
         # "default_continuous_rate.yaml",
         # "default_binary_rate.yaml",
         # "default_binary_gap.yaml",
@@ -162,8 +162,41 @@ def generate_wgan_hparam_runs():
 
                             print("sleep 1", file=f)
 
+def generate_gt_run():
+    hparam_configs = [
+    "gt_continuous_rate.yaml",
+    "gt_binary_rate.yaml",
+    "gt_binary_gap.yaml",
+    "gt_continuous_gap.yaml",
+    ]
 
-generate_hparam_run()
-generate_learn_run()
+    learn_configs = [
+    "output_gt_continuous_rate.yaml",
+    "output_gt_binary_rate.yaml",
+    "output_gt_binary_gap.yaml",
+    "output_gt_continuous_gap.yaml",
+    ]
+
+    script_fn = os.path.join("gt_script.sh")
+    with open(script_fn, "w") as f:
+        print("#!/bin/bash", file=f)
+        print("# Hyperparameter search", file=f)
+        for config in hparam_configs:
+            base_cmd = f"python main_hparam.py main --config hparam/configs/{config}"
+            print(base_cmd, file=f)
+            print("sleep 1", file=f)
+
+        print("# Learning", file=f)
+        for config in learn_configs:
+            base_cmd = f"python main_learn.py main --config hparam/results/{config} --trainpath data/train.parquet --testpath data/test.parquet --device cuda"
+            print(base_cmd, file=f)
+            print("sleep 1", file=f)
+
+
+
+
+generate_gt_run()
+#generate_hparam_run()
+# generate_learn_run()
 # generate_wgan_run()
 # generate_wgan_hparam_runs()
