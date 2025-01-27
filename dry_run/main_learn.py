@@ -173,7 +173,7 @@ def learn_binary_gap(
     tt.fit(
         train_dataset,
         validation_dataset,
-        device,
+        device=device,
         **binary_gap_params["neural_network"],
     )
     tt.get_opt_transfer_sizes_given_budget_grid(validation_dataset, BUDGETS)
