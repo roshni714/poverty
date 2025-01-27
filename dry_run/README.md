@@ -45,6 +45,6 @@ Running the following command will fit the targeted transfer methods with hyperp
 
 ```
 mkdir learn/results
-python main_learn.py main --config output_gan_continuous_gap.yaml --trainpath data/train.parquet --testpath data/test.parquet --summarypath data/summary_2019.parquet
+python main_learn.py main --config output_gan_continuous_gap.yaml --trainpath data/train.parquet --testpath data/test.parquet --summarypath data/summary_2019.parquet --device cuda
 ```
 

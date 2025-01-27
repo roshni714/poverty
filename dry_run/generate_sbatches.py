@@ -187,6 +187,7 @@ def generate_gt_run():
             print("sleep 1", file=f)
 
         print("# Learning", file=f)
+        print("mkdir learn/results", file=f)
         for config in learn_configs:
             base_cmd = f"python main_learn.py main --config hparam/results/{config} --trainpath data/train.parquet --testpath data/test.parquet --device cuda"
             print(base_cmd, file=f)
