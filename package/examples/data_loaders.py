@@ -7,7 +7,9 @@ PATH_TO_TRAIN_DATA = (
 PATH_TO_TEST_DATA = (
     "~/zfs/gsb/intermediate-yens/rsahoo/poverty/dry_run/data/test.parquet"
 )
-PATH_TO_DURABLE_VERIFIABLE = "~/zfs/gsb/intermediate-yens/rsahoo/poverty/dry_run/data/durable_verifiable_covariates.csv"
+PATH_TO_SUMMARY = (
+    "~/zfs/gsb/intermediate-yens/rsahoo/poverty/dry_run/data/summary_2019.parquet"
+)
 
 
 def load_data(path):
@@ -19,12 +21,13 @@ def load_data(path):
     :return: The data with missing columns added.
     :rtype: pandas.DataFrame
     """
+    summary = pd.read_parquet(PATH_TO_SUMMARY)
     data = _load_data(path)
-    data = convert_to_onehot(data)
+    data = convert_to_onehot(data, summary)
     data1 = _load_data(PATH_TO_TRAIN_DATA)
     data2 = _load_data(PATH_TO_TEST_DATA)
     all_data = pd.concat([data1, data2], ignore_index=True)
-    all_data = convert_to_onehot(all_data)
+    all_data = convert_to_onehot(all_data, summary)
     missing_columns = set(all_data.columns) - set(data.columns)
     res = [data]
     for col in missing_columns:
@@ -33,7 +36,7 @@ def load_data(path):
     return final
 
 
-def convert_to_onehot(df):
+def convert_to_onehot(df, summary):
     """
     Convert categorical columns to one-hot encoding.
 
@@ -42,17 +45,12 @@ def convert_to_onehot(df):
     :return new_df: The input data with one-hot encoding.
     :rtype: pandas.DataFrame
     """
-    numeric_columns = set(df.select_dtypes(include=[np.number]).columns)
-    non_numeric_columns = set(
-        df.select_dtypes(exclude=[np.number, np.datetime64]).columns
-    )
+    categorical_columns = summary[summary["type"] == "categorical"][
+        "covariate"
+    ].tolist()
 
-    enforced_categorical = {c for c in numeric_columns if c.endswith("_nan")}
-    numeric_columns = list(numeric_columns - enforced_categorical)
-    all_non_numeric_columns = list(non_numeric_columns | enforced_categorical)
-
-    one_hot = pd.get_dummies(df[all_non_numeric_columns]).astype(np.float32)
-    df.drop(columns=all_non_numeric_columns, inplace=True)
+    one_hot = pd.get_dummies(df[categorical_columns]).astype(np.float32)
+    df.drop(columns=categorical_columns, inplace=True)
     new_df = pd.concat([df, one_hot], axis=1)
     return new_df
 

@@ -6,6 +6,7 @@ import pandas as pd
 def get_optimal_density_estimation_parameters(
     density_estimation_hparam_ranges,
     data_generator,
+    device,
     original_cols,
     ntrain,
     nval,
@@ -19,6 +20,7 @@ def get_optimal_density_estimation_parameters(
     Args:
         density_estimation_hparam_ranges (dict): Dictionary containing the hyperparameter ranges for density estimation.
         data_generator (DataGenerator): Data generator object.
+        device (str): Device to train the density estimator on.
         original_cols (list): List of columns in dataset before one-hot encoding.
         ntrain (int): Number of training samples.
         nval (int): Number of validation samples.
@@ -95,6 +97,7 @@ def get_optimal_density_estimation_parameters(
                             degree=degree,
                             n_bins=n_bins,
                             n_knots=n_knots,
+                            device=device,
                         )
                         nll = get_nll(big_val_dataset, density_estimator)
                         results.append(

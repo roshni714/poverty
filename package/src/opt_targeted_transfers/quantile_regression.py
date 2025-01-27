@@ -109,11 +109,11 @@ def get_quantile_regressor(
                 val_loss = torch.sum(
                     quantile_loss(q_hat, X_val, y_val) * torch.tensor(r_val).to(device)
                 )
-                val_losses.append(val_loss.detach().item().cpu())
-                models.append(copy.deepcopy(q_hat.detach().item().cpu()))
+                val_losses.append(val_loss.detach().item())
+                models.append(copy.deepcopy(q_hat.cpu()))
 
             q_hat.train()
-            q_hat = q_hat.to(device)
+            q_hat= q_hat.to(device)
             idx = np.random.choice(len(X_train), batch_size, replace=True)
             optimizer.zero_grad()
             loss = torch.sum(

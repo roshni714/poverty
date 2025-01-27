@@ -84,7 +84,7 @@ def generate_hparam_run():
         script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
         with open(script_fn, "w") as f:
             print(
-                SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id),
+                GPU_SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id),
                 file=f,
             )
             base_cmd = f"python main_hparam.py main --config hparam/configs/{config}"
@@ -163,7 +163,7 @@ def generate_wgan_hparam_runs():
                             print("sleep 1", file=f)
 
 
+generate_hparam_run()
 generate_learn_run()
-# generate_hparam_run()
 # generate_wgan_run()
 # generate_wgan_hparam_runs()

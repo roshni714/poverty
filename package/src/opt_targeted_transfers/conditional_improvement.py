@@ -139,8 +139,7 @@ def get_conditional_improvement_regressor(
             model_list.append(torch.nn.Linear(n_hidden_units, n_hidden_units))
             model_list.append(torch.nn.ReLU())
         model_list.append(torch.nn.Linear(n_hidden_units, 1))
-        predictor = torch.nn.Sequential(*model_list)
-        predictor = predictor.to(device)
+        predictor = torch.nn.Sequential(*model_list).to(device)
 
         def loss_function(predictor, X, benefits):
             predicted_benefits = predictor(torch.Tensor(X).to(device)).squeeze()
@@ -162,11 +161,11 @@ def get_conditional_improvement_regressor(
                     loss_function(predictor, X_val, benefits_val)
                     * torch.Tensor(r_val).to(device)
                 )
-                val_losses.append(val_loss.detach().item().cpu())
+                val_losses.append(val_loss.detach().item())
                 # ideally do torch.save to save checkpoints. Google it. Avoid saving so many models
                 # in memory. And more correct.
-                models.append(copy.deepcopy(predictor.detach().clone().cpu()))
-
+                models.append(copy.deepcopy(predictor.cpu()))
+            predictor = predictor.to(device)
             predictor.train()
             idx = np.random.choice(len(X_train), size=batch_size, replace=True)
             optimizer.zero_grad()
