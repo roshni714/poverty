@@ -40,6 +40,7 @@ def get_quantile_regressor(
     lr=5e-3,
     n_epochs=300,
     seed=123456,
+    device="cpu",
 ):
     """
     Get a quantile regressor for a given dataset.
@@ -58,6 +59,10 @@ def get_quantile_regressor(
     :type lr: float
     :param n_epochs: The number of epochs for training the neural network.
     :type n_epochs: int
+    :param seed: The random seed.
+    :type seed: int
+    :param device: The device on which to train the neural network.
+    :type device: str
     :return: The quantile regressor.
     :rtype: Callable[[np.ndarray], np.ndarray]
     """
@@ -82,13 +87,15 @@ def get_quantile_regressor(
             model_list.append(torch.nn.Linear(n_hidden_units, n_hidden_units))
             model_list.append(torch.nn.ReLU())
         model_list.append(torch.nn.Linear(n_hidden_units, 1))
-        q_hat = torch.nn.Sequential(*model_list)
+        q_hat = torch.nn.Sequential(*model_list).to(device)
 
         def quantile_loss(q_hat, X, y):
-            y_pred = q_hat(torch.Tensor(X)).squeeze()
-            return quantile * torch.nn.functional.relu(torch.Tensor(y) - y_pred) + (
-                1 - quantile
-            ) * torch.nn.functional.relu(y_pred - torch.Tensor(y))
+            y_pred = q_hat(torch.Tensor(X).to(device)).squeeze()
+            return quantile * torch.nn.functional.relu(
+                torch.Tensor(y).to(device) - y_pred
+            ) + (1 - quantile) * torch.nn.functional.relu(
+                y_pred - torch.Tensor(y).to(device)
+            )
 
         optimizer = torch.optim.Adam(q_hat.parameters(), lr=lr)
         batch_size = int(len(X_train) / 5)
@@ -100,24 +107,25 @@ def get_quantile_regressor(
             if epoch % 10 == 0:
                 q_hat.eval()
                 val_loss = torch.sum(
-                    quantile_loss(q_hat, X_val, y_val) * torch.Tensor(r_val)
+                    quantile_loss(q_hat, X_val, y_val) * torch.tensor(r_val).to(device)
                 )
-                val_losses.append(val_loss.detach().item())
-                models.append(copy.deepcopy(q_hat))
+                val_losses.append(val_loss.detach().item().cpu())
+                models.append(copy.deepcopy(q_hat.detach().item().cpu()))
 
             q_hat.train()
+            q_hat = q_hat.to(device)
             idx = np.random.choice(len(X_train), batch_size, replace=True)
             optimizer.zero_grad()
             loss = torch.sum(
                 quantile_loss(q_hat, X_train[idx, :], y_train[idx])
-                * torch.Tensor(r_train[idx])
+                * torch.tensor(r_train[idx]).to(device)
             )
             loss.backward()
             optimizer.step()
 
             pbar.set_postfix({"val loss": val_losses[-1]})
         best_model_idx = np.argmin(val_losses)
-        final_q_hat = models[best_model_idx]
+        final_q_hat = models[best_model_idx].cpu()
 
     def quantile_regressor(X_test):
         if X_test.shape[1] == 0:

@@ -30,8 +30,8 @@ def load_datasets(trainpath, testpath, summarypath, outcome, weight):
     covs.remove(outcome)
     covs.remove(weight)
 
-    train_data = convert_to_onehot(train_data)
-    test_data = convert_to_onehot(test_data)
+    train_data = convert_to_onehot(train_data, summary)
+    test_data = convert_to_onehot(test_data, summary)
 
     train_missing_columns = set(all_data.columns) - set(train_data.columns)
     res = [train_data]

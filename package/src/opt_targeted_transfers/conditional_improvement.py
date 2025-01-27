@@ -71,6 +71,7 @@ def get_conditional_improvement_regressor(
     lr=5e-3,
     n_epochs=300,
     seed=123456,
+    device="cpu",
 ):
     """
     :param dataset: The dataset used for training the quantile regressor.
@@ -89,6 +90,8 @@ def get_conditional_improvement_regressor(
     :type n_epochs: int
     :param seed: The random seed.
     :type seed: int
+    :param device: The device on which to train the neural network.
+    :type device: str
     :return: The conditional gap improvement regressor
     :rtype: Callable[[np.ndarray], np.ndarray]
     """
@@ -137,10 +140,11 @@ def get_conditional_improvement_regressor(
             model_list.append(torch.nn.ReLU())
         model_list.append(torch.nn.Linear(n_hidden_units, 1))
         predictor = torch.nn.Sequential(*model_list)
+        predictor = predictor.to(device)
 
         def loss_function(predictor, X, benefits):
-            predicted_benefits = predictor(torch.Tensor(X)).squeeze()
-            actual_benefits = torch.Tensor(benefits)
+            predicted_benefits = predictor(torch.Tensor(X).to(device)).squeeze()
+            actual_benefits = torch.Tensor(benefits).to(device)
             return (predicted_benefits - actual_benefits) ** 2
 
         optimizer = torch.optim.Adam(predictor.parameters(), lr=lr)
@@ -155,12 +159,13 @@ def get_conditional_improvement_regressor(
             if epoch % 10 == 0:
                 predictor.eval()
                 val_loss = torch.sum(
-                    loss_function(predictor, X_val, benefits_val) * torch.Tensor(r_val)
+                    loss_function(predictor, X_val, benefits_val)
+                    * torch.Tensor(r_val).to(device)
                 )
-                val_losses.append(val_loss.detach().item())
+                val_losses.append(val_loss.detach().item().cpu())
                 # ideally do torch.save to save checkpoints. Google it. Avoid saving so many models
                 # in memory. And more correct.
-                models.append(copy.deepcopy(predictor))
+                models.append(copy.deepcopy(predictor.detach().clone().cpu()))
 
             predictor.train()
             idx = np.random.choice(len(X_train), size=batch_size, replace=True)
@@ -169,7 +174,7 @@ def get_conditional_improvement_regressor(
             unweighted_loss = loss_function(
                 predictor, X_train[idx, :], benefits_train[idx]
             )
-            weights = torch.Tensor(r_train[idx])
+            weights = torch.Tensor(r_train[idx]).to(device)
             loss = torch.sum(unweighted_loss * weights)
             loss.backward()
             optimizer.step()
@@ -178,6 +183,8 @@ def get_conditional_improvement_regressor(
 
         best_model_idx = np.argmin(val_losses)
         final_predictor = models[best_model_idx]
+        final_predictor.eval()
+        final_predictor = final_predictor.cpu()
 
     def estimator(X_test):
         if X_test.shape[1] == 0:

@@ -41,14 +41,14 @@ def generate_learn_run():
         # "output_gan_binary_rate.yaml",
         # "output_gan_binary_gap.yaml",
         # "output_gan_continuous_gap.yaml",
-        # "output_gt_continuous_rate.yaml",
-        # "output_gt_binary_rate.yaml",
-        # "output_gt_binary_gap.yaml",
-        # "output_gt_continuous_gap.yaml",
-        "default_continuous_rate.yaml",
-        "default_binary_rate.yaml",
-        "default_binary_gap.yaml",
-        "default_continuous_gap.yaml",
+        "output_gt_continuous_rate.yaml",
+        "output_gt_binary_rate.yaml",
+        "output_gt_binary_gap.yaml",
+        "output_gt_continuous_gap.yaml",
+        # "default_continuous_rate.yaml",
+        # "default_binary_rate.yaml",
+        # "default_binary_gap.yaml",
+        # "default_continuous_gap.yaml",
     ]
 
     for config in configs:
@@ -56,10 +56,12 @@ def generate_learn_run():
         script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
         with open(script_fn, "w") as f:
             print(
-                SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id),
+                GPU_SBATCH_PREFACE.format(
+                    exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
+                ),
                 file=f,
             )
-            base_cmd = f"python main_learn.py main --config hparam/results/{config} --trainpath data/train.parquet --testpath data/test.parquet"
+            base_cmd = f"python main_learn.py main --config hparam/results/{config} --trainpath data/train.parquet --testpath data/test.parquet --device cuda"
             print(base_cmd, file=f)
             print("sleep 1", file=f)
 
@@ -68,13 +70,13 @@ def generate_hparam_run():
 
     configs = [
         # "gan_continuous_rate.yaml",
-        # "gt_continuous_rate.yaml",
+        "gt_continuous_rate.yaml",
         # "gan_binary_rate.yaml",
-        # "gt_binary_rate.yaml",
+        "gt_binary_rate.yaml",
         # "gan_binary_gap.yaml",
         # "gan_continuous_gap.yaml",
-        # "gt_binary_gap.yaml",
-        # "gt_continuous_gap.yaml",
+        "gt_binary_gap.yaml",
+        "gt_continuous_gap.yaml",
     ]
 
     for config in configs:
@@ -161,7 +163,7 @@ def generate_wgan_hparam_runs():
                             print("sleep 1", file=f)
 
 
-# generate_learn_run()
+generate_learn_run()
 # generate_hparam_run()
-generate_wgan_run()
+# generate_wgan_run()
 # generate_wgan_hparam_runs()

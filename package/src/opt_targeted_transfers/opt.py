@@ -46,7 +46,7 @@ class TargetedTransfers:
         self.budget = budget
         self.name = None
 
-    def fit(self, train_dataset, validation_dataset):
+    def fit(self, train_dataset, validation_dataset, device):
         pass
 
     def run_opt(self, test_covariate_dataset):
@@ -159,6 +159,7 @@ class RateTargetedTransfers(TargetedTransfers):
         degree=4,
         truncation_upper_value=10,
         n_epochs=300,
+        device="cpu",
     ):
         """
         Fitting the conditional density.
@@ -177,6 +178,8 @@ class RateTargetedTransfers(TargetedTransfers):
         :type truncation_upper_value: float
         :param n_epochs: The number of epochs to train the model. Defaults to 300.
         :type n_epochs: int
+        :param device: The device to use for training the model. Defaults to 'cpu'.
+        :type device: str
         """
         density_estimator = get_cond_density_estimator(
             train_dataset,
@@ -186,6 +189,7 @@ class RateTargetedTransfers(TargetedTransfers):
             degree=degree,
             truncation_upper_value=truncation_upper_value,
             n_epochs=n_epochs,
+            device=device,
         )
 
         pickle.dump(
@@ -456,6 +460,7 @@ class BinaryGapTargetedTransfers(BinaryTargetedTransfers):
         lr=5e-3,
         n_epochs=300,
         seed=123456,
+        device="cpu",
     ):
 
         # For each transfer size t, fit benefit estimator using training data
@@ -473,6 +478,7 @@ class BinaryGapTargetedTransfers(BinaryTargetedTransfers):
                     lr=lr,
                     n_epochs=n_epochs,
                     seed=seed,
+                    device=device,
                 )
             )
 
@@ -493,6 +499,7 @@ class BinaryRateTargetedTransfers(BinaryTargetedTransfers):
         lr=5e-3,
         n_epochs=300,
         seed=123456,
+        device="cpu",
     ):
 
         # For each transfer size t, fit benefit estimator using training data
@@ -510,6 +517,7 @@ class BinaryRateTargetedTransfers(BinaryTargetedTransfers):
                     lr=lr,
                     n_epochs=n_epochs,
                     seed=seed,
+                    device=device,
                 )
             )
 
@@ -539,6 +547,7 @@ class GapTargetedTransfers(TargetedTransfers):
         lr=5e-3,
         n_epochs=300,
         seed=123456,
+        device="cpu",
     ):
         """
         Fitting the quantile regression.
@@ -557,6 +566,8 @@ class GapTargetedTransfers(TargetedTransfers):
         :type n_epochs: int
         :param seed: The random seed for reproducibility. Defaults to 123456.
         :type seed: int
+        :param device: The device to use for training the model. Defaults to 'cpu'.
+        :type device: str
         """
 
         quantiles = np.linspace(0.0, 1.0, self.n_regressors)
@@ -573,6 +584,7 @@ class GapTargetedTransfers(TargetedTransfers):
                 lr=lr,
                 n_epochs=n_epochs,
                 seed=seed,
+                device=device,
             )
             self.quantile_regressors[quantile] = quantile_regressor
 

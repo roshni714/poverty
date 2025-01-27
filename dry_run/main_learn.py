@@ -48,6 +48,7 @@ def learn_continuous_rate(
     test_covariate_dataset,
     test_dataset,
     continuous_rate_params,
+    device,
     savepath,
 ):
     """
@@ -72,6 +73,7 @@ def learn_continuous_rate(
         n_knots=int(continuous_rate_params["density_estimation"]["n_knots"]),
         n_bins=int(continuous_rate_params["density_estimation"]["n_bins"]),
         degree=int(continuous_rate_params["density_estimation"]["degree"]),
+        device=device,
     )
     all_res = []
     if os.path.exists(savepath + ".csv"):
@@ -107,6 +109,7 @@ def learn_binary_rate(
     test_covariate_dataset,
     test_dataset,
     binary_rate_params,
+    device,
     savepath,
 ):
     """
@@ -116,7 +119,12 @@ def learn_binary_rate(
     tt = BinaryRateTargetedTransfers(
         c_bar=C_BAR, n_regressors=binary_rate_params["n_regressors"]
     )
-    tt.fit(train_dataset, validation_dataset, **binary_rate_params["neural_network"])
+    tt.fit(
+        train_dataset,
+        validation_dataset,
+        device=device,
+        **binary_rate_params["neural_network"],
+    )
     tt.get_opt_transfer_sizes_given_budget_grid(validation_dataset, BUDGETS)
     run_evaluation(tt, test_covariate_dataset, test_dataset, savepath)
 
@@ -127,6 +135,7 @@ def learn_continuous_gap(
     test_covariate_dataset,
     test_dataset,
     continuous_gap_params,
+    device,
     savepath,
 ):
     """
@@ -139,6 +148,7 @@ def learn_continuous_gap(
     tt.fit(
         train_dataset,
         validation_dataset,
+        device=device,
         **continuous_gap_params["neural_network"],
     )
     run_evaluation(tt, test_covariate_dataset, test_dataset, savepath)
@@ -150,6 +160,7 @@ def learn_binary_gap(
     test_covariate_dataset,
     test_dataset,
     binary_gap_params,
+    device,
     savepath,
 ):
     """
@@ -162,6 +173,7 @@ def learn_binary_gap(
     tt.fit(
         train_dataset,
         validation_dataset,
+        device,
         **binary_gap_params["neural_network"],
     )
     tt.get_opt_transfer_sizes_given_budget_grid(validation_dataset, BUDGETS)
@@ -172,11 +184,13 @@ def learn_binary_gap(
 @argh.arg("--trainpath", default="data/train.parquet")
 @argh.arg("--testpath", default="data/test.parquet")
 @argh.arg("--summarypath", default="data/summary_2019.parquet")
+@argh.arg("--device", default="cpu")
 def main(
     config="hparam_results/output_gan_continuous_rate.yaml",
     trainpath="data/train.parquet",
     testpath="data/test.parquet",
     summarypath="data/summary_2019.parquet",
+    device="cpu",
 ):
     """
     Main function to learn and evaluate targeted transfers.
@@ -236,6 +250,7 @@ def main(
                 test_covariate_dataset,
                 test_dataset,
                 config_hparam[key],
+                device,
                 savepath,
             )
         else:

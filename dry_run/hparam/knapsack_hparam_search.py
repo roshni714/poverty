@@ -8,6 +8,7 @@ from constants import C_BAR, BUDGETS
 def get_optimal_knapsack_parameters(
     n_alpha_range,
     data_generator,
+    device,
     original_cols,
     ntrain,
     ntest,
@@ -22,6 +23,7 @@ def get_optimal_knapsack_parameters(
     Args:
     n_alpha_range: Range of n_alpha values to search over.
     data_generator (DataGenerator): Data generator object.
+    device (str): Device to train the density estimator on.
     original_cols (list): List of columns in dataset before one-hot encoding.
     ntrain (int): Number of training samples.
     nval (int): Number of validation samples.
@@ -57,6 +59,7 @@ def get_optimal_knapsack_parameters(
         n_bins=density_estimation_params["n_bins"],
         n_knots=density_estimation_params["n_knots"],
         degree=density_estimation_params["degree"],
+        device=device,
     )
 
     results = []

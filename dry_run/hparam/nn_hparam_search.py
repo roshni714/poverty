@@ -15,6 +15,7 @@ def get_optimal_nn_improvement_parameters(
     loss_type,
     nn_hparam_ranges,
     data_generator,
+    device,
     original_cols,
     ntrain,
     nval,
@@ -28,6 +29,7 @@ def get_optimal_nn_improvement_parameters(
     Args:
         nn_hparam_ranges (dict): Hyperparameter ranges for neural network.
         data_generator (generator): Data generator.
+        device (str): Device to train the neural network on.
         original_cols (list): Original columns before one-hot encoding.
         ntrain (int): Number of training samples.
         nval (int): Number of validation samples.
@@ -82,6 +84,7 @@ def get_optimal_nn_improvement_parameters(
                             n_layers=n_layers,
                             n_hidden_units=n_hidden_units,
                             lr=lr,
+                            device=device,
                         )
                         loss = get_conditional_improvement_loss(
                             big_val_dataset,
@@ -115,6 +118,7 @@ def get_optimal_nn_improvement_parameters(
 def get_optimal_nn_quantile_regression_parameters(
     nn_hparam_ranges,
     data_generator,
+    device,
     original_cols,
     ntrain,
     nval,
@@ -128,6 +132,7 @@ def get_optimal_nn_quantile_regression_parameters(
     Args:
         nn_hparam_ranges (dict): Hyperparameter ranges for neural network.
         data_generator (generator): Data generator.
+        device (str): Device to train the neural network on.
         original_cols (list): Original columns before one-hot encoding.
         ntrain (int): Number of training samples.
         nval (int): Number of validation samples.
@@ -178,6 +183,7 @@ def get_optimal_nn_quantile_regression_parameters(
                             n_layers=n_layers,
                             n_hidden_units=n_hidden_units,
                             lr=lr,
+                            device=device,
                         )
                         pinball_loss = get_quantile_loss(
                             validation_dataset=big_val_dataset,

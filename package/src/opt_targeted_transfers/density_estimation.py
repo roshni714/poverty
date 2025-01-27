@@ -38,6 +38,7 @@ def get_cond_density_estimator(
     degree=4,
     truncation_upper_value=10,
     n_epochs=300,
+    device="cpu",
 ):
     """
     Compute the conditional density estimator.
@@ -70,6 +71,7 @@ def get_cond_density_estimator(
             degree=degree,
             truncation_upper_value=truncation_upper_value,
             n_epochs=n_epochs,
+            device=device,
         )
 
     else:
@@ -81,6 +83,7 @@ def get_cond_density_estimator(
             degree=degree,
             truncation_upper_value=truncation_upper_value,
             n_epochs=n_epochs,
+            device=device,
         )
     return helper
 
@@ -110,6 +113,7 @@ def lindsey_method(
     truncation_upper_value=10,
     n_epochs=300,
     seed=123456,
+    device="cpu",
 ):
     """
     Apply the Lindsey's method for marginal density estimation (Efron & Tibshirani 1996).
@@ -168,6 +172,8 @@ def lindsey_method(
     k = bin_basis_elements.shape[1]
     bin_basis_elements = torch.tensor(
         bin_basis_elements.reshape(n_bins, k), dtype=torch.float64
+    ).to(
+        device
     )  # n_bins x k
 
     # Get basis representation of sampled Y values.
@@ -181,18 +187,21 @@ def lindsey_method(
     )  # n x k
 
     r_train = torch.tensor(r_train, dtype=torch.float64)
-    y_train = torch.tensor(y_train, dtype=torch.float64)
     r_val = torch.tensor(r_val, dtype=torch.float64)
-    y_val = torch.tensor(y_val, dtype=torch.float64)
-    bin_ends = torch.tensor(bin_ends, dtype=torch.float64)
-    front = torch.tensor(front, dtype=torch.float64)
+    bin_ends = torch.tensor(bin_ends, dtype=torch.float64).to(device)
+    front = torch.tensor(front, dtype=torch.float64).to(device)
     theta = torch.nn.Parameter(
-        torch.tensor(np.random.uniform(-1.0, 1.0, k).reshape(k, 1), dtype=torch.float64)
+        torch.tensor(
+            np.random.uniform(-1.0, 1.0, k).reshape(k, 1),
+            dtype=torch.float64,
+            device=device,
+        )
     )
 
     unscaled_bin_ends = bin_ends * y_std + y_mean
 
     def glm_nll(theta, basis_matrix):
+        basis_matrix = basis_matrix.to(device)
         res = torch.matmul(basis_matrix, theta).squeeze()  # n
         norm_res = torch.exp(
             torch.matmul(bin_basis_elements, theta)
@@ -211,13 +220,15 @@ def lindsey_method(
     val_losses = []
     for epoch in pbar:
         if epoch % 25 == 0:
-            val_loss = torch.sum(glm_nll(theta, basis_matrix_val) * r_val)
-            val_losses.append(val_loss.detach().item())
-            thetas.append(theta.detach().clone())
+            val_loss = torch.sum(glm_nll(theta, basis_matrix_val) * r_val.to(device))
+            val_losses.append(val_loss.detach().item().cpu())
+            thetas.append(theta.detach().clone().cpu())
 
         idx = np.random.choice(len(y_train), size=batch_size)
         optimizer.zero_grad()
-        loss = torch.sum(glm_nll(theta, basis_matrix_train[idx, :]) * r_train[idx])
+        loss = torch.sum(
+            glm_nll(theta, basis_matrix_train[idx, :]) * r_train[idx].to(device)
+        )
         loss.backward()
         optimizer.step()
         pbar.set_postfix({"loss": loss.item(), "val_loss": val_loss.item()})
@@ -225,6 +236,12 @@ def lindsey_method(
     best_model_idx = np.argmin(val_losses)
     final_theta = thetas[best_model_idx]
     print("Final Theta: {}".format(final_theta))
+
+    bin_basis_elements = bin_basis_elements.cpu()
+    front = front.cpu()
+    bin_ends = bin_ends.cpu()
+    final_theta = final_theta.cpu()
+    unscaled_bin_ends = unscaled_bin_ends.cpu()
 
     def helper(X_test):
         norm_res = torch.exp(torch.matmul(bin_basis_elements, final_theta)).squeeze()
@@ -306,6 +323,7 @@ def lindsey_method_with_covariates(
     truncation_upper_value=10,
     n_epochs=300,
     seed=123456,
+    device="cpu",
 ):
     """
     Apply the Lindsey's method for marginal density estimation (Efron & Tibshirani 1996).
@@ -369,6 +387,8 @@ def lindsey_method_with_covariates(
     k = bin_basis_elements.shape[1]
     bin_basis_elements = torch.tensor(
         bin_basis_elements.reshape(n_bins, 1, k), dtype=torch.float64
+    ).to(
+        device
     )  # n_bins x 1 x k
 
     # Get basis representation of sampled Y values.
@@ -389,12 +409,14 @@ def lindsey_method_with_covariates(
     r_val = torch.tensor(r_val, dtype=torch.float64)
     y_val = torch.tensor(y_val, dtype=torch.float64)
 
-    bin_ends = torch.tensor(bin_ends, dtype=torch.float64)
-    front = torch.tensor(front, dtype=torch.float64)
+    bin_ends = torch.tensor(bin_ends, dtype=torch.float64).to(device)
+    front = torch.tensor(front, dtype=torch.float64).to(device)
 
     theta = torch.nn.Parameter(
         torch.tensor(
-            np.random.uniform(-1.0, 1.0, k * d).reshape(k, d), dtype=torch.float64
+            np.random.uniform(-1.0, 1.0, k * d).reshape(k, d),
+            dtype=torch.float64,
+            device=device,
         )
     )
 
@@ -402,8 +424,8 @@ def lindsey_method_with_covariates(
 
     def glm_nll(theta, X, basis_matrix):
         sub_n = len(X)
-        params = torch.matmul(theta, X).reshape(sub_n, k, 1)  # n x k x 1
-        res = torch.matmul(basis_matrix, params).squeeze()  # n x 1 x 1
+        params = torch.matmul(theta, X.to(device)).reshape(sub_n, k, 1)  # n x k x 1
+        res = torch.matmul(basis_matrix.to(device), params).squeeze()  # n x 1 x 1
         norm_res = torch.exp(
             torch.matmul(
                 params.reshape(params.shape[0], params.shape[1]),
@@ -428,14 +450,17 @@ def lindsey_method_with_covariates(
     val_losses = []
     for epoch in pbar:
         if epoch % 25 == 0:
-            val_loss = torch.sum(glm_nll(theta, X_val, basis_matrix_val) * r_val)
+            val_loss = torch.sum(
+                glm_nll(theta, X_val, basis_matrix_val) * r_val.to(device)
+            )
             val_losses.append(val_loss.detach().item())
-            thetas.append(theta.detach().clone())
+            thetas.append(theta.detach().clone().cpu())
 
         idx = np.random.choice(n_train, size=batch_size, replace=True)
         optimizer.zero_grad()
         loss = torch.sum(
-            glm_nll(theta, X_train[idx, :], basis_matrix_train[idx, :]) * r_train[idx]
+            glm_nll(theta, X_train[idx, :], basis_matrix_train[idx, :])
+            * r_train[idx].to(device)
         )
         loss.backward()
         optimizer.step()
@@ -444,6 +469,12 @@ def lindsey_method_with_covariates(
     best_model_idx = np.argmin(val_losses)
     final_theta = thetas[best_model_idx]
     print("Final Theta: {}".format(final_theta))
+
+    bin_basis_elements = bin_basis_elements.cpu()
+    front = front.cpu()
+    bin_ends = bin_ends.cpu()
+    final_theta = final_theta.cpu()
+    unscaled_bin_ends = unscaled_bin_ends.cpu()
 
     def helper(X_test):
         X_test = (X_test - X_mean) / X_std

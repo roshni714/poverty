@@ -12,6 +12,7 @@ def get_optimal_n_regressors(
     n_regressors_range,
     loss_type,
     data_generator,
+    device,
     original_cols,
     ntrain,
     ntest,
@@ -70,6 +71,7 @@ def get_optimal_n_regressors(
             tt.fit(
                 new_train_dataset,
                 new_val_dataset,
+                device=device,
                 **neural_network_params,
             )
             if "binary" in loss_type:

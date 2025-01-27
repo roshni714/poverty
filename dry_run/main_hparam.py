@@ -30,6 +30,7 @@ def main(config="hparam_config.yaml"):
             print(exc)
 
     savedir = config_hparams["savedir"]
+    device = config_hparams["device"]
 
     opt_hparams = {}
     opt_hparams["savedir"] = "learn/results"
@@ -71,6 +72,7 @@ def main(config="hparam_config.yaml"):
             opt_density_estimation_hparams = get_optimal_density_estimation_parameters(
                 density_estimation_hparam_ranges=rate["density_estimation"],
                 data_generator=data_generator,
+                device=device,
                 original_cols=original_cols,
                 ntrain=ntrain,
                 nval=nval,
@@ -85,6 +87,7 @@ def main(config="hparam_config.yaml"):
             opt_n_alpha = get_optimal_knapsack_parameters(
                 rate["n_alpha"],
                 data_generator=data_generator,
+                device=device,
                 original_cols=original_cols,
                 ntrain=ntrain,
                 ntest=ntest,
@@ -102,6 +105,7 @@ def main(config="hparam_config.yaml"):
             loss_type="binary_rate",
             nn_hparam_ranges=binary_rate["neural_network"],
             data_generator=data_generator,
+            device=device,
             original_cols=original_cols,
             ntrain=ntrain,
             nval=nval,
@@ -116,6 +120,7 @@ def main(config="hparam_config.yaml"):
             binary_rate["n_regressors"],
             loss_type="binary_rate",
             data_generator=data_generator,
+            device=device,
             original_cols=original_cols,
             ntrain=ntrain,
             ntest=ntest,
@@ -131,6 +136,7 @@ def main(config="hparam_config.yaml"):
         opt_nn_hparams = get_optimal_nn_quantile_regression_parameters(
             nn_hparam_ranges=continuous_gap["neural_network"],
             data_generator=data_generator,
+            device=device,
             original_cols=original_cols,
             ntrain=ntrain,
             nval=nval,
@@ -146,6 +152,7 @@ def main(config="hparam_config.yaml"):
             continuous_gap["n_regressors"],
             loss_type="continuous_gap",
             data_generator=data_generator,
+            device=device,
             original_cols=original_cols,
             ntrain=ntrain,
             ntest=ntest,
@@ -162,6 +169,7 @@ def main(config="hparam_config.yaml"):
             loss_type="binary_gap",
             nn_hparam_ranges=binary_gap["neural_network"],
             data_generator=data_generator,
+            device=device,
             original_cols=original_cols,
             ntrain=ntrain,
             nval=nval,
@@ -175,6 +183,7 @@ def main(config="hparam_config.yaml"):
             binary_gap["n_regressors"],
             loss_type="binary_gap",
             data_generator=data_generator,
+            device=device,
             original_cols=original_cols,
             ntrain=ntrain,
             ntest=ntest,

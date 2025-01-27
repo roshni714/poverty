@@ -1,4 +1,5 @@
 savedir: hparam/results
+device: cuda
 data:
   ntrain: 6480
   nval: 50000
