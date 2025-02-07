@@ -16,7 +16,8 @@ from hparam.nn_hparam_search import (
 
 
 @argh.arg("--config", default="hparam/configs/hparam_config.yml")
-def main(config="hparam_config.yaml"):
+@argh.arg("--learnsavedir", default="learn/results")
+def main(config="hparam_config.yaml", learnsavedir="learn/results"):
     """
     Main function to optimize hyperparameters.
 
@@ -33,7 +34,7 @@ def main(config="hparam_config.yaml"):
     device = config_hparams["device"]
 
     opt_hparams = {}
-    opt_hparams["savedir"] = "learn/results"
+    opt_hparams["savedir"] = learnsavedir
 
     data_config_params = config_hparams["data"]
     opt_hparams["data"] = {}
