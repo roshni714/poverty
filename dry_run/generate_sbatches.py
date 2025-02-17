@@ -83,7 +83,7 @@ def generate_hparam_run():
 
     for country in countries:
         for config in configs:
-            exp_id = config
+            exp_id = "{}_{}".format(country, config)
             script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
             with open(script_fn, "w") as f:
                 print(
