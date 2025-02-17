@@ -8,9 +8,11 @@ from opt_targeted_transfers import (
     BinaryRateTargetedTransfers,
     BinaryGapTargetedTransfers,
     write_result,
+    OracleGapTargetedTransfers,
+    PMTTargetedTransfers,
 )
 from learn.data_loader import load_datasets
-from constants import C_BAR, BUDGETS
+from constants import C_BAR, BUDGETS, ORACLE_BUDGETS
 import os
 
 
@@ -18,9 +20,17 @@ def run_evaluation(tt, test_covariate_dataset, test_dataset, savepath):
     if os.path.exists(savepath + ".csv"):
         os.remove(savepath + ".csv")
 
-    for budget in BUDGETS:
+    if "oracle" in tt.name:
+        budgets = ORACLE_BUDGETS
+    else:
+        budgets = BUDGETS
+
+    for budget in budgets:
         tt.set_budget(budget)
-        tt.run_opt(test_covariate_dataset)
+        if "oracle" in tt.name:
+            tt.run_opt(test_dataset)
+        else:
+            tt.run_opt(test_covariate_dataset)
         res = tt.evaluate(test_dataset)
         print(res)
         write_result(savepath + ".csv", res)
@@ -180,6 +190,40 @@ def learn_binary_gap(
     run_evaluation(tt, test_covariate_dataset, test_dataset, savepath)
 
 
+def learn_pmt(
+    train_dataset,
+    validation_dataset,
+    test_covariate_dataset,
+    test_dataset,
+    pmt_params,
+    device,
+    savepath,
+):
+    """
+    Learn PMT targeted transfers
+    """
+    print("Learning PMT targeted transfers...")
+    tt = PMTTargetedTransfers(c_bar=C_BAR, transfer_value=pmt_params["transfer_value"])
+    tt.fit(
+        train_dataset,
+        validation_dataset,
+    )
+    run_evaluation(tt, test_covariate_dataset, test_dataset, savepath)
+
+
+def learn_oracle_gap(
+    test_covariate_dataset,
+    test_dataset,
+    savepath,
+):
+    """
+    Learn the oracle gap targeted transfers
+    """
+    print("Learning oracle gap targeted transfers...")
+    tt = OracleGapTargetedTransfers(c_bar=C_BAR, scheme="lift_to_line")
+    run_evaluation(tt, test_covariate_dataset, test_dataset, savepath)
+
+
 @argh.arg("--config", default="hparam_results/output_gan_continuous_rate.yaml")
 @argh.arg("--trainpath", default="data/train.parquet")
 @argh.arg("--testpath", default="data/test.parquet")
@@ -211,8 +255,10 @@ def main(
                 "binary_rate",
                 "continuous_gap",
                 "binary_gap",
+                "oracle_gap",
                 "data",
                 "savedir",
+                "pmt",
             ]
             for key in config_keys
         ]
@@ -230,20 +276,28 @@ def main(
             weight=data_config["weight"],
         )
     )
+    import pdb
+
+    pdb.set_trace()
 
     name = config.split("/")[-1].split(".yaml")[0]
     savepath = savedir + "/" + name
 
-    METHODS = {
+    LEARNING_METHODS = {
         "continuous_rate": learn_continuous_rate,
         "binary_rate": learn_binary_rate,
         "continuous_gap": learn_continuous_gap,
         "binary_gap": learn_binary_gap,
+        "pmt": learn_pmt,
+    }
+
+    ORACLE_METHODS = {
+        "oracle_gap": learn_oracle_gap,
     }
 
     for key in config_keys:
-        if key in METHODS:
-            method = METHODS[key]
+        if key in LEARNING_METHODS:
+            method = LEARNING_METHODS[key]
             method(
                 train_dataset,
                 validation_dataset,
@@ -251,6 +305,13 @@ def main(
                 test_dataset,
                 config_hparam[key],
                 device,
+                savepath,
+            )
+        elif key in ORACLE_METHODS:
+            method = ORACLE_METHODS[key]
+            method(
+                test_covariate_dataset,
+                test_dataset,
                 savepath,
             )
         else:

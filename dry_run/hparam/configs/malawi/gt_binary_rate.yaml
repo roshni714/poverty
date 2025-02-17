@@ -7,11 +7,12 @@ data:
   outcome: consumption_per_capita_per_day
   weight: hh_wgt
   gt:
-    trainpath: data/train.parquet
-    summarypath: data/summary_2019.parquet
-binary_gap:
+    trainpath: data/malawi/train.parquet
+    summarypath: data/malawi/summary.parquet
+binary_rate:
   n_regressors: [10, 20, 30]
   neural_network:
     n_layers: [1, 2, 3]
     n_hidden_units: [256, 1024, 2048]
     lr: [0.001, 0.005, 0.01]
+

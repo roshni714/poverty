@@ -41,14 +41,16 @@ def generate_learn_run():
         # "output_gan_binary_rate.yaml",
         # "output_gan_binary_gap.yaml",
         # "output_gan_continuous_gap.yaml",
-        #"output_gt_continuous_rate.yaml",
-        #"output_gt_binary_rate.yaml",
-        "output_gt_binary_gap.yaml",
-        #"output_gt_continuous_gap.yaml",
+        # "output_gt_continuous_rate.yaml",
+        # "output_gt_binary_rate.yaml",
+        # "output_gt_binary_gap.yaml",
+        # "output_gt_continuous_gap.yaml",
         # "default_continuous_rate.yaml",
         # "default_binary_rate.yaml",
-        # "default_binary_gap.yaml",
+        "default_binary_gap.yaml",
         # "default_continuous_gap.yaml",
+        # "oracle_gap.yaml",
+        # "pmt.yaml"
     ]
 
     for config in configs:
@@ -56,12 +58,10 @@ def generate_learn_run():
         script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
         with open(script_fn, "w") as f:
             print(
-                GPU_SBATCH_PREFACE.format(
-                    exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
-                ),
+                SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id),
                 file=f,
             )
-            base_cmd = f"python main_learn.py main --config hparam/results/{config} --trainpath data/train.parquet --testpath data/test.parquet --device cuda"
+            base_cmd = f"python main_learn.py main --config hparam/results/{config} --trainpath data/preprocessed_2025_02_11/train.parquet --testpath data/preprocessed_2025_02_11/test.parquet --summarypath data/preprocessed_2025_02_11/summary_2019.parquet --device cpu"
             print(base_cmd, file=f)
             print("sleep 1", file=f)
 
@@ -84,7 +84,9 @@ def generate_hparam_run():
         script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
         with open(script_fn, "w") as f:
             print(
-                GPU_SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id),
+                GPU_SBATCH_PREFACE.format(
+                    exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
+                ),
                 file=f,
             )
             base_cmd = f"python main_hparam.py main --config hparam/configs/{config}"
@@ -108,7 +110,7 @@ def generate_wgan_run():
             GPU_SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id),
             file=f,
         )
-        base_cmd = "python main_gan.py train --device cpu --savedir gan/pickled --trainpath data/train.parquet --summarypath data/summary_2019.parquet --maxepochs {} --lr {} --batchsize {} --dropout {}".format(
+        base_cmd = "python main_gan.py train --device cpu --savedir gan/pickled --trainpath data/preprocessed_2025_02_11/train.parquet --summarypath data/preprocessed_2025_02_11/summary_2019.parquet --maxepochs {} --lr {} --batchsize {} --dropout {}".format(
             maxepochs, lr, batchsize, dropout
         )
         print(base_cmd, file=f)
@@ -146,7 +148,7 @@ def generate_wgan_hparam_runs():
                             file=f,
                         )
                         for trial in range(n_trials):
-                            base_cmd = "python main.py train --device cuda --savedir pickled --trainpath data/train.parquet --summarypath data/summary_2019.parquet --maxepochs {} --lr {} --batchsize {} --dropout {} --trial {}".format(
+                            base_cmd = "python main.py train --device cuda --savedir pickled --trainpath data/preprocessed_2025_02_11/train.parquet --summarypath data/preprocessed_2025_02_11/summary_2019.parquet --maxepochs {} --lr {} --batchsize {} --dropout {} --trial {}".format(
                                 maxepochs, lr, batchsize, dropout, trial
                             )
                             print(base_cmd, file=f)
@@ -162,19 +164,20 @@ def generate_wgan_hparam_runs():
 
                             print("sleep 1", file=f)
 
+
 def generate_gt_run():
     hparam_configs = [
-    "gt_continuous_rate.yaml",
-    "gt_binary_rate.yaml",
-    "gt_binary_gap.yaml",
-    "gt_continuous_gap.yaml",
+        "gt_continuous_rate.yaml",
+        "gt_binary_rate.yaml",
+        "gt_binary_gap.yaml",
+        "gt_continuous_gap.yaml",
     ]
 
     learn_configs = [
-    "output_gt_continuous_rate.yaml",
-    "output_gt_binary_rate.yaml",
-    "output_gt_binary_gap.yaml",
-    "output_gt_continuous_gap.yaml",
+        "output_gt_continuous_rate.yaml",
+        "output_gt_binary_rate.yaml",
+        "output_gt_binary_gap.yaml",
+        "output_gt_continuous_gap.yaml",
     ]
 
     script_fn = os.path.join("gt_script.sh")
@@ -189,15 +192,13 @@ def generate_gt_run():
         print("# Learning", file=f)
         print("mkdir learn/results", file=f)
         for config in learn_configs:
-            base_cmd = f"python main_learn.py main --config hparam/results/{config} --trainpath data/train.parquet --testpath data/test.parquet --device cuda"
+            base_cmd = f"python main_learn.py main --config hparam/results/{config} --trainpath data/preprocessed_2025_02_11/train.parquet --testpath data/preprocessed_2025_02_11/test.parquet --device cuda"
             print(base_cmd, file=f)
             print("sleep 1", file=f)
 
 
-
-
-generate_gt_run()
-#generate_hparam_run()
-# generate_learn_run()
+# generate_gt_run()
+# generate_hparam_run()
+generate_learn_run()
 # generate_wgan_run()
 # generate_wgan_hparam_runs()

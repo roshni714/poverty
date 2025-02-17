@@ -68,6 +68,8 @@ def convert_to_onehot(df, summary):
         "covariate"
     ].tolist()
 
+    categorical_columns = [col for col in categorical_columns if col in df.columns]
+
     one_hot = pd.get_dummies(df[categorical_columns]).astype(np.float32)
     df.drop(columns=categorical_columns, inplace=True)
     new_df = pd.concat([df, one_hot], axis=1)

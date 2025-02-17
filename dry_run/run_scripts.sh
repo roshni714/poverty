@@ -9,8 +9,8 @@ for experiment in /home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/dr
 do
     echo $experiment
     chmod u+x $experiment
-    sbatch $experiment
-#    $experiment
+#    sbatch $experiment
+    $experiment
     sleep 1
 done
 

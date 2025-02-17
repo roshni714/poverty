@@ -1,5 +1,4 @@
 from opt_targeted_transfers.dataset_utils import Dataset
-from opt_targeted_transfers.prediction import get_prediction_function
 from opt_targeted_transfers.density_estimation import get_cond_density_estimator
 from opt_targeted_transfers.knapsack import compute_alpha_opt_policies
 from opt_targeted_transfers.oracle import (
@@ -14,6 +13,7 @@ from opt_targeted_transfers.evaluate import (
     expected_value_transfers,
     policy_cost,
 )
+from opt_targeted_transfers.prediction import get_pmt_linear_regressor
 from opt_targeted_transfers.conditional_improvement import (
     get_conditional_improvement_regressor,
     get_avg_estimated_benefit,
@@ -731,5 +731,52 @@ class OracleRateTargetedTransfers(TargetedTransfers):
             c_bar=self.c_bar,
             budget=self.budget,
         )
+        self.assignments = assignments
+        return assignments
+
+
+class PMTTargetedTransfers(BinaryTargetedTransfers):
+    """
+    PMT style targeting
+    """
+
+    def __init__(self, c_bar=2.15, budget=None, transfer_value=1.0):
+        """
+        :param c_bar: The minimum threshold value (poverty line). Defaults to 2.15.
+        :type c_bar: float
+        """
+
+        super().__init__(c_bar=c_bar, budget=budget)
+        self.name = "pmt"
+        self.transfer_value = transfer_value
+
+    def fit(
+        self,
+        train_dataset,
+        validation_dataset,
+    ):
+        """
+        Fitting linear regression
+        """
+
+        self.consumption_predictor = get_pmt_linear_regressor(
+            train_dataset, validation_dataset
+        )
+
+    def run_opt(self, test_covariate_dataset):
+
+        assert self.budget is not None
+
+        X_test, _ = test_covariate_dataset.get_data()
+
+        estimated_benefits = self.consumption_predictor(X_test)
+        ordered_households = np.argsort(estimated_benefits)
+        indices_to_receive_transfers = self._get_indices_to_receive_transfers_exact(
+            test_covariate_dataset, ordered_households, self.transfer_value, self.budget
+        )
+
+        assignments = {i: [(0.0, 1.0)] for i in range(len(test_covariate_dataset))}
+        for i in indices_to_receive_transfers:
+            assignments[i] = [(self.transfer_value, 1.0)]
         self.assignments = assignments
         return assignments
