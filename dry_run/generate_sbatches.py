@@ -68,6 +68,7 @@ def generate_learn_run():
 
 def generate_hparam_run():
 
+    countries = ["malawi", "togo"]
     configs = [
         # "gan_continuous_rate.yaml",
         "gt_continuous_rate.yaml",
@@ -79,19 +80,20 @@ def generate_hparam_run():
         "gt_continuous_gap.yaml",
     ]
 
-    for config in configs:
-        exp_id = config
-        script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
-        with open(script_fn, "w") as f:
-            print(
-                GPU_SBATCH_PREFACE.format(
-                    exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
-                ),
-                file=f,
-            )
-            base_cmd = f"python main_hparam.py main --config hparam/configs/{config}"
-            print(base_cmd, file=f)
-            print("sleep 1", file=f)
+    for country in countries:
+        for config in configs:
+            exp_id = config
+            script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
+            with open(script_fn, "w") as f:
+                print(
+                    GPU_SBATCH_PREFACE.format(
+                        exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
+                    ),
+                    file=f,
+                )
+                base_cmd = f"python main_hparam.py main --config hparam/configs/{country}/{config} --learnsavedir learn/results/{country}"
+                print(base_cmd, file=f)
+                print("sleep 1", file=f)
 
 
 def generate_wgan_run():
