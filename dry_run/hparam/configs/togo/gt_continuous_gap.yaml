@@ -8,7 +8,7 @@ data:
   weight: hh_wgt
   gt:
     trainpath: data/togo/train.parquet
-    summarypath: data/togo/variable_summary.csv
+    summarypath: data/togo/summary.parquet
 continuous_gap:
   n_regressors: [10, 20, 30]
   neural_network:

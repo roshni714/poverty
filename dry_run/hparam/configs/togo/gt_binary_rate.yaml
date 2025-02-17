@@ -8,7 +8,7 @@ data:
   weight: hh_wgt
   gt:
     trainpath: data/togo/train.parquet
-    summarypath: data/togo/variable_summary.parquet
+    summarypath: data/togo/summary.parquet
 binary_rate:
   n_regressors: [10, 20, 30]
   neural_network:
