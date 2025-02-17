@@ -16,7 +16,7 @@ pip install -e .
 ```
 Before running the final command, there are a few extra packages that need to be installed; they are listed [here](https://github.com/roshni714/poverty/blob/master/dry_run/requirements.txt). At a later point, we'll need to make a single installation script.
 
-# GAN Training
+<!-- # GAN Training
 Running the following command will train a WGAN on 50% of the data stored in `trainpath` and save pickled outputs (generator, data wrapper, categorical variable mapping from codes to strings) to the folder `savedir`. These objects are saved so that we can generate synthetic data without retraining.
 
 ```
@@ -31,20 +31,20 @@ Nit: This step is not required for running the later hyperparameter search.
 
 ```
 python main_gan.py generate --objectspath gan/pickled/objects-maxepochs=3000_lr=0.001_batchsize=256_dropout=0.1.pickle --nsamples 20000 --savedir data
-```
+``` -->
 
 # Hyperparameter Search
-Running the following command will run a hyperparameter search for all procedures and hyperparameters specified in the `config` YAML file. The `configs` directory has example config files. In the config file, specify what data will be used for the hyperparameter search; `gan` refers to GAN-generated data and `gt` refers to re-using the ground truth training dataset. In addition, the config file should specify the hyperparameter ranges for a given learning approach (e.g. rate targeting, binary gap targeting, or continuous gap targeting). If a certain hyperparameter is not specified in the config file, the script uses a default value; see default hyperparameter values [here](https://github.com/roshni714/poverty/blob/master/dry_run/configs/default_config.yml). This script will produce a YAML file with the optimal hyperparameter values. The config file will be saved to `savedir` which is also specified by the config files.
-
+Running the following command will run a hyperparameter search for all procedures and hyperparameters specified in the `config` YAML file. The `configs` directory has example config files. In the config file, specify what data will be used for the hyperparameter search; `gt` refers to re-using the ground truth training dataset. In addition, the config file should specify the hyperparameter ranges for a given learning approach (e.g. rate targeting, binary gap targeting, or continuous gap targeting). If a certain hyperparameter is not specified in the config file, the script uses a default value; see default hyperparameter values [here](https://github.com/roshni714/poverty/blob/master/dry_run/configs/default_config.yml). This script will produce a YAML file with the optimal hyperparameter values. The config file will be saved to `savedir` which is also specified by the config files. The command line parameter `learnsavedir` refers to the directory where the results from the learning step should be saved.
 ```
-python main_hparam.py main --config hparam/configs/gan_binary_gap.yaml
+mkdir hparam/results/malawi
+python main_hparam.py main --config hparam/configs/malawi/gt_binary_gap.yaml --learnsavedir learn/results/malawi
 ```
 
 # Learning + Evaluation
 Running the following command will fit the targeted transfer methods with hyperparameters specified in the `config` YAML file. Each config file specified the outcome and weight variable of the dataset, the learning method (binary/continuous gap targeting, binary/continuous rate targeting), the hyperparameters used for fitting that method, and where the results should be saved `savedir`. The script will produce csv files with evaluation and AUC results for each learning method. 
 
 ```
-mkdir learn/results
-python main_learn.py main --config hparam/results/output_gan_continuous_gap.yaml --trainpath data/train.parquet --testpath data/test.parquet --summarypath data/summary_2019.parquet --device cuda
+mkdir learn/results/malawi
+python main_learn.py main --config hparam/results/malawi/output_gan_continuous_gap.yaml --trainpath data/malawi/train.parquet --testpath data/malawi/test.parquet --summarypath data/malawi/summary.parquet --device cuda
 ```
 
