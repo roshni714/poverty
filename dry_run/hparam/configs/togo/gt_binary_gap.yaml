@@ -1,4 +1,4 @@
-savedir: hparam/results
+savedir: hparam/togo/results
 device: cuda
 data:
   ntrain: 6480

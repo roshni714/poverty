@@ -276,9 +276,6 @@ def main(
             weight=data_config["weight"],
         )
     )
-    import pdb
-
-    pdb.set_trace()
 
     name = config.split("/")[-1].split(".yaml")[0]
     savepath = savedir + "/" + name
