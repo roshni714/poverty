@@ -11,7 +11,7 @@ def generate_hparam_config(country, device):
     n_val = len(train_data) * 3
 
     base_config = {
-        "savedir": "hparam/results/{country}",
+        "savedir": f"hparam/results/{country}",
         "device": device,
         "data": {
             "ntrain": n_train,
@@ -20,8 +20,8 @@ def generate_hparam_config(country, device):
             "outcome": "consumption_per_capita_per_day",
             "weight": "hh_wgt",
             "gt": {
-                "trainpath": "data/{country}/train.parquet",
-                "summarypath": "data/{country}/summary.parquet",
+                "trainpath": "data/{}/train.parquet".format(country),
+                "summarypath": "data/{}/summary.parquet".format(country),
             },
         },
     }
