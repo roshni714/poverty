@@ -59,10 +59,12 @@ def generate_learn_run():
             script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
             with open(script_fn, "w") as f:
                 print(
-                    SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id),
+                    SBATCH_PREFACE.format(
+                        exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
+                    ),
                     file=f,
                 )
-                base_cmd = f"python main_learn.py main --config hparam/results/{config} --trainpath data/{country}/train.parquet --testpath data/{country}/test.parquet --summarypath data/{country}/summary.parquet --device cpu"
+                base_cmd = f"python main_learn.py main --config hparam/results/{country}/{config} --trainpath data/{country}/train.parquet --testpath data/{country}/test.parquet --summarypath data/{country}/summary.parquet --device cpu"
                 print(base_cmd, file=f)
                 print("sleep 1", file=f)
 
@@ -71,15 +73,27 @@ def generate_hparam_run():
 
     countries = ["togo"]
     configs = [
-        # "gan_continuous_rate.yaml",
         "gt_continuous_rate.yaml",
-        # "gan_binary_rate.yaml",
-        "gt_binary_rate.yaml",
-        # "gan_binary_gap.yaml",
-        # "gan_continuous_gap.yaml",
-        "gt_binary_gap.yaml",
-        "gt_continuous_gap.yaml",
+        # "gt_binary_rate.yaml",
+        # "gt_binary_gap.yaml",
+        # "gt_continuous_gap.yaml",
     ]
+
+    script_fn = os.path.join(OUTPUT_PATH, "a_make_hparamdir.sh")
+    with open(script_fn, "w") as f:
+        print(
+            SBATCH_PREFACE.format(
+                "a_make_hparamdir",
+                OUTPUT_PATH,
+                "a_make_hparamdir",
+                OUTPUT_PATH,
+                "a_make_hparamdir",
+            ),
+            file=f,
+        )
+        for country in countries:
+            print(f"mkdir hparam/results/{country}", file=f)
+            print("sleep 1", file=f)
 
     for country in countries:
         for config in configs:
@@ -87,7 +101,7 @@ def generate_hparam_run():
             script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
             with open(script_fn, "w") as f:
                 print(
-                    GPU_SBATCH_PREFACE.format(
+                    SBATCH_PREFACE.format(
                         exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
                     ),
                     file=f,
@@ -95,10 +109,19 @@ def generate_hparam_run():
                 base_cmd = f"python main_hparam.py main --config hparam/configs/{country}/{config} --learnsavedir learn/results/{country}"
                 print(base_cmd, file=f)
                 print("sleep 1", file=f)
-    
+
     script_fn = os.path.join(OUTPUT_PATH, "make_learnsavedir.sh")
     with open(script_fn, "w") as f:
-        print(SBATCH_PREFACE.format("make_learnsavedir", OUTPUT_PATH, "make_learnsavedir", OUTPUT_PATH, "make_learnsavedir"), file=f)
+        print(
+            SBATCH_PREFACE.format(
+                "make_learnsavedir",
+                OUTPUT_PATH,
+                "make_learnsavedir",
+                OUTPUT_PATH,
+                "make_learnsavedir",
+            ),
+            file=f,
+        )
         for country in countries:
             print(f"mkdir learn/results/{country}", file=f)
             print("sleep 1", file=f)
