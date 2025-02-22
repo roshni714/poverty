@@ -71,7 +71,7 @@ def generate_learn_run():
 
 def generate_hparam_run():
 
-    countries = ["malawi", "ethiopia", "togo"]
+    countries = ["malawi"]
     configs = [
             "gt_continuous_rate.yaml",
             "gt_binary_rate.yaml",
@@ -79,21 +79,21 @@ def generate_hparam_run():
             "gt_continuous_gap.yaml",
     ]
 
-    script_fn = os.path.join(OUTPUT_PATH, "a_make_hparamdir.sh")
-    with open(script_fn, "w") as f:
-        print(
-            SBATCH_PREFACE.format(
-                "a_make_hparamdir",
-                OUTPUT_PATH,
-                "a_make_hparamdir",
-                OUTPUT_PATH,
-                "a_make_hparamdir",
-            ),
-            file=f,
-        )
-        for country in countries:
-            print(f"mkdir hparam/results/{country}", file=f)
-            print("sleep 1", file=f)
+    # script_fn = os.path.join(OUTPUT_PATH, "a_make_hparamdir.sh")
+    # with open(script_fn, "w") as f:
+    #     print(
+    #         SBATCH_PREFACE.format(
+    #             "a_make_hparamdir",
+    #             OUTPUT_PATH,
+    #             "a_make_hparamdir",
+    #             OUTPUT_PATH,
+    #             "a_make_hparamdir",
+    #         ),
+    #         file=f,
+    #     )
+    #     for country in countries:
+    #         print(f"mkdir hparam/results/{country}", file=f)
+    #         print("sleep 1", file=f)
 
     for country in countries:
         for config in configs:
