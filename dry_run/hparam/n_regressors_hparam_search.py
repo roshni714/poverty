@@ -60,7 +60,7 @@ def get_optimal_n_regressors(
 
     results = []
     for trial in range(3):
-        train_df = data_generator(nsamples=ntrain, seed=547396234)
+        train_df = data_generator(nsamples=ntrain, seed=547396234 + trial)
         train_dataset = Dataset(
             train_df, outcome=outcome, weight=weight, covs=feature_list
         )

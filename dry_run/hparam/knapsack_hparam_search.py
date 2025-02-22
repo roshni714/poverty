@@ -41,7 +41,7 @@ def get_optimal_knapsack_parameters(
         feature_list = original_cols.copy()
         feature_list.remove(outcome)
         feature_list.remove(weight)
-        train_df = data_generator(nsamples=ntrain, seed=547396234)
+        train_df = data_generator(nsamples=ntrain, seed=547396234 + trial)
         train_dataset = Dataset(
             train_df, outcome=outcome, weight=weight, covs=feature_list
         )
