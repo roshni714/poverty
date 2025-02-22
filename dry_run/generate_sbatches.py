@@ -71,12 +71,12 @@ def generate_learn_run():
 
 def generate_hparam_run():
 
-    countries = ["ethiopia"]
+    countries = ["malawi", "ethiopia", "togo"]
     configs = [
-        #    "gt_continuous_rate.yaml",
-        #    "gt_binary_rate.yaml",
-        "gt_binary_gap.yaml",
-        #    "gt_continuous_gap.yaml",
+            "gt_continuous_rate.yaml",
+            "gt_binary_rate.yaml",
+            "gt_binary_gap.yaml",
+            "gt_continuous_gap.yaml",
     ]
 
     script_fn = os.path.join(OUTPUT_PATH, "a_make_hparamdir.sh")
@@ -101,7 +101,7 @@ def generate_hparam_run():
             script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
             with open(script_fn, "w") as f:
                 print(
-                    SBATCH_PREFACE.format(
+                    GPU_SBATCH_PREFACE.format(
                         exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
                     ),
                     file=f,
