@@ -24,10 +24,10 @@ continuous_rate:
   - 200
 data:
   gt:
-    summarypath: data/togo/summary.parquet
-    trainpath: data/togo/train.parquet
-  ntrain: 3702
+    summarypath: data/ethiopia/summary.parquet
+    trainpath: data/ethiopia/train.parquet
+  ntrain: 4062
   outcome: consumption_per_capita_per_day
   weight: hh_wgt
 device: cuda
-savedir: hparam/results/togo
+savedir: hparam/results/ethiopia

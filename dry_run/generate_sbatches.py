@@ -71,12 +71,12 @@ def generate_learn_run():
 
 def generate_hparam_run():
 
-    countries = ["togo"]
+    countries = ["ethiopia"]
     configs = [
-        "gt_continuous_rate.yaml",
-        # "gt_binary_rate.yaml",
-        # "gt_binary_gap.yaml",
-        # "gt_continuous_gap.yaml",
+        #    "gt_continuous_rate.yaml",
+        #    "gt_binary_rate.yaml",
+        "gt_binary_gap.yaml",
+        #    "gt_continuous_gap.yaml",
     ]
 
     script_fn = os.path.join(OUTPUT_PATH, "a_make_hparamdir.sh")

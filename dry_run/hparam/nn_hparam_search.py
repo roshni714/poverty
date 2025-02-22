@@ -15,10 +15,10 @@ def get_optimal_nn_improvement_parameters(
     loss_type,
     nn_hparam_ranges,
     data_generator,
+    val_df,
     device,
     original_cols,
     ntrain,
-    nval,
     outcome,
     weight,
     savepath,
@@ -60,7 +60,6 @@ def get_optimal_nn_improvement_parameters(
 
     for trial in range(3):
         train_df = data_generator(nsamples=ntrain, seed=54734234 + trial)
-        val_df = data_generator(nsamples=nval, seed=7959342 + trial)
         covs = original_cols.copy()
         covs.remove(outcome)
         covs.remove(weight)
@@ -118,10 +117,10 @@ def get_optimal_nn_improvement_parameters(
 def get_optimal_nn_quantile_regression_parameters(
     nn_hparam_ranges,
     data_generator,
+    val_df,
     device,
     original_cols,
     ntrain,
-    nval,
     outcome,
     weight,
     savepath,
@@ -162,7 +161,6 @@ def get_optimal_nn_quantile_regression_parameters(
 
     for trial in range(3):
         train_df = data_generator(nsamples=ntrain, seed=54734234 + trial)
-        val_df = data_generator(nsamples=nval, seed=7959342 + trial)
         covs = original_cols.copy()
         covs.remove(outcome)
         covs.remove(weight)

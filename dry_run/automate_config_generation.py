@@ -5,18 +5,13 @@ import yaml
 
 def generate_hparam_config(country, device):
     train_data = pd.read_parquet("data/{}/train.parquet".format(country))
-    test_data = pd.read_parquet("data/{}/test.parquet".format(country))
     n_train = len(train_data)
-    n_test = len(test_data)
-    n_val = len(train_data) * 3
 
     base_config = {
         "savedir": f"hparam/results/{country}",
         "device": device,
         "data": {
             "ntrain": n_train,
-            "ntest": n_test,
-            "nval": n_val,
             "outcome": "consumption_per_capita_per_day",
             "weight": "hh_wgt",
             "gt": {
@@ -66,8 +61,23 @@ def generate_hparam_config(country, device):
         },
     }
 
+    pmt_config = {
+        "pmt": {"transfer_value": 2.15},
+        "data": {"outcome": "consumption_per_capita_per_day", "weight": "hh_wgt"},
+        "savedir": f"learn/{country}/results",
+    }
+
+    oracle_config = {
+        "oracle_gap": {},
+        "data": {"outcome": "consumption_per_capita_per_day", "weight": "hh_wgt"},
+        "savedir": f"learn/{country}results",
+    }
+
     if not os.path.exists(f"hparam/configs/{country}"):
         os.makedirs(f"hparam/configs/{country}")
+
+    if not os.path.exists(f"hparam/results/{country}"):
+        os.makedirs(f"hparam/results/{country}")
 
     with open(f"hparam/configs/{country}/gt_continuous_rate.yaml", "w") as file:
         yaml.dump(continuous_rate_config, file, default_flow_style=False)
@@ -81,6 +91,13 @@ def generate_hparam_config(country, device):
     with open(f"hparam/configs/{country}/gt_binary_gap.yaml", "w") as file:
         yaml.dump(binary_gap_config, file, default_flow_style=False)
 
+    with open(f"hparam/results/{country}/pmt.yaml", "w") as file:
+        yaml.dump(pmt_config, file, default_flow_style=False)
 
-generate_hparam_config("togo", "cuda")
-generate_hparam_config("ethiopia", "cuda")
+    with open(f"hparam/results/{country}/oracle_gap.yaml", "w") as file:
+        yaml.dump(oracle_config, file, default_flow_style=False)
+
+
+countries = ["malawi", "togo", "ethiopia"]
+for country in countries:
+    generate_hparam_config(country, "cuda")

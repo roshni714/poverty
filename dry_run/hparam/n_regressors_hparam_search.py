@@ -12,10 +12,10 @@ def get_optimal_n_regressors(
     n_regressors_range,
     loss_type,
     data_generator,
+    val_df,
     device,
     original_cols,
     ntrain,
-    ntest,
     outcome,
     weight,
     neural_network_params,
@@ -40,11 +40,13 @@ def get_optimal_n_regressors(
         opt_params (dict): Optimal hyperparameters for knapsack.
     """
 
-    train_df = data_generator(nsamples=ntrain, seed=547396234)
     feature_list = original_cols.copy()
     feature_list.remove(outcome)
     feature_list.remove(weight)
-    train_dataset = Dataset(train_df, outcome=outcome, weight=weight, covs=feature_list)
+    test_covariate_dataset = Dataset(
+        val_df, outcome=None, weight=weight, covs=feature_list
+    )
+    test_dataset = Dataset(val_df, outcome=outcome, weight=weight, covs=feature_list)
 
     if loss_type == "binary_rate":
         TT = BinaryRateTargetedTransfers
@@ -58,13 +60,11 @@ def get_optimal_n_regressors(
 
     results = []
     for trial in range(3):
-        test_df = data_generator(nsamples=ntest, seed=79809242 + trial)
-        test_covariate_dataset = Dataset(
-            test_df, outcome=None, weight=weight, covs=feature_list
+        train_df = data_generator(nsamples=ntrain, seed=547396234)
+        train_dataset = Dataset(
+            train_df, outcome=outcome, weight=weight, covs=feature_list
         )
-        test_dataset = Dataset(
-            test_df, outcome=outcome, weight=weight, covs=feature_list
-        )
+
         new_train_dataset, new_val_dataset = split(train_dataset)
         for n_regressors in n_regressors_range:
             tt = TT(c_bar=C_BAR, n_regressors=n_regressors)

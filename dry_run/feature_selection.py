@@ -54,7 +54,6 @@ def forward_selection(
                 best_score = score
                 best_feature = feature
                 best_model = model
-
         ordered_features.append(best_feature)
         scores.append(best_score)
         feature_list.remove(best_feature)

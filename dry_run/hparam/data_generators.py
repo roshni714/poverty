@@ -122,7 +122,7 @@ def get_wgan_data_generator(objectspath, summarypath):
     return data_generator, original_cols
 
 
-def get_gt_data_generator(trainpath, summarypath):
+def get_gt_train_data_generator(trainpath, summarypath, val_split=0.33):
     """
     Load the ground truth training dataset and return a data generator function.
 
@@ -162,12 +162,16 @@ def get_gt_data_generator(trainpath, summarypath):
 
     data = convert_to_onehot(data, summary)
 
+    val_idx = np.random.choice(list(range(len(data))), int(val_split * len(data)))
+    val_df = data.loc[val_idx].reset_index(drop=True)
+    train_idx = np.array(list(set(range(len(data))) - set(val_df)))
+
     def data_generator(nsamples, seed):
         rng = np.random.default_rng(seed)
-        sample_indices = rng.choice(data.index, nsamples, replace=True)
+        sample_indices = rng.choice(train_idx, nsamples, replace=True)
         return data.loc[sample_indices].reset_index(drop=True)
 
-    return data_generator, original_cols
+    return data_generator, val_df, original_cols
 
 
 def apply_generator(data_wrapper, generator, df, seed):

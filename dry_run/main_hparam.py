@@ -2,7 +2,7 @@ import yaml
 import argh
 from hparam.data_generators import (
     get_wgan_data_generator,
-    get_gt_data_generator,
+    get_gt_train_data_generator,
 )
 from hparam.density_estimation_hparam_search import (
     get_optimal_density_estimation_parameters,
@@ -40,25 +40,17 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
     opt_hparams["data"] = {}
     opt_hparams["data"]["outcome"] = data_config_params["outcome"]
     opt_hparams["data"]["weight"] = data_config_params["weight"]
-    if "gan" in data_config_params:
-        gan_config_params = data_config_params["gan"]
-        objectspath = gan_config_params["objectspath"]
-        summarypath = gan_config_params["summarypath"]
-        data_generator, original_cols = get_wgan_data_generator(
-            objectspath, summarypath=summarypath
-        )
 
-    elif "gt" in data_config_params:
+    if "gt" in data_config_params:
         gt_config_params = data_config_params["gt"]
         trainpath = gt_config_params["trainpath"]
         summarypath = gt_config_params["summarypath"]
-        data_generator, original_cols = get_gt_data_generator(
-            trainpath, summarypath=summarypath
+
+        train_data_generator, val_df, original_cols = get_gt_train_data_generator(
+            trainpath, summarypath=summarypath, val_split=0.33
         )
 
     ntrain = data_config_params["ntrain"]
-    nval = data_config_params["nval"]
-    ntest = data_config_params["ntest"]
     outcome = data_config_params["outcome"]
     weight = data_config_params["weight"]
 
@@ -72,11 +64,11 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         if "density_estimation" in rate:
             opt_density_estimation_hparams = get_optimal_density_estimation_parameters(
                 density_estimation_hparam_ranges=rate["density_estimation"],
-                data_generator=data_generator,
+                data_generator=train_data_generator,
                 device=device,
                 original_cols=original_cols,
                 ntrain=ntrain,
-                nval=nval,
+                val_df=val_df,
                 outcome=outcome,
                 weight=weight,
                 savepath=f"{savedir}/density_estimation_{name}.csv",
@@ -87,11 +79,11 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
 
             opt_n_alpha = get_optimal_knapsack_parameters(
                 rate["n_alpha"],
-                data_generator=data_generator,
+                data_generator=train_data_generator,
                 device=device,
                 original_cols=original_cols,
                 ntrain=ntrain,
-                ntest=ntest,
+                val_df=val_df,
                 outcome=outcome,
                 weight=weight,
                 density_estimation_params=opt_density_estimation_hparams,
@@ -105,11 +97,11 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         opt_nn_hparams = get_optimal_nn_improvement_parameters(
             loss_type="binary_rate",
             nn_hparam_ranges=binary_rate["neural_network"],
-            data_generator=data_generator,
+            data_generator=train_data_generator,
             device=device,
             original_cols=original_cols,
             ntrain=ntrain,
-            nval=nval,
+            val_df=val_df,
             outcome=outcome,
             weight=weight,
             savepath=f"{savedir}/nn_{name}.csv",
@@ -120,11 +112,11 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         opt_n_regressors = get_optimal_n_regressors(
             binary_rate["n_regressors"],
             loss_type="binary_rate",
-            data_generator=data_generator,
+            data_generator=train_data_generator,
             device=device,
             original_cols=original_cols,
             ntrain=ntrain,
-            ntest=ntest,
+            val_df=val_df,
             outcome=outcome,
             weight=weight,
             neural_network_params=opt_nn_hparams,
@@ -136,11 +128,11 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         continuous_gap = config_hparams["continuous_gap"]
         opt_nn_hparams = get_optimal_nn_quantile_regression_parameters(
             nn_hparam_ranges=continuous_gap["neural_network"],
-            data_generator=data_generator,
+            data_generator=train_data_generator,
             device=device,
             original_cols=original_cols,
             ntrain=ntrain,
-            nval=nval,
+            val_df=val_df,
             outcome=outcome,
             weight=weight,
             savepath=f"{savedir}/nn_{name}.csv",
@@ -152,11 +144,11 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         opt_n_regressors = get_optimal_n_regressors(
             continuous_gap["n_regressors"],
             loss_type="continuous_gap",
-            data_generator=data_generator,
+            data_generator=train_data_generator,
             device=device,
             original_cols=original_cols,
             ntrain=ntrain,
-            ntest=ntest,
+            val_df=val_df,
             outcome=outcome,
             weight=weight,
             neural_network_params=opt_nn_hparams,
@@ -169,11 +161,11 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         opt_nn_hparams = get_optimal_nn_improvement_parameters(
             loss_type="binary_gap",
             nn_hparam_ranges=binary_gap["neural_network"],
-            data_generator=data_generator,
+            data_generator=train_data_generator,
             device=device,
             original_cols=original_cols,
             ntrain=ntrain,
-            nval=nval,
+            val_df=val_df,
             outcome=outcome,
             weight=weight,
             savepath=f"{savedir}/nn_{name}.csv",
@@ -183,11 +175,11 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         opt_n_regressors = get_optimal_n_regressors(
             binary_gap["n_regressors"],
             loss_type="binary_gap",
-            data_generator=data_generator,
+            data_generator=train_data_generator,
             device=device,
             original_cols=original_cols,
             ntrain=ntrain,
-            ntest=ntest,
+            val_df=val_df,
             outcome=outcome,
             weight=weight,
             neural_network_params=opt_nn_hparams,
