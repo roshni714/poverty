@@ -64,13 +64,13 @@ def generate_hparam_config(country, device):
     pmt_config = {
         "pmt": {"transfer_value": 2.15},
         "data": {"outcome": "consumption_per_capita_per_day", "weight": "hh_wgt"},
-        "savedir": f"learn/{country}/results",
+        "savedir": f"learn/results/{country}",
     }
 
     oracle_config = {
         "oracle_gap": {},
         "data": {"outcome": "consumption_per_capita_per_day", "weight": "hh_wgt"},
-        "savedir": f"learn/{country}results",
+        "savedir": f"learn/results/{country}",
     }
 
     if not os.path.exists(f"hparam/configs/{country}"):
