@@ -1,6 +1,6 @@
 import numpy as np
 from opt_targeted_transfers.dataset_utils import standardize
-from sklearn.linear_model import Ridge
+from sklearn.linear_model import LinearRegression
 
 
 def get_pmt_linear_regressor(train_dataset, validation_dataset):
@@ -15,7 +15,7 @@ def get_pmt_linear_regressor(train_dataset, validation_dataset):
     X, X_mean, X_std = standardize(X)
     y, y_mean, y_std = standardize(y)
 
-    model = Ridge(fit_intercept=True, alpha=0.1)
+    model = LinearRegression(fit_intercept=True)
     model.fit(X, y, sample_weight=r)
 
     def estimator(X_test):

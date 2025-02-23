@@ -35,7 +35,7 @@ OUTPUT_PATH = (
 
 
 def generate_learn_run():
-    countries = ["malawi", "togo"]
+    countries = ["malawi", "togo", "ethiopia"]
     configs = [
         # "output_gan_continuous_rate.yaml",
         # "output_gan_binary_rate.yaml",
@@ -47,15 +47,15 @@ def generate_learn_run():
         # "output_gt_continuous_gap.yaml",
         # "default_continuous_rate.yaml",
         # "default_binary_rate.yaml",
-        "default_binary_gap.yaml",
+        # "default_binary_gap.yaml",
         # "default_continuous_gap.yaml",
-        # "oracle_gap.yaml",
-        # "pmt.yaml"
+        "oracle_gap.yaml",
+        "pmt.yaml"
     ]
 
     for country in countries:
         for config in configs:
-            exp_id = config
+            exp_id = country + "_" + config
             script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
             with open(script_fn, "w") as f:
                 print(
@@ -231,7 +231,7 @@ def generate_gt_run():
 
 
 # generate_gt_run()
-generate_hparam_run()
-# generate_learn_run()
+#generate_hparam_run()
+generate_learn_run()
 # generate_wgan_run()
 # generate_wgan_hparam_runs()
