@@ -162,7 +162,8 @@ def get_gt_train_data_generator(trainpath, summarypath, val_split=0.33):
 
     data = convert_to_onehot(data, summary)
 
-    val_idx = np.random.choice(list(range(len(data))), int(val_split * len(data)))
+    rng = np.random.default_rng(54389831)
+    val_idx = rng.choice(list(range(len(data))), int(val_split * len(data)))
     val_df = data.loc[val_idx].reset_index(drop=True)
     train_idx = np.array(list(set(range(len(data))) - set(val_df)))
 

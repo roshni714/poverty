@@ -35,16 +35,16 @@ OUTPUT_PATH = (
 
 
 def generate_learn_run():
-    countries = ["malawi", "togo", "ethiopia"]
+    countries = ["nigeria"]
     configs = [
         # "output_gan_continuous_rate.yaml",
         # "output_gan_binary_rate.yaml",
         # "output_gan_binary_gap.yaml",
         # "output_gan_continuous_gap.yaml",
-        # "output_gt_continuous_rate.yaml",
-        # "output_gt_binary_rate.yaml",
-        # "output_gt_binary_gap.yaml",
-        # "output_gt_continuous_gap.yaml",
+        "output_gt_continuous_rate.yaml",
+        "output_gt_binary_rate.yaml",
+        "output_gt_binary_gap.yaml",
+        "output_gt_continuous_gap.yaml",
         # "default_continuous_rate.yaml",
         # "default_binary_rate.yaml",
         # "default_binary_gap.yaml",
@@ -71,7 +71,7 @@ def generate_learn_run():
 
 def generate_hparam_run():
 
-    countries = ["malawi"]
+    countries = ["nigeria"]
     configs = [
             "gt_continuous_rate.yaml",
             "gt_binary_rate.yaml",

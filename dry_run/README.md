@@ -1,8 +1,8 @@
 # Malawi Dry Run
-This module implements the Malawi dry-run of the data use plan.
+This module implements the country-level analysis from the paper.
 
 # Datasets
-The datasets for reproducing the results from the Malawi dry-run are available in the Google Drive folder [here](https://drive.google.com/drive/folders/1t0s0ef7UZGCAzgWFKzBWEZ032BuP5LWP?usp=sharing).
+The datasets for reproducing the results from the paper are available in the Google Drive folder [here](https://drive.google.com/drive/folders/1t0s0ef7UZGCAzgWFKzBWEZ032BuP5LWP?usp=sharing).
 
 # Installation
 Here are the installation instructions for the dry-run.
@@ -13,6 +13,8 @@ source dryrun/bin/activate
 pip install git+https://github.com/gsbDBI/ds-wgan
 cd poverty/package
 pip install -e .
+cd poverty/dry_run
+python automate_config_generation.py
 ```
 Before running the final command, there are a few extra packages that need to be installed; they are listed [here](https://github.com/roshni714/poverty/blob/master/dry_run/requirements.txt). At a later point, we'll need to make a single installation script.
 
