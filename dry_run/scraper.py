@@ -29,28 +29,39 @@ for i in range(len(main_df)):
     # this is url to a specific module of the Iraq LSMS -- may need modify for other countries if the URL structure is different
     module_url = URL + "/F2?file_name={}".format(module)
     response = requests.get(module_url)
-    soup = BeautifulSoup(response.content, 'html.parser')
+    soup = BeautifulSoup(response.content, "html.parser")
 
     # Search for containers that have the info we want -- which is variable name and link to variable webpage
     var_ids = soup.find_all("a", class_="var-id text-break")
     list_of_dics = []
     for var_id in var_ids:
-        list_of_dics.append({"module_name": module, "module_description": module_description, "variable_name": var_id.text, "variable_link": var_id["href"]})
+        list_of_dics.append(
+            {
+                "module_name": module,
+                "module_description": module_description,
+                "variable_name": var_id.text,
+                "variable_link": var_id["href"],
+            }
+        )
 
     # For every variable in the module, extract variable description and variable type by going to the variable webpage"
     for i in tqdm(range(len(list_of_dics))):
         dic = list_of_dics[i]
         var_link = dic["variable_link"]
         var_response = requests.get(var_link)
-        var_soup = BeautifulSoup(var_response.content, 'html.parser')
+        var_soup = BeautifulSoup(var_response.content, "html.parser")
         var_data = var_soup.find_all("div", class_="variable-container")
         # find variable description and variable type
         var_description = var_data[0].find("h2").text.strip()
-        var_type = var_data[0].find("div", class_="fld-inline sum-stat sum-stat-var_intrvl").text.split(":")[1].strip()
+        var_type = (
+            var_data[0]
+            .find("div", class_="fld-inline sum-stat sum-stat-var_intrvl")
+            .text.split(":")[1]
+            .strip()
+        )
         dic["variable_description"] = var_description
         dic["variable_type"] = var_type
-    
+
     all_dics += list_of_dics
 
 pd.DataFrame(all_dics).to_csv("data/iraq_lsms_variables.csv", index=False)
-

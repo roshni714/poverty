@@ -68,8 +68,18 @@ def generate_gt_hparam_config(country, device):
     if not os.path.exists(f"hparam/results/{country}"):
         os.makedirs(f"hparam/results/{country}")
 
-    names = ["gt_continuous_rate", "gt_binary_rate", "gt_binary_gap", "gt_continuous_gap"]
-    configs = [continuous_rate_config, binary_rate_config, binary_gap_config, continuous_gap_config]
+    names = [
+        "gt_continuous_rate",
+        "gt_binary_rate",
+        "gt_binary_gap",
+        "gt_continuous_gap",
+    ]
+    configs = [
+        continuous_rate_config,
+        binary_rate_config,
+        binary_gap_config,
+        continuous_gap_config,
+    ]
 
     for i, name in enumerate(names):
         config = configs[i]
@@ -82,12 +92,17 @@ def generate_gt_hparam_config(country, device):
     with open(f"hparam/results/{country}/oracle_gap.yaml", "w") as file:
         yaml.dump(oracle_config, file, default_flow_style=False)
 
-def generate_default_hparam_config(country):
-    base_config = {"data": {"outcome": "consumption_per_capita_per_day", "weight": "hh_wgt"}, "savedir": f"learn/results/{country}"}
 
-    default_nn_config = {"n_regressors": 20, "neural_network":{ "n_layers": 1,
-                                          "n_hidden_units": 256,
-                                          "lr": 0.005}}
+def generate_default_hparam_config(country):
+    base_config = {
+        "data": {"outcome": "consumption_per_capita_per_day", "weight": "hh_wgt"},
+        "savedir": f"learn/results/{country}",
+    }
+
+    default_nn_config = {
+        "n_regressors": 20,
+        "neural_network": {"n_layers": 1, "n_hidden_units": 256, "lr": 0.005},
+    }
     binary_gap_config = base_config.copy()
     binary_gap_config["binary_gap"] = default_nn_config.copy()
     continuous_gap_config = base_config.copy()
@@ -106,8 +121,18 @@ def generate_default_hparam_config(country):
         },
     }
 
-    names = ["default_binary_gap", "default_binary_rate", "default_continuous_gap", "default_continuous_rate"]
-    configs = [binary_gap_config, binary_rate_config, continuous_gap_config, continuous_rate_config]
+    names = [
+        "default_binary_gap",
+        "default_binary_rate",
+        "default_continuous_gap",
+        "default_continuous_rate",
+    ]
+    configs = [
+        binary_gap_config,
+        binary_rate_config,
+        continuous_gap_config,
+        continuous_rate_config,
+    ]
 
     if not os.path.exists(f"hparam/results/{country}"):
         os.makedirs(f"hparam/results/{country}")
@@ -116,10 +141,9 @@ def generate_default_hparam_config(country):
         config = configs[i]
         with open(f"hparam/results/{country}/{name}.yaml", "w") as file:
             yaml.dump(config, file, default_flow_style=False)
-    
 
 
-countries = ["malawi", "togo", "ethiopia", "nigeria"]
+countries = ["uganda", "malawi", "togo", "ethiopia", "nigeria"]
 for country in countries:
     generate_gt_hparam_config(country, "cuda")
-    generate_default_hparam_config(country)
+    # generate_default_hparam_config(country)

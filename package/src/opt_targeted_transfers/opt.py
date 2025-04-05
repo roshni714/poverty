@@ -333,7 +333,8 @@ class BinaryTargetedTransfers(TargetedTransfers):
             highest_estimated_benefits = -float("inf")
             best_t = None
 
-            for t in self.candidate_t_values:
+            candidates_given_budget = self.candidate_t_values[self.candidate_t_values >= budget]
+            for t in candidates_given_budget:
                 threshold = self._get_threshold_to_receive_transfers(
                     validation_dataset,
                     t_to_estimated_benefits[t],
@@ -355,9 +356,9 @@ class BinaryTargetedTransfers(TargetedTransfers):
                     # if this transfer size has the highest estimated benefits, then this is the best so far.
                     highest_estimated_benefits = total_estimated_benefits
                     best_t = t
+                
 
             assert best_t is not None
-
             self.budget_to_t_map[budget] = best_t
 
     def _get_threshold_to_receive_transfers(

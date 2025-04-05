@@ -220,9 +220,10 @@ def lindsey_method(
     val_losses = []
     for epoch in pbar:
         if epoch % 25 == 0:
-            val_loss = torch.sum(glm_nll(theta, basis_matrix_val) * r_val.to(device))
-            val_losses.append(val_loss.detach().item())
-            thetas.append(theta.detach().clone().cpu())
+            with torch.no_grad():
+                val_loss = torch.sum(glm_nll(theta, basis_matrix_val) * r_val.to(device))
+                val_losses.append(val_loss.detach().item())
+                thetas.append(theta.detach().clone().cpu())
 
         idx = np.random.choice(len(y_train), size=batch_size)
         optimizer.zero_grad()

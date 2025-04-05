@@ -20,6 +20,7 @@ def load_datasets(trainpath, testpath, summarypath, outcome, weight):
     """
     data1 = _load_data(trainpath)
     data2 = _load_data(testpath)
+
     summary = pd.read_parquet(summarypath)
     all_data = pd.concat([data1, data2], ignore_index=True)
     all_data = convert_to_onehot(all_data, summary)
@@ -64,8 +65,17 @@ def convert_to_onehot(df, summary):
     :return new_df: The input data with one-hot encoding.
     :rtype: pandas.DataFrame
     """
-    categorical_columns = summary[summary["type"] == "categorical"][
-        "covariate"
+    if "type" in summary.columns:
+        data_type = "type"
+    elif "data_type" in summary.columns:
+        data_type = "data_type"
+    if "covariate" in summary.columns:
+        covariate = "covariate"
+    elif "variable_name" in summary.columns:
+        covariate = "variable_name"
+
+    categorical_columns = summary[summary[data_type] == "categorical"][
+        covariate
     ].tolist()
 
     categorical_columns = [col for col in categorical_columns if col in df.columns]
@@ -88,6 +98,13 @@ def _load_data(path):
         data_wrapper (wgan.DataWrapper): DataWrapper object for WGAN training.
     """
     data = pd.read_parquet(path)
+
+    if "hhid" in data.columns:
+        data = data.drop(columns=["hhid"])
+    if "case_id" in data.columns:
+        data = data.drop(columns=["case_id"])
+    if "hh_id" in data.columns:
+        data = data.drop(columns=["hh_id"])
 
     # some of this preprocessing code should eventually be deprecated because
     # it should be handled by prior data preprocessing code

@@ -51,8 +51,22 @@ def convert_to_onehot(df, summary):
     :return new_df: The input data with one-hot encoding.
     :rtype: pandas.DataFrame
     """
-    categorical_columns = summary[summary["type"] == "categorical"][
-        "covariate"
+
+    if "type" in summary.columns:
+        data_type = "type"
+    elif "data_type" in summary.columns:
+        data_type = "data_type"
+
+    if "covariate" in summary.columns:
+        covariate = "covariate"
+    else:
+        covariate = "variable_name"
+
+    categorical_columns = summary[summary[data_type] == "categorical"][
+        covariate
+    ].tolist()
+    categorical_columns = summary[summary[data_type] == "categorical"][
+        covariate
     ].tolist()
 
     categorical_columns = [col for col in categorical_columns if col in df.columns]
@@ -135,6 +149,13 @@ def get_gt_train_data_generator(trainpath, summarypath, val_split=0.33):
 
     data = pd.read_parquet(trainpath).reset_index(drop=True)
     summary = pd.read_parquet(summarypath)
+
+    if "hhid" in data.columns:
+        data = data.drop(columns=["hhid"])
+    if "case_id" in data.columns:
+        data = data.drop(columns=["case_id"])
+    if "hh_id" in data.columns:
+        data = data.drop(columns=["hh_id"])
 
     # some of this preprocessing code should eventually be deprecated because
     # it should be handled by prior data preprocessing code

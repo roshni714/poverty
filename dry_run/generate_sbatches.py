@@ -35,7 +35,8 @@ OUTPUT_PATH = (
 
 
 def generate_learn_run():
-    countries = ["nigeria"]
+    countries = ["uganda"]
+    # countries = ["nigeria", "malawi", "togo", "ethiopia"]
     configs = [
         # "output_gan_continuous_rate.yaml",
         # "output_gan_binary_rate.yaml",
@@ -50,7 +51,7 @@ def generate_learn_run():
         # "default_binary_gap.yaml",
         # "default_continuous_gap.yaml",
         "oracle_gap.yaml",
-        "pmt.yaml"
+        "pmt.yaml",
     ]
 
     for country in countries:
@@ -71,12 +72,12 @@ def generate_learn_run():
 
 def generate_hparam_run():
 
-    countries = ["nigeria"]
+    countries = ["uganda", "malawi", "togo", "ethiopia", "nigeria"]
     configs = [
-            "gt_continuous_rate.yaml",
-            "gt_binary_rate.yaml",
-            "gt_binary_gap.yaml",
-            "gt_continuous_gap.yaml",
+        "gt_continuous_rate.yaml",
+        "gt_binary_rate.yaml",
+        "gt_binary_gap.yaml",
+        "gt_continuous_gap.yaml",
     ]
 
     # script_fn = os.path.join(OUTPUT_PATH, "a_make_hparamdir.sh")
@@ -122,6 +123,8 @@ def generate_hparam_run():
             ),
             file=f,
         )
+        if not os.path.exists(f"learn/results"):
+            print(f"mkdir learn/results", file=f)
         for country in countries:
             print(f"mkdir learn/results/{country}", file=f)
             print("sleep 1", file=f)
@@ -231,7 +234,7 @@ def generate_gt_run():
 
 
 # generate_gt_run()
-#generate_hparam_run()
-generate_learn_run()
+generate_hparam_run()
+# generate_learn_run()
 # generate_wgan_run()
 # generate_wgan_hparam_runs()

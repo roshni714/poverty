@@ -7,7 +7,7 @@ import copy
 from opt_targeted_transfers.dataset_utils import standardize
 
 
-def get_quantile_loss(validation_dataset, quantile_regressor, quantile):
+def get_quantile_loss(validation_dataset, quantile_regressor, quantile, truncate_upper_value=10):
     """
     Get the pinball loss for a given quantile regressor.
 
@@ -21,6 +21,7 @@ def get_quantile_loss(validation_dataset, quantile_regressor, quantile):
     :rtype: float
     """
     X, y, r = validation_dataset.get_data()
+    y = np.clip(y, 0., truncate_upper_value)
     y_pred = quantile_regressor(X)
     assert y_pred.shape == y.shape
     pinball_loss = quantile * np.maximum(y - y_pred, 0) + (1 - quantile) * np.maximum(
@@ -35,6 +36,7 @@ def get_quantile_regressor(
     train_dataset,
     validation_dataset,
     quantile,
+    truncate_upper_value=10,
     n_layers=1,
     n_hidden_units=256,
     lr=5e-3,
@@ -71,6 +73,8 @@ def get_quantile_regressor(
 
     X_train, y_train, r_train = train_dataset.get_data()
     X_val, y_val, r_val = validation_dataset.get_data()
+    y_train = np.clip(y_train, 0., truncate_upper_value)
+    y_val = np.clip(y_val, 0., truncate_upper_value)
     X_train, X_mean, X_std = standardize(X_train)
     y_train, y_mean, y_std = standardize(y_train)
     X_val = (X_val - X_mean) / X_std
@@ -106,8 +110,9 @@ def get_quantile_regressor(
         for epoch in pbar:
             if epoch % 10 == 0:
                 q_hat.eval()
+                
                 val_loss = torch.sum(
-                    quantile_loss(q_hat, X_val, y_val) * torch.tensor(r_val).to(device)
+                    quantile_loss(q_hat, X_val, y_val) * torch.tensor(r_val).to(device)/ torch.tensor(r_val).sum().to(device)
                 )
                 val_losses.append(val_loss.detach().item())
                 models.append(copy.deepcopy(q_hat.cpu()))
@@ -119,7 +124,7 @@ def get_quantile_regressor(
             loss = torch.sum(
                 quantile_loss(q_hat, X_train[idx, :], y_train[idx])
                 * torch.tensor(r_train[idx]).to(device)
-            )
+            ) / torch.tensor(r_train[idx]).sum().to(device)
             loss.backward()
             optimizer.step()
 
