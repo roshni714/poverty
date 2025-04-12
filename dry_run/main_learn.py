@@ -8,6 +8,7 @@ from opt_targeted_transfers import (
     BinaryRateTargetedTransfers,
     BinaryGapTargetedTransfers,
     write_result,
+    UBITargetedTransfers,
     OracleGapTargetedTransfers,
     PMTTargetedTransfers,
 )
@@ -210,6 +211,14 @@ def learn_pmt(
     )
     run_evaluation(tt, test_covariate_dataset, test_dataset, savepath)
 
+def learn_ubi(test_covariate_dataset, test_dataset, savepath):
+    """
+    Learn UBI targeted transfers
+    """
+    print("Learning UBI targeted transfers...")
+    tt = UBITargetedTransfers(c_bar=C_BAR)
+    run_evaluation(tt, test_covariate_dataset, test_dataset, savepath)
+
 
 def learn_oracle_gap(
     test_covariate_dataset,
@@ -259,6 +268,7 @@ def main(
                 "data",
                 "savedir",
                 "pmt",
+                "ubi"
             ]
             for key in config_keys
         ]
@@ -288,8 +298,9 @@ def main(
         "pmt": learn_pmt,
     }
 
-    ORACLE_METHODS = {
+    NONLEARNING_METHODS = {
         "oracle_gap": learn_oracle_gap,
+        "ubi": learn_ubi
     }
 
     for key in config_keys:
@@ -304,8 +315,8 @@ def main(
                 device,
                 savepath,
             )
-        elif key in ORACLE_METHODS:
-            method = ORACLE_METHODS[key]
+        elif key in NONLEARNING_METHODS:
+            method = NONLEARNING_METHODS[key]
             method(
                 test_covariate_dataset,
                 test_dataset,

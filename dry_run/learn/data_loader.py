@@ -4,7 +4,48 @@ import numpy as np
 from opt_targeted_transfers import Dataset, split
 
 
-def load_datasets(trainpath, testpath, summarypath, outcome, weight):
+def get_training_data_for_geo_extrapolation(data, summary, seed=1537498):
+    """
+    Preprocess the training data for geo-extrapolation.
+
+    Args:
+        data (pd.DataFrame): The input data.
+        summary (pd.DataFrame): The summary data.
+
+    Returns:
+        pd.DataFrame: The preprocessed data without geographic identifiers only for a subset of geographic regions.
+    """
+
+    geo_cols = summary[summary["geographic_indicator"] == True]["variable_name"].tolist()
+
+    geo_col_unique_counts = {col: data[col].nunique() for col in geo_cols}
+    finest_geo_col = max(geo_col_unique_counts, key=geo_col_unique_counts.get)
+    n_unique = geo_col_unique_counts[finest_geo_col]
+    n_subset = int(0.75 * n_unique)
+    rng = np.random.default_rng(seed)
+    train_geo_col = rng.choice(data[finest_geo_col].unique(), n_subset, replace=False)
+    data = data[data[finest_geo_col].isin(train_geo_col)].reset_index(drop=True)
+    data.drop(columns=geo_cols, inplace=True)
+    return data
+
+def get_testing_data_for_geo_extrapolation(data, summary):
+    """
+    Preprocess the testing data for geo-extrapolation.
+
+    Args:
+        data (pd.DataFrame): The input data.
+        summary (pd.DataFrame): The summary data.
+
+    Returns:
+        pd.DataFrame: The preprocessed data without geographic identifiers
+    """
+
+    geo_cols = summary[summary["geographic_indicator"] == True]["variable_name"].tolist()
+    data.drop(columns=geo_cols, inplace=True)
+    return data
+
+
+def load_datasets(trainpath, testpath, summarypath, geo_extrapolation, outcome, weight):
     """
     Load datasets.
 
@@ -20,8 +61,12 @@ def load_datasets(trainpath, testpath, summarypath, outcome, weight):
     """
     data1 = _load_data(trainpath)
     data2 = _load_data(testpath)
-
     summary = pd.read_parquet(summarypath)
+
+    if geo_extrapolation:
+        data1 = get_training_data_for_geo_extrapolation(data1, summarypath)
+        data2 = get_testing_data_for_geo_extrapolation(data2, summarypath)
+
     all_data = pd.concat([data1, data2], ignore_index=True)
     all_data = convert_to_onehot(all_data, summary)
 
@@ -106,28 +151,7 @@ def _load_data(path):
     if "hh_id" in data.columns:
         data = data.drop(columns=["hh_id"])
 
-    # some of this preprocessing code should eventually be deprecated because
-    # it should be handled by prior data preprocessing code
+    
 
-    # compute outcome conversion factor
-    # a = 340.2 / 430.05  # Malawi CPI in 2017 USD / Malawi CPI in 2019 USD
-    # b = 241.98  # Malawi Kwacha to USD exchange rate in 2017
-    # adulteq = data["adulteq"]
-    # # can alternatively implement this as data["num_adults"] + alpha * data["num_children"]
-    # # where alpha is in (0, 1).
-    # conversion_factor = (a / b) * (1 / 365) * (1 / adulteq)
-    # data["consumption_per_capita_per_day"] = data["rexpagg"] * conversion_factor
-    # data["consumption_per_capita_per_day"] = np.clip(
-    #     data["consumption_per_capita_per_day"], 0, truncation_upper_value
-    # )
 
-    # we include hh_wgt and consumption_per_capita_per_day so that
-    # we can synthetically generate samples from the joint distribution (X, Y, R)
-    # durable_verifiable_covariates = list(
-    #     pd.read_csv("data/durable_verifiable_covariates.csv")["Covariates"]
-    # )
-
-    # data = data[
-    #     durable_verifiable_covariates + ["consumption_per_capita_per_day", "hh_wgt"]
-    # ]
     return data.reset_index(drop=True)

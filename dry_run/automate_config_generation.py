@@ -96,7 +96,7 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
         yaml.dump(oracle_config, file, default_flow_style=False)
 
 
-countries = ["uganda", "malawi", "togo", "ethiopia", "nigeria", "albania"]
+countries = ["ethiopia", "nigeria", "albania"]
 geo_extrapolation = [True, False]
 for country in countries:
     for geo in geo_extrapolation:

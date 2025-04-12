@@ -72,7 +72,7 @@ def get_initial_poverty_gaps_and_rates(countries):
 
 
 def get_conversion_factors(countries):
-    df = pd.read_csv("conversion_factors.csv")
+    df = pd.read_csv("currency_conversion.csv")
     conversion_factors = {}
     for country in countries:
         country_df = df[df["country"] == country]

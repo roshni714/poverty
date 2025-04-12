@@ -147,12 +147,18 @@ def get_training_data_for_geo_extrapolation(data, summary, seed=1537498):
     Returns:
         pd.DataFrame: The preprocessed data without geographic identifiers only for a subset of geographic regions.
     """
-    import pdb
 
-    pdb.set_trace()
+    geo_cols = summary[summary["geographic_indicator"] == True]["variable_name"].tolist()
 
-    geo_cols = summary[summary["geographic_identifier"] == True]["covariate"].tolist()
+    geo_col_unique_counts = {col: data[col].nunique() for col in geo_cols}
+    finest_geo_col = max(geo_col_unique_counts, key=geo_col_unique_counts.get)
+    n_unique = geo_col_unique_counts[finest_geo_col]
+    n_subset = int(0.75 * n_unique)
+    rng = np.random.default_rng(seed)
+    train_geo_col = rng.choice(data[finest_geo_col].unique(), n_subset, replace=False)
+    data = data[data[finest_geo_col].isin(train_geo_col)].reset_index(drop=True)
     data.drop(columns=geo_cols, inplace=True)
+    return data
 
 
 def get_gt_train_data_generator(
@@ -180,28 +186,6 @@ def get_gt_train_data_generator(
 
     if geo_extrapolation:
         data = get_training_data_for_geo_extrapolation(data, summary)
-
-    # some of this preprocessing code should eventually be deprecated because
-    # it should be handled by prior data preprocessing code
-
-    # compute outcome conversion factor
-    # a = 340.2 / 430.05  # Malawi CPI in 2017 USD / Malawi CPI in 2019 USD
-    # b = 241.98  # Malawi Kwacha to USD exchange rate in 2017
-    # adulteq = data["adulteq"]
-    # can alternatively implement this as data["num_adults"] + alpha * data["num_children"]
-    # where alpha is in (0, 1).
-    # conversion_factor = (a / b) * (1 / 365) * (1 / adulteq)
-    # data["consumption_per_capita_per_day"] = data["rexpagg"] * conversion_factor
-
-    # we include hh_wgt and consumption_per_capita_per_day so that
-    # we can synthetically generate samples from the joint distribution (X, Y, R)
-    # durable_verifiable_covariates = list(
-    #    pd.read_csv("data/durable_verifiable_covariates.csv")["Covariates"]
-    # )
-
-    # data = data[
-    #    durable_verifiable_covariates + ["consumption_per_capita_per_day", "hh_wgt"]
-    # ]
 
     original_cols = data.columns.tolist()
 

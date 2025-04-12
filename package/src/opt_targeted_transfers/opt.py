@@ -734,6 +734,25 @@ class OracleRateTargetedTransfers(TargetedTransfers):
         )
         self.assignments = assignments
         return assignments
+    
+class UBITargetedTransfers(TargetedTransfers):
+    def __init__(self, c_bar, budget=None):
+        """
+        :param c_bar: The minimum threshold value (poverty line). Defaults to 2.15.
+        :type c_bar: float
+        """
+
+        super().__init__(c_bar=c_bar, budget=budget)
+        self.name = "ubi"
+        self.transfer_value = budget
+    
+    def run_opt(self, test_dataset):
+        """
+        Assign the transfer value to all households
+        """
+        assignments = {i: [(self.transfer_value, 1.0)] for i in range(len(test_dataset))}
+        self.assignments = assignments
+        return assignments
 
 
 class PMTTargetedTransfers(BinaryTargetedTransfers):

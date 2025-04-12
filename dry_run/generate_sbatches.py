@@ -35,7 +35,7 @@ OUTPUT_PATH = (
 
 
 def generate_learn_run():
-    countries = ["nigeria", "malawi", "togo", "ethiopia", "uganda", "albania"]
+    countries = ["albania", "ethiopia"] #["nigeria", "malawi", "togo",  "uganda", ]
     geo_extrapolation = [True, False]
     configs = [
         "output_gt_continuous_rate.yaml",
@@ -69,7 +69,7 @@ def generate_learn_run():
 
 def generate_hparam_run():
 
-    countries = ["uganda", "malawi", "togo", "ethiopia", "nigeria", "albania"]
+    countries = ["nigeria", "malawi"] #["togo",  "uganda", ]
     geo_extrapolation = [True, False]
     configs = [
         "gt_continuous_rate.yaml",

@@ -6,6 +6,7 @@ from opt_targeted_transfers.opt import (
     OracleGapTargetedTransfers,
     OracleRateTargetedTransfers,
     PMTTargetedTransfers,
+    UBITargetedTransfers
 )
 from opt_targeted_transfers.density_estimation import (
     get_cond_density_estimator,
