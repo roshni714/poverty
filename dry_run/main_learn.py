@@ -225,15 +225,15 @@ def learn_oracle_gap(
 
 
 @argh.arg("--config", default="hparam_results/output_gan_continuous_rate.yaml")
-@argh.arg("--trainpath", default="data/train.parquet")
-@argh.arg("--testpath", default="data/test.parquet")
+@argh.arg("--trainpath", default=None)
+@argh.arg("--testpath", default=None)
 @argh.arg("--summarypath", default="data/summary_2019.parquet")
 @argh.arg("--device", default="cpu")
 def main(
     config="hparam_results/output_gan_continuous_rate.yaml",
-    trainpath="data/train.parquet",
-    testpath="data/test.parquet",
-    summarypath="data/summary_2019.parquet",
+    trainpath=None,
+    testpath=None,
+    summarypath=None,
     device="cpu",
 ):
     """

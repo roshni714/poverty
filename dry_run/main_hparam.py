@@ -32,6 +32,7 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
 
     savedir = config_hparams["savedir"]
     device = config_hparams["device"]
+    geo_extrapolation = config_hparams["data"]["geo_extrapolation"]
 
     opt_hparams = {}
     opt_hparams["savedir"] = learnsavedir
@@ -40,21 +41,28 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
     opt_hparams["data"] = {}
     opt_hparams["data"]["outcome"] = data_config_params["outcome"]
     opt_hparams["data"]["weight"] = data_config_params["weight"]
+    opt_hparams["data"]["geo_extrapolation"] = geo_extrapolation
 
     if "gt" in data_config_params:
         gt_config_params = data_config_params["gt"]
         trainpath = gt_config_params["trainpath"]
         summarypath = gt_config_params["summarypath"]
 
-        train_data_generator, val_df, original_cols = get_gt_train_data_generator(
-            trainpath, summarypath=summarypath, val_split=0.33
+        train_data_generator, ntrain, val_df, original_cols = (
+            get_gt_train_data_generator(
+                trainpath,
+                summarypath=summarypath,
+                geo_extrapolation=geo_extrapolation,
+                val_split=0.33,
+            )
         )
 
-    ntrain = data_config_params["ntrain"]
     outcome = data_config_params["outcome"]
     weight = data_config_params["weight"]
 
-    name = config.split("/")[-1].split(".yaml")[0]
+    last_two = config.split("/")[-2:]
+    last_two[-1] = last_two[-1].split(".yaml")[0]
+    name = "_".join(last_two)
 
     print(config_hparams)
 

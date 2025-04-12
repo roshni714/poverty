@@ -49,7 +49,6 @@ def _load_data(country, method):
     :rtype: pandas.DataFrame
     """
     df = pd.read_csv("results/{}/{}.csv".format(country, METHODS[method]["csv"]))
-    df["method"] = METHODS[method]["name"]
     return df
 
 
@@ -110,7 +109,7 @@ def get_aggregate_interpolators(countries, method):
         country_conversion_factor = conversion_factors[country]
 
         gaps = list(df["post_transfer_poverty_gap"] * country_conversion_factor)
-        #gaps.append(initial[country]["gap"] * country_conversion_factor)
+        # gaps.append(initial[country]["gap"] * country_conversion_factor)
         cost_gaps = list(df["policy_cost_per_capita"] * country_conversion_factor)
 
         if country == "ethiopia" and method == "pmt":
@@ -142,7 +141,9 @@ def get_aggregate_interpolators(countries, method):
         country_interpolators[country]["rate_interpolator"] = country_rate_interpolator
 
     # Compute aggregate rate interpolator
-    gaps = np.linspace(0., max_pre_transfer_poverty_gap * country_conversion_factor, 50)
+    gaps = np.linspace(
+        0.0, max_pre_transfer_poverty_gap * country_conversion_factor, 50
+    )
     costs = []
     for country in countries:
         country_gap_interpolator = country_interpolators[country]["gap_interpolator"]
@@ -152,14 +153,14 @@ def get_aggregate_interpolators(countries, method):
     aggregate_gap_interpolator = interp1d(gaps, aggregate_gap_costs, kind="linear")
 
     # Compute aggregate rate interpolator
-    rates = np.linspace(0., max_pre_transfer_poverty_rate * 100, 50)
+    rates = np.linspace(0.0, max_pre_transfer_poverty_rate * 100, 50)
     rate_costs = []
     for country in countries:
         country_rate_interpolator = country_interpolators[country]["rate_interpolator"]
         rate_costs.append(
             np.clip(country_rate_interpolator(rates), a_min=0.0, a_max=None)
         )
-    rate_costs = np.array(costs)
+    rate_costs = np.array(rate_costs)
     aggregate_rate_costs = np.sum(rate_costs, axis=0)
     aggregate_rate_interpolator = interp1d(rates, aggregate_rate_costs, kind="linear")
 

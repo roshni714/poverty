@@ -136,7 +136,28 @@ def get_wgan_data_generator(objectspath, summarypath):
     return data_generator, original_cols
 
 
-def get_gt_train_data_generator(trainpath, summarypath, val_split=0.33):
+def get_training_data_for_geo_extrapolation(data, summary, seed=1537498):
+    """
+    Preprocess the training data for geo-extrapolation.
+
+    Args:
+        data (pd.DataFrame): The input data.
+        summary (pd.DataFrame): The summary data.
+
+    Returns:
+        pd.DataFrame: The preprocessed data without geographic identifiers only for a subset of geographic regions.
+    """
+    import pdb
+
+    pdb.set_trace()
+
+    geo_cols = summary[summary["geographic_identifier"] == True]["covariate"].tolist()
+    data.drop(columns=geo_cols, inplace=True)
+
+
+def get_gt_train_data_generator(
+    trainpath, summarypath, geo_extrapolation=False, val_split=0.33
+):
     """
     Load the ground truth training dataset and return a data generator function.
 
@@ -156,6 +177,9 @@ def get_gt_train_data_generator(trainpath, summarypath, val_split=0.33):
         data = data.drop(columns=["case_id"])
     if "hh_id" in data.columns:
         data = data.drop(columns=["hh_id"])
+
+    if geo_extrapolation:
+        data = get_training_data_for_geo_extrapolation(data, summary)
 
     # some of this preprocessing code should eventually be deprecated because
     # it should be handled by prior data preprocessing code
@@ -184,6 +208,7 @@ def get_gt_train_data_generator(trainpath, summarypath, val_split=0.33):
     data = convert_to_onehot(data, summary)
 
     rng = np.random.default_rng(54389831)
+    ntrain = len(data)
     val_idx = rng.choice(list(range(len(data))), int(val_split * len(data)))
     val_df = data.loc[val_idx].reset_index(drop=True)
     train_idx = np.array(list(set(range(len(data))) - set(val_df)))
@@ -193,7 +218,7 @@ def get_gt_train_data_generator(trainpath, summarypath, val_split=0.33):
         sample_indices = rng.choice(train_idx, nsamples, replace=True)
         return data.loc[sample_indices].reset_index(drop=True)
 
-    return data_generator, val_df, original_cols
+    return data_generator, ntrain, val_df, original_cols
 
 
 def apply_generator(data_wrapper, generator, df, seed):
