@@ -73,7 +73,7 @@ def convert_to_onehot(df, summary):
 
     one_hot = pd.get_dummies(df[categorical_columns]).astype(np.float32)
     df.drop(columns=categorical_columns, inplace=True)
-    new_df = pd.concat([df, one_hot], axis=1)
+    new_df = pd.concat([df, one_hot], axis=1).astype("float32")
     return new_df
 
 
@@ -148,7 +148,9 @@ def get_training_data_for_geo_extrapolation(data, summary, seed=1537498):
         pd.DataFrame: The preprocessed data without geographic identifiers only for a subset of geographic regions.
     """
 
-    geo_cols = summary[summary["geographic_indicator"] == True]["variable_name"].tolist()
+    geo_cols = summary[summary["geographic_indicator"] == True][
+        "variable_name"
+    ].tolist()
 
     geo_col_unique_counts = {col: data[col].nunique() for col in geo_cols}
     finest_geo_col = max(geo_col_unique_counts, key=geo_col_unique_counts.get)
@@ -174,18 +176,20 @@ def get_gt_train_data_generator(
         data_generator (function): A function that generates samples from the ground truth dataset.
     """
 
-    data = pd.read_parquet(trainpath).reset_index(drop=True)
+    raw_data = pd.read_parquet(trainpath).reset_index(drop=True)
     summary = pd.read_parquet(summarypath)
 
-    if "hhid" in data.columns:
-        data = data.drop(columns=["hhid"])
-    if "case_id" in data.columns:
-        data = data.drop(columns=["case_id"])
-    if "hh_id" in data.columns:
-        data = data.drop(columns=["hh_id"])
+    if "hhid" in raw_data.columns:
+        raw_data = raw_data.drop(columns=["hhid"])
+    if "case_id" in raw_data.columns:
+        raw_data = raw_data.drop(columns=["case_id"])
+    if "hh_id" in raw_data.columns:
+        raw_data = raw_data.drop(columns=["hh_id"])
 
     if geo_extrapolation:
-        data = get_training_data_for_geo_extrapolation(data, summary)
+        data = get_training_data_for_geo_extrapolation(raw_data, summary)
+    else:
+        data = raw_data.copy()
 
     original_cols = data.columns.tolist()
 

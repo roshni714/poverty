@@ -35,15 +35,16 @@ OUTPUT_PATH = (
 
 
 def generate_learn_run():
-    countries = ["albania", "ethiopia"] #["nigeria", "malawi", "togo",  "uganda", ]
-    geo_extrapolation = [True, False]
+    countries = ["malawi", "nigeria", "togo", "uganda"]
+    geo_extrapolation = [True]
     configs = [
-        "output_gt_continuous_rate.yaml",
-        "output_gt_binary_rate.yaml",
-        "output_gt_binary_gap.yaml",
-        "output_gt_continuous_gap.yaml",
+        "output_geo_extrapolation_gt_continuous_rate.yaml",
+        "output_geo_extrapolation_gt_binary_rate.yaml",
+        "output_geo_extrapolation_gt_binary_gap.yaml",
+        "output_geo_extrapolation_gt_continuous_gap.yaml",
         "oracle_gap.yaml",
         "pmt.yaml",
+        "ubi.yaml",
     ]
 
     for country in countries:
@@ -62,14 +63,14 @@ def generate_learn_run():
                         ),
                         file=f,
                     )
-                    base_cmd = f"python main_learn.py main --config hparam/results/{subfolder}/{country}/{config} --trainpath data/{country}/train.parquet --testpath data/{country}/test.parquet --summarypath data/{country}/summary.parquet --device cpu"
+                    base_cmd = f"python main_learn.py main --config hparam/results/{country}/{subfolder}/{config} --trainpath data/{country}/train.parquet --testpath data/{country}/test.parquet --summarypath data/{country}/summary.parquet --device cpu"
                     print(base_cmd, file=f)
                     print("sleep 1", file=f)
 
 
 def generate_hparam_run():
 
-    countries = ["nigeria", "malawi"] #["togo",  "uganda", ]
+    countries = ["togo", "uganda"]
     geo_extrapolation = [True, False]
     configs = [
         "gt_continuous_rate.yaml",
@@ -129,6 +130,9 @@ def generate_hparam_run():
         if not os.path.exists(f"learn/results"):
             print(f"mkdir learn/results", file=f)
         for country in countries:
+            if not os.path.exists(f"learn/results/{country}"):
+                print(f"mkdir learn/results/{country}", file=f)
+                print("sleep 1", file=f)
             for geo in geo_extrapolation:
                 if geo:
                     subfolder = "geo_extrapolation"
@@ -243,7 +247,7 @@ def generate_gt_run():
 
 
 # generate_gt_run()
-generate_hparam_run()
-# generate_learn_run()
+# generate_hparam_run()
+generate_learn_run()
 # generate_wgan_run()
 # generate_wgan_hparam_runs()

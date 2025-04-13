@@ -55,14 +55,32 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
 
     pmt_config = {
         "pmt": {"transfer_value": 2.15},
-        "data": {"outcome": "consumption_per_capita_per_day", "weight": "hh_wgt"},
-        "savedir": f"learn/results/{country}",
+        "data": {
+            "outcome": "consumption_per_capita_per_day",
+            "weight": "hh_wgt",
+            "geo_extrapolation": geo_extrapolation,
+        },
+        "savedir": f"learn/results/{country}/{subfolder}",
     }
 
     oracle_config = {
         "oracle_gap": {},
-        "data": {"outcome": "consumption_per_capita_per_day", "weight": "hh_wgt"},
-        "savedir": f"learn/results/{country}",
+        "data": {
+            "outcome": "consumption_per_capita_per_day",
+            "weight": "hh_wgt",
+            "geo_extrapolation": geo_extrapolation,
+        },
+        "savedir": f"learn/results/{country}/{subfolder}",
+    }
+
+    ubi_config = {
+        "ubi": {},
+        "data": {
+            "outcome": "consumption_per_capita_per_day",
+            "weight": "hh_wgt",
+            "geo_extrapolation": geo_extrapolation,
+        },
+        "savedir": f"learn/results/{country}/{subfolder}",
     }
 
     if not os.path.exists(f"hparam/configs/{country}/{subfolder}"):
@@ -95,8 +113,11 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
     with open(f"hparam/results/{country}/{subfolder}/oracle_gap.yaml", "w") as file:
         yaml.dump(oracle_config, file, default_flow_style=False)
 
+    with open(f"hparam/results/{country}/{subfolder}/ubi.yaml", "w") as file:
+        yaml.dump(ubi_config, file, default_flow_style=False)
 
-countries = ["ethiopia", "nigeria", "albania"]
+
+countries = ["ethiopia", "nigeria", "albania", "malawi", "togo", "uganda"]
 geo_extrapolation = [True, False]
 for country in countries:
     for geo in geo_extrapolation:

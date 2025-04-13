@@ -16,7 +16,9 @@ def get_training_data_for_geo_extrapolation(data, summary, seed=1537498):
         pd.DataFrame: The preprocessed data without geographic identifiers only for a subset of geographic regions.
     """
 
-    geo_cols = summary[summary["geographic_indicator"] == True]["variable_name"].tolist()
+    geo_cols = summary[summary["geographic_indicator"] == True][
+        "variable_name"
+    ].tolist()
 
     geo_col_unique_counts = {col: data[col].nunique() for col in geo_cols}
     finest_geo_col = max(geo_col_unique_counts, key=geo_col_unique_counts.get)
@@ -27,6 +29,7 @@ def get_training_data_for_geo_extrapolation(data, summary, seed=1537498):
     data = data[data[finest_geo_col].isin(train_geo_col)].reset_index(drop=True)
     data.drop(columns=geo_cols, inplace=True)
     return data
+
 
 def get_testing_data_for_geo_extrapolation(data, summary):
     """
@@ -40,7 +43,9 @@ def get_testing_data_for_geo_extrapolation(data, summary):
         pd.DataFrame: The preprocessed data without geographic identifiers
     """
 
-    geo_cols = summary[summary["geographic_indicator"] == True]["variable_name"].tolist()
+    geo_cols = summary[summary["geographic_indicator"] == True][
+        "variable_name"
+    ].tolist()
     data.drop(columns=geo_cols, inplace=True)
     return data
 
@@ -64,8 +69,8 @@ def load_datasets(trainpath, testpath, summarypath, geo_extrapolation, outcome, 
     summary = pd.read_parquet(summarypath)
 
     if geo_extrapolation:
-        data1 = get_training_data_for_geo_extrapolation(data1, summarypath)
-        data2 = get_testing_data_for_geo_extrapolation(data2, summarypath)
+        data1 = get_training_data_for_geo_extrapolation(data1, summary)
+        data2 = get_testing_data_for_geo_extrapolation(data2, summary)
 
     all_data = pd.concat([data1, data2], ignore_index=True)
     all_data = convert_to_onehot(all_data, summary)
@@ -91,10 +96,14 @@ def load_datasets(trainpath, testpath, summarypath, geo_extrapolation, outcome, 
         res.append(pd.DataFrame({col: np.zeros(len(test_data))}))
     final_test_data = pd.concat(res, axis=1)
 
-    train_dataset = Dataset(final_train_data, outcome=outcome, covs=covs, weight=weight)
-    test_dataset = Dataset(final_test_data, outcome=outcome, covs=covs, weight=weight)
+    train_dataset = Dataset(
+        final_train_data.astype("float32"), outcome=outcome, covs=covs, weight=weight
+    )
+    test_dataset = Dataset(
+        final_test_data.astype("float32"), outcome=outcome, covs=covs, weight=weight
+    )
     test_covariate_dataset = Dataset(
-        final_test_data, outcome=None, covs=covs, weight=weight
+        final_test_data.astype("float32"), outcome=None, covs=covs, weight=weight
     )
 
     train_dataset, validation_dataset = split(train_dataset)
@@ -150,8 +159,5 @@ def _load_data(path):
         data = data.drop(columns=["case_id"])
     if "hh_id" in data.columns:
         data = data.drop(columns=["hh_id"])
-
-    
-
 
     return data.reset_index(drop=True)
