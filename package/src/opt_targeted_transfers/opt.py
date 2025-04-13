@@ -744,13 +744,13 @@ class UBITargetedTransfers(TargetedTransfers):
 
         super().__init__(c_bar=c_bar, budget=budget)
         self.name = "ubi"
-        self.transfer_value = budget
     
-    def run_opt(self, test_dataset):
+    def run_opt(self, test_covariate_dataset):
         """
         Assign the transfer value to all households
         """
-        assignments = {i: [(self.transfer_value, 1.0)] for i in range(len(test_dataset))}
+        assert self.budget is not None
+        assignments = {i: [(self.budget, 1.0)] for i in range(len(test_covariate_dataset))}
         self.assignments = assignments
         return assignments
 

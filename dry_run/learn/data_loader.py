@@ -77,6 +77,9 @@ def load_datasets(trainpath, testpath, summarypath, geo_extrapolation, outcome, 
 
     train_data = _load_data(trainpath)
     test_data = _load_data(testpath)
+    if geo_extrapolation:
+        train_data = get_training_data_for_geo_extrapolation(train_data, summary)
+        test_data = get_testing_data_for_geo_extrapolation(test_data, summary)
     covs = list(train_data.columns)
     covs.remove(outcome)
     covs.remove(weight)

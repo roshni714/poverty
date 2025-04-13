@@ -7,10 +7,10 @@ from opt_targeted_transfers import (
     GapTargetedTransfers,
     BinaryRateTargetedTransfers,
     BinaryGapTargetedTransfers,
-    write_result,
     UBITargetedTransfers,
     OracleGapTargetedTransfers,
     PMTTargetedTransfers,
+    write_result,
 )
 from learn.data_loader import load_datasets
 from constants import C_BAR, BUDGETS, ORACLE_BUDGETS
@@ -211,6 +211,7 @@ def learn_pmt(
     )
     run_evaluation(tt, test_covariate_dataset, test_dataset, savepath)
 
+
 def learn_ubi(test_covariate_dataset, test_dataset, savepath):
     """
     Learn UBI targeted transfers
@@ -268,7 +269,7 @@ def main(
                 "data",
                 "savedir",
                 "pmt",
-                "ubi"
+                "ubi",
             ]
             for key in config_keys
         ]
@@ -282,6 +283,7 @@ def main(
             trainpath,
             testpath,
             summarypath,
+            geo_extrapolation=data_config["geo_extrapolation"],
             outcome=data_config["outcome"],
             weight=data_config["weight"],
         )
@@ -298,10 +300,7 @@ def main(
         "pmt": learn_pmt,
     }
 
-    NONLEARNING_METHODS = {
-        "oracle_gap": learn_oracle_gap,
-        "ubi": learn_ubi
-    }
+    NONLEARNING_METHODS = {"oracle_gap": learn_oracle_gap, "ubi": learn_ubi}
 
     for key in config_keys:
         if key in LEARNING_METHODS:

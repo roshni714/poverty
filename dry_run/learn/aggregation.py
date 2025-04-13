@@ -56,10 +56,9 @@ def _load_data(country, method, geo_extrapolation):
     if method not in ["oracle_gap", "pmt", "ubi"]:
         name = METHODS[method]["csv"].split("output_")[1]
         df = pd.read_csv(
-            "results/{}/{}/{}.csv".format(
-                country, subfolder, f"output_{subfolder}_{name}"
-            )
-        )
+                "results/{}/{}/{}.csv".format(
+                    country, subfolder, f"output_{subfolder}_{name}"
+                ))
     else:
         df = pd.read_csv(
             "results/{}/{}/{}.csv".format(country, subfolder, METHODS[method]["csv"])

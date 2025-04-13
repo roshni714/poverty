@@ -208,3 +208,72 @@ def aggregate_plot_x_axis_population_weighted_poverty_measure(
 
     plt.tight_layout()
     plt.savefig("figs/aggregate_population_weighted.pdf", dpi=300, bbox_inches="tight")
+
+
+def aggregate_plot_geo_extrapolation(countries):
+    # Plot policy_cost_per_capita vs post_transfer_poverty_rate
+    # Plot policy_cost_per_capita vs post_transfer_poverty_rate
+    fig, ax = plt.subplots(1, 2, figsize=(20, 8))
+    fontsize = 20
+    method = "continuous_gap"
+    for geo_extrapolation in [True, False]:
+        dic = get_aggregate_interpolators_population_weighted_poverty_measure(
+            countries=countries, method=method, geo_extrapolation=geo_extrapolation
+        )
+        gap_range = dic["gap"]["range"]
+        gap_interpolator = dic["gap"]["interpolator"]
+        rate_range = dic["rate"]["range"]
+        rate_interpolator = dic["rate"]["interpolator"]
+        print(gap_range, rate_range)
+
+        if geo_extrapolation:
+            name = METHODS[method]["name"] + " (Geo Extrapolation)"
+            color = "deepskyblue"
+        else:
+            name = METHODS[method]["name"] + " (Geo Interpolation)"
+            color = METHODS[method]["color"]
+
+        ax[0].plot(
+            np.linspace(gap_range[0], gap_range[1], 100),
+            gap_interpolator(np.linspace(gap_range[0], gap_range[1], 100)),
+            label=name,
+            color=color,
+            linestyle=METHODS[method]["linestyle"],
+        )
+        ax[1].plot(
+            np.linspace(rate_range[0], rate_range[1], 100),
+            rate_interpolator(np.linspace(rate_range[0], rate_range[1], 100)),
+            label=name,
+            color=color,
+            linestyle=METHODS[method]["linestyle"],
+        )
+
+        ax[1].set_xlabel(
+            "Average (Population-Weighted) Poverty Rate Across Countries\n(%)",
+            fontsize=fontsize,
+        )
+        ax[0].set_xlabel(
+            "Total Poverty Gap Across Countries \n(Billions of Nominal 2025 USD)",
+            fontsize=fontsize,
+        )
+        ax[1].set_title(
+            "Total Policy Cost vs Post-Transfer Poverty Rate", fontsize=fontsize
+        )
+        ax[0].set_title(
+            "Total Policy Cost vs Post-Transfer Poverty Gap", fontsize=fontsize
+        )
+        for i in range(2):
+            ax[i].set_ylabel(
+                "Total Policy Cost \n(Billions of Nominal 2025 USD)", fontsize=fontsize
+            )
+            ax[i].grid(True)
+            ax[i].tick_params(axis="x", labelsize=15)
+            ax[i].tick_params(axis="y", labelsize=15)
+
+        plt.suptitle(
+            "Total Policy Cost vs. Poverty Measure Across Countries", fontsize=fontsize
+        )
+        ax[1].legend(loc="upper right", fontsize=fontsize * 0.75)
+
+    plt.tight_layout()
+    plt.savefig("figs/aggregate_geo_extrapolation.pdf", dpi=300, bbox_inches="tight")

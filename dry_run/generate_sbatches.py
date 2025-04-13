@@ -35,7 +35,7 @@ OUTPUT_PATH = (
 
 
 def generate_learn_run():
-    countries = ["malawi", "nigeria", "togo", "uganda"]
+    countries = ["malawi"]
     geo_extrapolation = [True]
     configs = [
         "output_geo_extrapolation_gt_continuous_rate.yaml",
