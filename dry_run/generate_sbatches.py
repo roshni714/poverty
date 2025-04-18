@@ -6,7 +6,8 @@ import os
 GPU_SBATCH_PREFACE = """#!/bin/bash
 #SBATCH -J train-gpu
 #SBATCH -p gpu
-#SBATCH -c 20
+#SBATCH -c 2
+#SBATCH --mem 5GB
 #SBATCH -N 1
 #SBATCH -t 1-             # limit of 1 day runtime
 #SBATCH -G 1              # limit of 2 GPU's per user
@@ -35,16 +36,16 @@ OUTPUT_PATH = (
 
 
 def generate_learn_run():
-    countries = ["malawi"]
-    geo_extrapolation = [True]
+    countries = ["nigeria", "togo", "uganda", "malawi", "ethiopia"]
+    geo_extrapolation = [False]
     configs = [
-        "output_geo_extrapolation_gt_continuous_rate.yaml",
-        "output_geo_extrapolation_gt_binary_rate.yaml",
-        "output_geo_extrapolation_gt_binary_gap.yaml",
-        "output_geo_extrapolation_gt_continuous_gap.yaml",
-        "oracle_gap.yaml",
-        "pmt.yaml",
-        "ubi.yaml",
+        # "output_gt_continuous_rate.yaml",
+        # "output_gt_binary_rate.yaml",
+        # "output_gt_binary_gap.yaml",
+        "output_gt_continuous_gap.yaml",
+        # "oracle_gap.yaml",
+        # "pmt.yaml",
+        # "ubi.yaml",
     ]
 
     for country in countries:
@@ -70,12 +71,12 @@ def generate_learn_run():
 
 def generate_hparam_run():
 
-    countries = ["togo", "uganda"]
-    geo_extrapolation = [True, False]
+    countries = ["uganda", "malawi", "ethiopia", "nigeria", "togo"]
+    geo_extrapolation = [False]
     configs = [
-        "gt_continuous_rate.yaml",
-        "gt_binary_rate.yaml",
-        "gt_binary_gap.yaml",
+        # "gt_continuous_rate.yaml",
+        # "gt_binary_rate.yaml",
+        # "gt_binary_gap.yaml",
         "gt_continuous_gap.yaml",
     ]
 

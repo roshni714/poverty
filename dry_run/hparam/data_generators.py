@@ -136,7 +136,9 @@ def get_wgan_data_generator(objectspath, summarypath):
     return data_generator, original_cols
 
 
-def get_training_data_for_geo_extrapolation(data, summary, seed=1537498):
+def get_training_data_for_geo_extrapolation(
+    data, summary, geo_extrapolation, seed=1537498
+):
     """
     Preprocess the training data for geo-extrapolation.
 
@@ -152,14 +154,23 @@ def get_training_data_for_geo_extrapolation(data, summary, seed=1537498):
         "variable_name"
     ].tolist()
 
-    geo_col_unique_counts = {col: data[col].nunique() for col in geo_cols}
-    finest_geo_col = max(geo_col_unique_counts, key=geo_col_unique_counts.get)
-    n_unique = geo_col_unique_counts[finest_geo_col]
-    n_subset = int(0.75 * n_unique)
-    rng = np.random.default_rng(seed)
-    train_geo_col = rng.choice(data[finest_geo_col].unique(), n_subset, replace=False)
-    data = data[data[finest_geo_col].isin(train_geo_col)].reset_index(drop=True)
-    data.drop(columns=geo_cols, inplace=True)
+    fine_geo_cols = summary[summary["geographic_indicator_finer"] == True][
+        "variable_name"
+    ].tolist()
+    coarse_geo_cols = summary[summary["geographic_indicator_coarser"] == True][
+        "variable_name"
+    ].tolist()
+
+    remove_for_fine = set(geo_cols) - set(fine_geo_cols)
+    remove_for_coarse = set(geo_cols) - set(coarse_geo_cols)
+    remove_for_fine = list(remove_for_fine)
+    remove_for_coarse = list(remove_for_coarse)
+
+    if geo_extrapolation:
+        data = data.drop(columns=remove_for_coarse)
+    else:
+        data = data.drop(columns=remove_for_fine)
+
     return data
 
 
@@ -186,10 +197,7 @@ def get_gt_train_data_generator(
     if "hh_id" in raw_data.columns:
         raw_data = raw_data.drop(columns=["hh_id"])
 
-    if geo_extrapolation:
-        data = get_training_data_for_geo_extrapolation(raw_data, summary)
-    else:
-        data = raw_data.copy()
+    data = get_training_data_for_geo_extrapolation(raw_data, summary, geo_extrapolation)
 
     original_cols = data.columns.tolist()
 

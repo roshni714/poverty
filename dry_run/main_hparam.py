@@ -59,11 +59,7 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
 
     outcome = data_config_params["outcome"]
     weight = data_config_params["weight"]
-
-    last_two = config.split("/")[-2:]
-    last_two[-1] = last_two[-1].split(".yaml")[0]
-    name = "_".join(last_two)
-
+    name = config.split("/")[-1].split(".yaml")[0]
     print(config_hparams)
 
     if "continuous_rate" in config_hparams:

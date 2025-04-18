@@ -4,41 +4,13 @@ import numpy as np
 from opt_targeted_transfers import Dataset, split
 
 
-def get_training_data_for_geo_extrapolation(data, summary, seed=1537498):
-    """
-    Preprocess the training data for geo-extrapolation.
-
-    Args:
-        data (pd.DataFrame): The input data.
-        summary (pd.DataFrame): The summary data.
-
-    Returns:
-        pd.DataFrame: The preprocessed data without geographic identifiers only for a subset of geographic regions.
-    """
-
-    geo_cols = summary[summary["geographic_indicator"] == True][
-        "variable_name"
-    ].tolist()
-
-    geo_col_unique_counts = {col: data[col].nunique() for col in geo_cols}
-    finest_geo_col = max(geo_col_unique_counts, key=geo_col_unique_counts.get)
-    n_unique = geo_col_unique_counts[finest_geo_col]
-    n_subset = int(0.75 * n_unique)
-    rng = np.random.default_rng(seed)
-    train_geo_col = rng.choice(data[finest_geo_col].unique(), n_subset, replace=False)
-    data = data[data[finest_geo_col].isin(train_geo_col)].reset_index(drop=True)
-    data.drop(columns=geo_cols, inplace=True)
-    return data
-
-
-def get_testing_data_for_geo_extrapolation(data, summary):
+def get_data_for_geo_extrapolation(data, summary, geo_extrapolation):
     """
     Preprocess the testing data for geo-extrapolation.
 
     Args:
         data (pd.DataFrame): The input data.
         summary (pd.DataFrame): The summary data.
-
     Returns:
         pd.DataFrame: The preprocessed data without geographic identifiers
     """
@@ -46,7 +18,23 @@ def get_testing_data_for_geo_extrapolation(data, summary):
     geo_cols = summary[summary["geographic_indicator"] == True][
         "variable_name"
     ].tolist()
-    data.drop(columns=geo_cols, inplace=True)
+
+    fine_geo_cols = summary[summary["geographic_indicator_finer"] == True][
+        "variable_name"
+    ].tolist()
+    coarse_geo_cols = summary[summary["geographic_indicator_coarser"] == True][
+        "variable_name"
+    ].tolist()
+
+    remove_for_fine = set(geo_cols) - set(fine_geo_cols)
+    remove_for_coarse = set(geo_cols) - set(coarse_geo_cols)
+    remove_for_fine = list(remove_for_fine)
+    remove_for_coarse = list(remove_for_coarse)
+
+    if geo_extrapolation:
+        data = data.drop(columns=remove_for_coarse)
+    else:
+        data = data.drop(columns=remove_for_fine)
     return data
 
 
@@ -68,18 +56,16 @@ def load_datasets(trainpath, testpath, summarypath, geo_extrapolation, outcome, 
     data2 = _load_data(testpath)
     summary = pd.read_parquet(summarypath)
 
-    if geo_extrapolation:
-        data1 = get_training_data_for_geo_extrapolation(data1, summary)
-        data2 = get_testing_data_for_geo_extrapolation(data2, summary)
+    data1 = get_data_for_geo_extrapolation(data1, summary, geo_extrapolation)
+    data2 = get_data_for_geo_extrapolation(data2, summary, geo_extrapolation)
 
     all_data = pd.concat([data1, data2], ignore_index=True)
     all_data = convert_to_onehot(all_data, summary)
 
     train_data = _load_data(trainpath)
     test_data = _load_data(testpath)
-    if geo_extrapolation:
-        train_data = get_training_data_for_geo_extrapolation(train_data, summary)
-        test_data = get_testing_data_for_geo_extrapolation(test_data, summary)
+    train_data = get_data_for_geo_extrapolation(train_data, summary, geo_extrapolation)
+    test_data = get_data_for_geo_extrapolation(test_data, summary, geo_extrapolation)
     covs = list(train_data.columns)
     covs.remove(outcome)
     covs.remove(weight)
