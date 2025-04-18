@@ -128,6 +128,8 @@ def aggregate_plot_x_axis_population_weighted_poverty_measure_global_gap(
         get_initial_aggregate_gap_and_rate(countries)
     )
     aggregate_conversion_factor = get_aggregate_conversion_factor(countries)
+    ax[0].axvline(x=1, color="black", linestyle=":", label="1% Gap Target")
+
     ax[0].plot(
         np.linspace(0.0, initial_popweighted_gap),
         np.ones(50) * 2.15 * aggregate_conversion_factor,
@@ -193,7 +195,7 @@ def aggregate_plot_x_axis_population_weighted_poverty_measure_global_gap(
             "Total Policy Cost vs. Poverty Measure Across Countries \n (Global Gap Optimization)",
             fontsize=fontsize,
         )
-        ax[1].legend(
+        ax[0].legend(
             loc="upper right", fontsize=fontsize * 0.75, bbox_to_anchor=(1.0, 0.8)
         )
 
@@ -351,9 +353,12 @@ def aggregate_plot_geo_extrapolation(countries, save_as):
     fig, ax = plt.subplots(1, 2, figsize=(20, 8))
     fontsize = 20
     method = "continuous_gap"
+
     for geo_extrapolation in [True, False]:
-        dic = get_aggregate_interpolators_population_weighted_poverty_measure_global_gap(
-            countries=countries, method=method, geo_extrapolation=geo_extrapolation
+        dic = (
+            get_aggregate_interpolators_population_weighted_poverty_measure_global_gap(
+                countries=countries, method=method, geo_extrapolation=geo_extrapolation
+            )
         )
         gap_range = dic["gap"]["range"]
         gap_interpolator = dic["gap"]["interpolator"]
@@ -367,7 +372,6 @@ def aggregate_plot_geo_extrapolation(countries, save_as):
         else:
             name = METHODS[method]["name"] + " \n w/ Finer Geographic Identifiers"
             color = "deepskyblue"
-            
 
         ax[0].plot(
             np.linspace(gap_range[0], gap_range[1], 100),
@@ -393,10 +397,12 @@ def aggregate_plot_geo_extrapolation(countries, save_as):
             fontsize=fontsize,
         )
         ax[1].set_title(
-            "Total Policy Cost vs Post-Transfer Poverty Rate \n (Global Gap Optimization)", fontsize=fontsize
+            "Total Policy Cost vs Post-Transfer Poverty Rate \n (Global Gap Optimization)",
+            fontsize=fontsize,
         )
         ax[0].set_title(
-            "Total Policy Cost vs Post-Transfer Poverty Gap Index \n (Global Gap Optimization)", fontsize=fontsize
+            "Total Policy Cost vs Post-Transfer Poverty Gap Index \n (Global Gap Optimization)",
+            fontsize=fontsize,
         )
         for i in range(2):
             ax[i].set_ylabel(
