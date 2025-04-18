@@ -320,11 +320,11 @@ def aggregate_plot_x_axis_fraction(countries, method_list, geo_extrapolation, sa
             fontsize=fontsize,
         )
         ax[1].set_title(
-            "Policy Cost for x% Reduction in Poverty Rate in All Countries",
+            "Policy Cost for x% Reduction in Poverty Rate in All Countries \n (Global Rate Optimization)",
             fontsize=fontsize,
         )
         ax[0].set_title(
-            "Policy Cost for x% Reduction in Poverty Gap in All Countries",
+            "Policy Cost for x% Reduction in Poverty Gap in All Countries \n (Global Gap Optimization)",
             fontsize=fontsize,
         )
         for i in range(2):
@@ -352,7 +352,7 @@ def aggregate_plot_geo_extrapolation(countries, save_as):
     fontsize = 20
     method = "continuous_gap"
     for geo_extrapolation in [True, False]:
-        dic = get_aggregate_interpolators_population_weighted_poverty_measure(
+        dic = get_aggregate_interpolators_population_weighted_poverty_measure_global_gap(
             countries=countries, method=method, geo_extrapolation=geo_extrapolation
         )
         gap_range = dic["gap"]["range"]
@@ -362,11 +362,12 @@ def aggregate_plot_geo_extrapolation(countries, save_as):
         print(gap_range, rate_range)
 
         if geo_extrapolation:
-            name = METHODS[method]["name"] + " (Geo Extrapolation)"
-            color = "deepskyblue"
-        else:
-            name = METHODS[method]["name"] + " (No Geo Extrapolation)"
+            name = METHODS[method]["name"] + "\n w/ Status-Quo Geographic Identifiers"
             color = METHODS[method]["color"]
+        else:
+            name = METHODS[method]["name"] + " \n w/ Finer Geographic Identifiers"
+            color = "deepskyblue"
+            
 
         ax[0].plot(
             np.linspace(gap_range[0], gap_range[1], 100),
@@ -384,18 +385,18 @@ def aggregate_plot_geo_extrapolation(countries, save_as):
         )
 
         ax[1].set_xlabel(
-            "Average (Population-Weighted) Poverty Rate Across Countries\n(%)",
+            "Population-Weighted Post-Transfer Poverty Rate\n(%)",
             fontsize=fontsize,
         )
         ax[0].set_xlabel(
-            "Total Poverty Gap Across Countries \n(Billions of Nominal 2025 USD)",
+            "Population-Weighted Post-Transfer Poverty Gap Index\n(%)",
             fontsize=fontsize,
         )
         ax[1].set_title(
-            "Total Policy Cost vs Post-Transfer Poverty Rate", fontsize=fontsize
+            "Total Policy Cost vs Post-Transfer Poverty Rate \n (Global Gap Optimization)", fontsize=fontsize
         )
         ax[0].set_title(
-            "Total Policy Cost vs Post-Transfer Poverty Gap", fontsize=fontsize
+            "Total Policy Cost vs Post-Transfer Poverty Gap Index \n (Global Gap Optimization)", fontsize=fontsize
         )
         for i in range(2):
             ax[i].set_ylabel(
@@ -406,7 +407,7 @@ def aggregate_plot_geo_extrapolation(countries, save_as):
             ax[i].tick_params(axis="y", labelsize=15)
 
         plt.suptitle(
-            "Policy Cost vs. Poverty Measure under Geographic Extrapolation",
+            "Comparison of Policy Costs with Different Granularity of Geographic Identifiers",
             fontsize=fontsize,
         )
         ax[1].legend(loc="upper right", fontsize=fontsize * 0.75)

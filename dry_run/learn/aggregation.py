@@ -86,15 +86,15 @@ def get_min_poverty_gaps_and_rates(countries):
     return min
 
 
-def prune_results(xs, ys):
-    mask = xs == 0.0
+def prune_results(xs, ys, val=0.):
+    mask = np.abs(xs - val) < 1e-3
     if mask.sum() <= 1:
         return xs, ys
     xs_nonzero = list(np.array(xs)[~mask])
     ys_nonzero = list(np.array(ys)[~mask])
 
     ys_zero = ys[mask]
-    xs = xs_nonzero + [0.0]
+    xs = xs_nonzero + [val]
     ys = ys_nonzero + [min(ys_zero)]
     return np.array(xs), np.array(ys)
 
@@ -179,21 +179,25 @@ def get_country_interpolators_fraction(countries, method, geo_extrapolation):
         df = _load_data(country, method, geo_extrapolation)
         country_conversion_factor = conversion_factors[country]
 
-        gap_fractions = list(
+        gap_fractions = [0.] + list(
             (initial[country]["gap"] - (df["post_transfer_poverty_gap"] * 100 / 2.15))
             * 100
             / initial[country]["gap"]
         )
-        cost_gaps = list(df["policy_cost_per_capita"] * country_conversion_factor)
+       
+        cost_gaps = [0.] + list(df["policy_cost_per_capita"] * country_conversion_factor)
+
+
+        pruned_gap_fractions, pruned_cost_gaps = prune_results(np.array(gap_fractions), np.array(cost_gaps), val=100.)
 
         country_gap_interpolator = interp1d(
-            gap_fractions, cost_gaps, kind="linear", fill_value="extrapolate"
+            pruned_gap_fractions, pruned_cost_gaps, kind="linear", fill_value="extrapolate"
         )
 
         country_interpolators[country] = {}
         country_interpolators[country]["gap_interpolator"] = country_gap_interpolator
 
-        rate_fractions = list(
+        rate_fractions = [0.] + list(
             (
                 (initial[country]["rate"] - (df["post_transfer_poverty_rate"] * 100))
                 / initial[country]["rate"]
@@ -201,15 +205,20 @@ def get_country_interpolators_fraction(countries, method, geo_extrapolation):
             * 100
         )
         # rates.append(initial[country]["rate"] * country_conversion_factor)
-        cost_rates = list(df["policy_cost_per_capita"] * country_conversion_factor)
+        cost_rates = [0.] + list(df["policy_cost_per_capita"] * country_conversion_factor)
+
+        pruned_rate_fractions, pruned_cost_rates = prune_results(
+            np.array(rate_fractions), np.array(cost_rates), val=100.
+        )
         # cost_rates.append(0.0)
         country_rate_interpolator = interp1d(
-            rate_fractions,
-            gap_fractions,
+            pruned_rate_fractions,
+            pruned_cost_rates,
             kind="linear",
             fill_value="extrapolate",
         )
         country_interpolators[country]["rate_interpolator"] = country_rate_interpolator
+        print(min(pruned_rate_fractions), max(pruned_rate_fractions), min(pruned_gap_fractions), max(pruned_gap_fractions))
     return country_interpolators
 
 
@@ -219,7 +228,7 @@ def get_aggregate_interpolators_fraction(countries, method, geo_extrapolation):
     )
 
     # Compute aggregate rate interpolator
-    fracs = np.linspace(5, 100, 50)
+    fracs = np.linspace(0, 100, 50)
     costs = []
     for country in countries:
         country_gap_interpolator = country_interpolators[country]["gap_interpolator"]
