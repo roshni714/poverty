@@ -87,7 +87,7 @@ def get_min_poverty_gaps_and_rates(countries):
 
 
 def prune_results(xs, ys, val=0.0):
-    mask = np.abs(xs - val) < 1e-3
+    mask = np.abs(xs - val) < 1e-5
     if mask.sum() <= 1:
         return xs, ys
     xs_nonzero = list(np.array(xs)[~mask])
@@ -107,7 +107,7 @@ def get_conversion_factors(countries):
         factor = (
             country_df["total_population_survey_year"].values[0]
             * 365
-            * 1.31
+            * 1.23
             * (
                 country_df["PPP_exchange_rate_2017"].values[0]
                 / country_df["market_exchange_rate_2017"].values[0]
@@ -311,6 +311,19 @@ def get_wc_gap_to_actual_rate_country(initial, country_interpolators, country, w
     return actual_rates
 
 
+def get_aggregate_conversion_factor(countries):
+    conversion_factors = get_conversion_factors(countries)
+    aggregate_conversion_factor = (
+        np.array([conversion_factors[country] for country in countries])
+    ).sum()
+    return aggregate_conversion_factor
+
+
+def get_aggregate_ubi_cost(countries):
+    aggregate_conversion_factor = get_aggregate_conversion_factor(countries)
+    return 2.15 * aggregate_conversion_factor
+
+
 def get_initial_aggregate_gap_and_rate(countries):
     initial = get_initial_poverty_gaps_and_rates(countries)
     country_weights = get_country_weights(countries)
@@ -322,14 +335,6 @@ def get_initial_aggregate_gap_and_rate(countries):
         np.array([initial[country]["rate"] for country in countries]) * weights
     ).sum()
     return pop_weighted_initial_poverty_gap, pop_weighted_initial_poverty_rate
-
-
-def get_aggregate_conversion_factor(countries):
-    conversion_factors = get_conversion_factors(countries)
-    aggregate_conversion_factor = (
-        np.array([conversion_factors[country] for country in countries])
-    ).sum()
-    return aggregate_conversion_factor
 
 
 def get_aggregate_interpolators_population_weighted_poverty_measure_global_gap(

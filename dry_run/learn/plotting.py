@@ -10,7 +10,8 @@ from aggregation import (
     _load_data,
     get_initial_poverty_gaps_and_rates,
     get_initial_aggregate_gap_and_rate,
-    get_aggregate_conversion_factor,
+    get_aggregate_ubi_cost,
+    prune_results,
 )
 
 
@@ -62,17 +63,25 @@ def make_plot_for_country(country, method_list, geo_extrapolation, save_as):
         )
         costs = [0.0] + list(df["policy_cost_per_capita"] * conversion_factor)
 
+        pruned_rates, pruned_costs = prune_results(
+            np.array(rates), np.array(costs), val=0
+        )
+
         ax[1].plot(
-            rates,
-            costs,
+            pruned_rates,
+            pruned_costs,
             marker="o",
             label=dic["name"],
             color=dic["color"],
             linestyle=dic["linestyle"],
         )
+
+        pruned_gaps, pruned_costs = prune_results(
+            np.array(gaps), np.array(costs), val=0
+        )
         ax[0].plot(
-            gaps,
-            costs,
+            pruned_gaps,
+            pruned_costs,
             marker="o",
             label=dic["name"],
             color=dic["color"],
@@ -100,7 +109,7 @@ def make_plot_for_country(country, method_list, geo_extrapolation, save_as):
 
     for i in range(2):
         ax[i].set_ylabel(
-            "Policy Cost (Billions of Nominal 2025 USD)", fontsize=fontsize
+            "Policy Cost (Billions of Nominal 2023 USD)", fontsize=fontsize
         )
         ax[i].grid(True)
         ax[i].tick_params(axis="x", labelsize=15)
@@ -127,19 +136,19 @@ def aggregate_plot_x_axis_population_weighted_poverty_measure_global_gap(
     initial_popweighted_gap, initial_popweighted_rate = (
         get_initial_aggregate_gap_and_rate(countries)
     )
-    aggregate_conversion_factor = get_aggregate_conversion_factor(countries)
+    ubi_cost = get_aggregate_ubi_cost(countries)
     ax[0].axvline(x=1, color="black", linestyle=":", label="1% Gap Target")
 
     ax[0].plot(
         np.linspace(0.0, initial_popweighted_gap),
-        np.ones(50) * 2.15 * aggregate_conversion_factor,
+        np.ones(50) * ubi_cost,
         linestyle="--",
         color=METHODS["ubi"]["color"],
         label="UBI $2.15",
     )
     ax[1].plot(
         np.linspace(0.0, initial_popweighted_rate),
-        np.ones(50) * 2.15 * aggregate_conversion_factor,
+        np.ones(50) * ubi_cost,
         linestyle="--",
         color=METHODS["ubi"]["color"],
         label="UBI $2.15",
@@ -185,7 +194,7 @@ def aggregate_plot_x_axis_population_weighted_poverty_measure_global_gap(
         )
         for i in range(2):
             ax[i].set_ylabel(
-                "Total Policy Cost \n(Billions of Nominal 2025 USD)", fontsize=fontsize
+                "Total Policy Cost \n(Billions of Nominal 2023 USD)", fontsize=fontsize
             )
             ax[i].grid(True)
             ax[i].tick_params(axis="x", labelsize=15)
@@ -213,17 +222,17 @@ def aggregate_plot_x_axis_population_weighted_poverty_measure(
     initial_popweighted_gap, initial_popweighted_rate = (
         get_initial_aggregate_gap_and_rate(countries)
     )
-    aggregate_conversion_factor = get_aggregate_conversion_factor(countries)
+    ubi_cost = get_aggregate_ubi_cost(countries)
     ax[0].plot(
         np.linspace(0.0, initial_popweighted_gap),
-        np.ones(50) * 2.15 * aggregate_conversion_factor,
+        np.ones(50) * ubi_cost,
         linestyle="--",
         color=METHODS["ubi"]["color"],
         label="UBI $2.15",
     )
     ax[1].plot(
         np.linspace(0.0, initial_popweighted_rate),
-        np.ones(50) * 2.15 * aggregate_conversion_factor,
+        np.ones(50) * ubi_cost,
         linestyle="--",
         color=METHODS["ubi"]["color"],
         label="UBI $2.15",
@@ -269,7 +278,7 @@ def aggregate_plot_x_axis_population_weighted_poverty_measure(
         )
         for i in range(2):
             ax[i].set_ylabel(
-                "Total Policy Cost \n(Billions of Nominal 2025 USD)", fontsize=fontsize
+                "Total Policy Cost \n(Billions of Nominal 2023 USD)", fontsize=fontsize
             )
             ax[i].grid(True)
             ax[i].tick_params(axis="x", labelsize=15)
@@ -331,7 +340,7 @@ def aggregate_plot_x_axis_fraction(countries, method_list, geo_extrapolation, sa
         )
         for i in range(2):
             ax[i].set_ylabel(
-                "Total Policy Cost \n(Billions of Nominal 2025 USD)", fontsize=fontsize
+                "Total Policy Cost \n(Billions of Nominal 2023 USD)", fontsize=fontsize
             )
             ax[i].grid(True)
             ax[i].tick_params(axis="x", labelsize=15)
@@ -406,7 +415,7 @@ def aggregate_plot_geo_extrapolation(countries, save_as):
         )
         for i in range(2):
             ax[i].set_ylabel(
-                "Total Policy Cost \n(Billions of Nominal 2025 USD)", fontsize=fontsize
+                "Total Policy Cost \n(Billions of Nominal 2023 USD)", fontsize=fontsize
             )
             ax[i].grid(True)
             ax[i].tick_params(axis="x", labelsize=15)
@@ -453,7 +462,7 @@ def aggregate_plot_geo_extrapolation(countries, save_as):
 
 #         ax[1].set_xlabel("Worst-Case Poverty Rate in a Country\n(%)", fontsize=fontsize)
 #         ax[0].set_xlabel(
-#             "Worst-Case Poverty Gap in a Country \n(Billions of Nominal 2025 USD)",
+#             "Worst-Case Poverty Gap in a Country \n(Billions of Nominal 2023 USD)",
 #             fontsize=fontsize,
 #         )
 #         ax[1].set_title(
@@ -464,7 +473,7 @@ def aggregate_plot_geo_extrapolation(countries, save_as):
 #         )
 #         for i in range(2):
 #             ax[i].set_ylabel(
-#                 "Total Policy Cost \n(Billions of Nominal 2025 USD)", fontsize=fontsize
+#                 "Total Policy Cost \n(Billions of Nominal 2023 USD)", fontsize=fontsize
 #             )
 #             ax[i].grid(True)
 #             ax[i].tick_params(axis="x", labelsize=15)
