@@ -6,14 +6,13 @@ from opt_targeted_transfers.oracle import (
     run_oracle_poverty_gap_floor_scheme,
     run_oracle_poverty_gap_lift_to_line_scheme,
 )
-
 from opt_targeted_transfers.quantile_regression import get_quantile_regressor
 from opt_targeted_transfers.evaluate import (
     post_transfer_metrics,
     expected_value_transfers,
     policy_cost,
 )
-from opt_targeted_transfers.prediction import get_pmt_linear_regressor
+from opt_targeted_transfers.prediction import get_pmt_linear_regressor, get_pmt_nn_regressor
 from opt_targeted_transfers.conditional_improvement import (
     get_conditional_improvement_regressor,
     get_avg_estimated_benefit,
@@ -754,6 +753,66 @@ class UBITargetedTransfers(TargetedTransfers):
         self.assignments = assignments
         return assignments
 
+
+class ModernPMTTargetedTransfers(BinaryTargetedTransfers):
+    """
+    Modern PMT style targeting
+    """
+
+    def __init__(self, c_bar=2.15, budget=None, transfer_value=1.0):
+        """
+        :param c_bar: The minimum threshold value (poverty line). Defaults to 2.15.
+        :type c_bar: float
+        """
+
+        super().__init__(c_bar=c_bar, budget=budget)
+        self.name = "pmt"
+        self.transfer_value = transfer_value
+
+    def fit(
+        self,
+        train_dataset,
+        validation_dataset,
+        n_layers=1,
+        n_hidden_units=256,
+        lr=5e-3,
+        n_epochs=300,
+        seed=123456,
+        device="cpu",
+
+    ):
+        """
+        :param n_layers: The number of hidden layers in the neural network. Defaults to 1.
+        :type n_layers: int
+        :param n_hidden_units: The number of hidden units in each hidden layer. Defaults to 256.
+        :type n_hidden_units: int
+        :param lr: The learning rate for training the neural network. Defaults to 5e-3.
+        :type lr: float
+        :param n_epochs: The number of epochs for training the neural network. Defaults to 300.
+        :type n_epochs: int
+        """
+
+        self.consumption_predictor = get_pmt_nn_regressor(
+            train_dataset, validation_dataset, n_layers=n_layers, n_hidden_units=n_hidden_units, lr=lr, n_epochs=n_epochs, seed=seed, device=device
+        )
+
+    def run_opt(self, test_covariate_dataset):
+
+        assert self.budget is not None
+
+        X_test, _ = test_covariate_dataset.get_data()
+
+        estimated_benefits = self.consumption_predictor(X_test)
+        ordered_households = np.argsort(estimated_benefits)
+        indices_to_receive_transfers = self._get_indices_to_receive_transfers_exact(
+            test_covariate_dataset, ordered_households, self.transfer_value, self.budget
+        )
+
+        assignments = {i: [(0.0, 1.0)] for i in range(len(test_covariate_dataset))}
+        for i in indices_to_receive_transfers:
+            assignments[i] = [(self.transfer_value, 1.0)]
+        self.assignments = assignments
+        return assignments
 
 class PMTTargetedTransfers(BinaryTargetedTransfers):
     """

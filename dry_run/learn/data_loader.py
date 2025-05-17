@@ -69,6 +69,7 @@ def load_datasets(trainpath, testpath, summarypath, geo_extrapolation, outcome, 
     covs = list(train_data.columns)
     covs.remove(outcome)
     covs.remove(weight)
+    covs.remove("hh_wgt")
 
     train_data = convert_to_onehot(train_data, summary)
     test_data = convert_to_onehot(test_data, summary)

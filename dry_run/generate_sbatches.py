@@ -36,13 +36,14 @@ OUTPUT_PATH = (
 
 
 def generate_learn_run():
-    countries = ["nigeria", "togo", "uganda", "malawi", "ethiopia"]
-    geo_extrapolation = [False]
+    countries = ["malawi"]
+    geo_extrapolation = [True]
     configs = [
         # "output_gt_continuous_rate.yaml",
         # "output_gt_binary_rate.yaml",
         # "output_gt_binary_gap.yaml",
-        "output_gt_continuous_gap.yaml",
+        # "output_gt_continuous_gap.yaml",
+        "output_gt_modern_pmt.yaml",
         # "oracle_gap.yaml",
         # "pmt.yaml",
         # "ubi.yaml",
@@ -71,13 +72,14 @@ def generate_learn_run():
 
 def generate_hparam_run():
 
-    countries = ["uganda", "malawi", "ethiopia", "nigeria", "togo"]
-    geo_extrapolation = [False]
+    countries = ["togo", "nigeria"]
+    geo_extrapolation = [True]
     configs = [
-        # "gt_continuous_rate.yaml",
-        # "gt_binary_rate.yaml",
-        # "gt_binary_gap.yaml",
+        "gt_continuous_rate.yaml",
+        "gt_binary_rate.yaml",
+        "gt_binary_gap.yaml",
         "gt_continuous_gap.yaml",
+        "gt_modern_pmt.yaml",
     ]
 
     # script_fn = os.path.join(OUTPUT_PATH, "a_make_hparamdir.sh")
@@ -107,7 +109,7 @@ def generate_hparam_run():
                 script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
                 with open(script_fn, "w") as f:
                     print(
-                        GPU_SBATCH_PREFACE.format(
+                        SBATCH_PREFACE.format(
                             exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
                         ),
                         file=f,
@@ -115,6 +117,38 @@ def generate_hparam_run():
                     base_cmd = f"python main_hparam.py main --config hparam/configs/{country}/{subfolder}/{config} --learnsavedir learn/results/{country}/{subfolder}"
                     print(base_cmd, file=f)
                     print("sleep 1", file=f)
+
+    script_fn = os.path.join(OUTPUT_PATH, "make_learnsavedir.sh")
+    with open(script_fn, "w") as f:
+        print(
+            SBATCH_PREFACE.format(
+                "make_learnsavedir",
+                OUTPUT_PATH,
+                "make_learnsavedir",
+                OUTPUT_PATH,
+                "make_learnsavedir",
+            ),
+            file=f,
+        )
+        if not os.path.exists(f"learn/results"):
+            print(f"mkdir learn/results", file=f)
+        for country in countries:
+            if not os.path.exists(f"learn/results/{country}"):
+                print(f"mkdir learn/results/{country}", file=f)
+                print("sleep 1", file=f)
+            for geo in geo_extrapolation:
+                if geo:
+                    subfolder = "geo_extrapolation"
+                else:
+                    subfolder = "geo_interpolation"
+                if not os.path.exists(f"learn/results/{country}/{subfolder}"):
+                    print(f"mkdir learn/results/{country}/{subfolder}", file=f)
+                    print("sleep 1", file=f)
+
+
+def make_learnsavedir():
+    countries = ["malawi", "uganda"]
+    geo_extrapolation = [True]
 
     script_fn = os.path.join(OUTPUT_PATH, "make_learnsavedir.sh")
     with open(script_fn, "w") as f:
@@ -248,7 +282,8 @@ def generate_gt_run():
 
 
 # generate_gt_run()
-# generate_hparam_run()
-generate_learn_run()
+generate_hparam_run()
+# make_learnsavedir()
+# generate_learn_run()
 # generate_wgan_run()
 # generate_wgan_hparam_runs()

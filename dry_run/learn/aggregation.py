@@ -5,35 +5,41 @@ from scipy.interpolate import interp1d
 METHODS = {
     "oracle_gap": {
         "csv": "oracle_gap",
-        "name": "Oracle Poverty Gap Targeting",
+        "name": "Oracle Gap Targeting",
         "color": "green",
         "linestyle": "-",
     },
     "continuous_gap": {
         "csv": "output_gt_continuous_gap",
-        "name": "Poverty Gap Targeting (Continuous-Valued)",
+        "name": "Gap Targeting (Continuous-Valued)",
         "color": "blue",
         "linestyle": "-",
     },
     "binary_gap": {
         "csv": "output_gt_binary_gap",
-        "name": "Poverty Gap Targeting (Binary-Valued)",
+        "name": "Gap Targeting (Binary-Valued)",
         "color": "blue",
         "linestyle": "--",
     },
     "continuous_rate": {
         "csv": "output_gt_continuous_rate",
-        "name": "Poverty Rate Targeting (Continuous-Valued)",
+        "name": "Rate Targeting (Continuous-Valued)",
         "color": "orange",
         "linestyle": "-",
     },
     "binary_rate": {
         "csv": "output_gt_binary_rate",
-        "name": "Poverty Rate Targeting (Binary-Valued)",
+        "name": "Rate Targeting (Binary-Valued)",
         "color": "orange",
         "linestyle": "--",
     },
-    "pmt": {"csv": "pmt", "name": "PMT", "color": "red", "linestyle": "-"},
+    "pmt": {"csv": "pmt", "name": "Status-Quo PMT", "color": "red", "linestyle": "-"},
+    "modern_pmt": {
+        "csv": "output_gt_modern_pmt",
+        "name": "Modern PMT",
+        "color": "red",
+        "linestyle": "--",
+    },
     "ubi": {
         "csv": "ubi",
         "name": "UBI (Variable)",
@@ -100,7 +106,7 @@ def prune_results(xs, ys, val=0.0):
 
 
 def get_conversion_factors(countries):
-    df = pd.read_csv("currency_conversion.csv")
+    df = pd.read_csv("learn/currency_conversion.csv")
     conversion_factors = {}
     for country in countries:
         country_df = df[df["country"] == country]
@@ -130,6 +136,9 @@ def get_country_interpolators(countries, method, geo_extrapolation):
 
         gaps = list(df["post_transfer_poverty_gap"] * 100 / 2.15)
         cost_gaps = list(df["policy_cost_per_capita"] * country_conversion_factor)
+
+        print("gaps", gaps)
+        print("cost_gaps", cost_gaps)
         gaps.append(initial[country]["gap"])
         cost_gaps.append(0.0)
         gaps_pruned, cost_gaps_pruned = prune_results(

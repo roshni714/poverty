@@ -196,6 +196,8 @@ def get_gt_train_data_generator(
         raw_data = raw_data.drop(columns=["case_id"])
     if "hh_id" in raw_data.columns:
         raw_data = raw_data.drop(columns=["hh_id"])
+    if "hh_wgt" in raw_data.columns:
+        raw_data = raw_data.drop(columns=["hh_wgt"])
 
     data = get_training_data_for_geo_extrapolation(raw_data, summary, geo_extrapolation)
 

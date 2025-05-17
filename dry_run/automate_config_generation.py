@@ -16,7 +16,7 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
         "data": {
             "geo_extrapolation": geo_extrapolation,
             "outcome": "consumption_per_capita_per_day",
-            "weight": "hh_wgt",
+            "weight": "headcount_adjusted_hh_wgt",
             "gt": {
                 "trainpath": "data/{}/train.parquet".format(country),
                 "summarypath": "data/{}/summary.parquet".format(country),
@@ -53,11 +53,15 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
         },
     }
 
+    modern_pmt_config = base_config.copy()
+    modern_pmt_config["modern_pmt"] = default_nn_config.copy()
+    del modern_pmt_config["modern_pmt"]["n_regressors"]
+
     pmt_config = {
         "pmt": {"transfer_value": 2.15},
         "data": {
             "outcome": "consumption_per_capita_per_day",
-            "weight": "hh_wgt",
+            "weight": "headcount_adjusted_hh_wgt",
             "geo_extrapolation": geo_extrapolation,
         },
         "savedir": f"learn/results/{country}/{subfolder}",
@@ -67,7 +71,7 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
         "oracle_gap": {},
         "data": {
             "outcome": "consumption_per_capita_per_day",
-            "weight": "hh_wgt",
+            "weight": "headcount_adjusted_hh_wgt",
             "geo_extrapolation": geo_extrapolation,
         },
         "savedir": f"learn/results/{country}/{subfolder}",
@@ -77,7 +81,7 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
         "ubi": {},
         "data": {
             "outcome": "consumption_per_capita_per_day",
-            "weight": "hh_wgt",
+            "weight": "headcount_adjusted_hh_wgt",
             "geo_extrapolation": geo_extrapolation,
         },
         "savedir": f"learn/results/{country}/{subfolder}",
@@ -94,12 +98,14 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
         "gt_binary_rate",
         "gt_binary_gap",
         "gt_continuous_gap",
+        "gt_modern_pmt",
     ]
     configs = [
         continuous_rate_config,
         binary_rate_config,
         binary_gap_config,
         continuous_gap_config,
+        modern_pmt_config,
     ]
 
     for i, name in enumerate(names):
@@ -117,9 +123,9 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
         yaml.dump(ubi_config, file, default_flow_style=False)
 
 
-countries = ["ethiopia", "nigeria", "malawi", "togo", "uganda"]
-geo_extrapolation = [True, False]
+countries = ["nigeria", "malawi", "togo", "uganda"]
+geo_extrapolation = [True]
 for country in countries:
     for geo in geo_extrapolation:
-        generate_gt_hparam_config(country, geo, "cuda")
+        generate_gt_hparam_config(country, geo, "cpu")
     # generate_default_hparam_config(country)

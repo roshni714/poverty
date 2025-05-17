@@ -10,6 +10,7 @@ from opt_targeted_transfers import (
     UBITargetedTransfers,
     OracleGapTargetedTransfers,
     PMTTargetedTransfers,
+    ModernPMTTargetedTransfers,
     write_result,
 )
 from learn.data_loader import load_datasets
@@ -191,6 +192,31 @@ def learn_binary_gap(
     run_evaluation(tt, test_covariate_dataset, test_dataset, savepath)
 
 
+def learn_modern_pmt(
+    train_dataset,
+    validation_dataset,
+    test_covariate_dataset,
+    test_dataset,
+    modern_pmt_params,
+    device,
+    savepath,
+):
+    """
+    Learn the modern PMT targeted transfers
+    """
+    print("Learning modern PMT targeted transfers...")
+    tt = ModernPMTTargetedTransfers(
+        c_bar=C_BAR, transfer_value=modern_pmt_params["transfer_value"]
+    )
+    tt.fit(
+        train_dataset=train_dataset,
+        validation_dataset=validation_dataset,
+        device=device,
+        **modern_pmt_params["neural_network"],
+    )
+    run_evaluation(tt, test_covariate_dataset, test_dataset, savepath)
+
+
 def learn_pmt(
     train_dataset,
     validation_dataset,
@@ -270,6 +296,7 @@ def main(
                 "savedir",
                 "pmt",
                 "ubi",
+                "modern_pmt",
             ]
             for key in config_keys
         ]
@@ -298,6 +325,7 @@ def main(
         "continuous_gap": learn_continuous_gap,
         "binary_gap": learn_binary_gap,
         "pmt": learn_pmt,
+        "modern_pmt": learn_modern_pmt,
     }
 
     NONLEARNING_METHODS = {"oracle_gap": learn_oracle_gap, "ubi": learn_ubi}

@@ -1,9 +1,11 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-from aggregation import (
+from scipy.interpolate import interp1d
+from learn.aggregation import (
     METHODS,
     get_conversion_factors,
+    get_country_interpolators,
     get_aggregate_interpolators_population_weighted_poverty_measure_global_gap,
     get_aggregate_interpolators_population_weighted_poverty_measure,
     get_aggregate_interpolators_fraction,
@@ -15,10 +17,12 @@ from aggregation import (
 )
 
 
-def make_plot_for_country(country, method_list, geo_extrapolation, save_as):
-    train_data = pd.read_parquet("../data/{}/train.parquet".format(country))
+def make_plot_for_country(
+    country, method_list, geo_extrapolation, save_as, ubi_off=False
+):
+    train_data = pd.read_parquet("data/{}/train.parquet".format(country))
     n_train = len(train_data)
-    test_data = pd.read_parquet("../data/{}/test.parquet".format(country))
+    test_data = pd.read_parquet("data/{}/test.parquet".format(country))
     n_test = len(test_data)
     n = n_train + n_test
     d = len(train_data.columns)
@@ -36,20 +40,22 @@ def make_plot_for_country(country, method_list, geo_extrapolation, save_as):
 
     # Plot policy_cost_per_capita vs post_transfer_poverty_rate
     fig, ax = plt.subplots(1, 2, figsize=(20, 8))
-    ax[0].plot(
-        np.linspace(0.0, initial[country]["gap"]),
-        np.ones(50) * 2.15 * conversion_factor,
-        linestyle="--",
-        color=METHODS["ubi"]["color"],
-        label="UBI $2.15",
-    )
-    ax[1].plot(
-        np.linspace(0.0, initial[country]["rate"]),
-        np.ones(50) * 2.15 * conversion_factor,
-        linestyle="--",
-        color=METHODS["ubi"]["color"],
-        label="UBI $2.15",
-    )
+    if not ubi_off:
+        ax[0].plot(
+            np.linspace(0.0, initial[country]["gap"]),
+            np.ones(50) * 2.15 * conversion_factor,
+            linestyle="--",
+            color=METHODS["ubi"]["color"],
+            label="UBI $2.15",
+        )
+        ax[1].plot(
+            np.linspace(0.0, initial[country]["rate"]),
+            np.ones(50) * 2.15 * conversion_factor,
+            linestyle="--",
+            color=METHODS["ubi"]["color"],
+            label="UBI $2.15",
+        )
+        print("ubi $2.15", 2.15 * conversion_factor)
 
     for method in method_list:
         dic = methods[method]
@@ -79,6 +85,13 @@ def make_plot_for_country(country, method_list, geo_extrapolation, save_as):
         pruned_gaps, pruned_costs = prune_results(
             np.array(gaps), np.array(costs), val=0
         )
+
+        gap_interpolator = interp1d(
+            pruned_rates, pruned_costs, kind="linear", fill_value="extrapolate"
+        )
+
+        print(method, gap_interpolator(5.0))
+
         ax[0].plot(
             pruned_gaps,
             pruned_costs,
@@ -213,7 +226,7 @@ def aggregate_plot_x_axis_population_weighted_poverty_measure_global_gap(
 
 
 def aggregate_plot_x_axis_population_weighted_poverty_measure(
-    countries, method_list, geo_extrapolation, save_as
+    countries, method_list, geo_extrapolation, save_as, ubi_off=False
 ):
     # Plot policy_cost_per_capita vs post_transfer_poverty_rate
     fig, ax = plt.subplots(1, 2, figsize=(20, 8))
@@ -223,20 +236,21 @@ def aggregate_plot_x_axis_population_weighted_poverty_measure(
         get_initial_aggregate_gap_and_rate(countries)
     )
     ubi_cost = get_aggregate_ubi_cost(countries)
-    ax[0].plot(
-        np.linspace(0.0, initial_popweighted_gap),
-        np.ones(50) * ubi_cost,
-        linestyle="--",
-        color=METHODS["ubi"]["color"],
-        label="UBI $2.15",
-    )
-    ax[1].plot(
-        np.linspace(0.0, initial_popweighted_rate),
-        np.ones(50) * ubi_cost,
-        linestyle="--",
-        color=METHODS["ubi"]["color"],
-        label="UBI $2.15",
-    )
+    if not ubi_off:
+        ax[0].plot(
+            np.linspace(0.0, initial_popweighted_gap),
+            np.ones(50) * ubi_cost,
+            linestyle="--",
+            color=METHODS["ubi"]["color"],
+            label="UBI $2.15",
+        )
+        ax[1].plot(
+            np.linspace(0.0, initial_popweighted_rate),
+            np.ones(50) * ubi_cost,
+            linestyle="--",
+            color=METHODS["ubi"]["color"],
+            label="UBI $2.15",
+        )
     for method in method_list:
         dic = get_aggregate_interpolators_population_weighted_poverty_measure(
             countries=countries, method=method, geo_extrapolation=geo_extrapolation
@@ -429,6 +443,123 @@ def aggregate_plot_geo_extrapolation(countries, save_as):
 
     plt.tight_layout()
     plt.savefig("figs/{}.pdf".format(save_as), dpi=300, bbox_inches="tight")
+
+
+def convert_nominal_2023_to_nominal_survey_year(amt, country):
+    inflation_adjustment = {2018: 0.83, 2019: 0.84}
+    df = pd.read_csv("learn/currency_conversion.csv")
+    survey_year = df[df["country"] == country]["survey_year"].values[0]
+    amt = amt * inflation_adjustment[survey_year]
+    return amt
+
+
+def plot_bar_chart_policy_amt_as_percent_of_gdp(countries, geo_extrapolation, save_as):
+    dic = get_country_interpolators(countries, "continuous_gap", geo_extrapolation)
+
+    amts = []  # nominal 2023 USD amts
+    for country in countries:
+        amt = dic[country]["gap_to_cost_interpolator"](1.0).item()
+        amts.append(amt)
+        print(country, amt)
+
+    amts_survey_year = [
+        convert_nominal_2023_to_nominal_survey_year(amt, country)
+        for amt, country in zip(amts, countries)
+    ]
+
+    df = pd.read_csv("learn/currency_conversion.csv")
+    gdp = (
+        df[df["country"].isin(countries)][["country", "GDP_billions_survey_year"]]
+        .set_index("country")
+        .to_dict()["GDP_billions_survey_year"]
+    )
+    gdp = {country: gdp[country] for country in countries}
+    amts_as_percent_of_gdp = [
+        amt * 100 / gdp[country] for amt, country in zip(amts_survey_year, countries)
+    ]
+
+    govt_revenue_percentage = (
+        df[df["country"].isin(countries)][
+            ["country", "govt_revenue_percentage_GDP_survey_year"]
+        ]
+        .set_index("country")
+        .to_dict()["govt_revenue_percentage_GDP_survey_year"]
+    )
+    govt_revenue = {
+        country: govt_revenue_percentage[country] * gdp[country]
+        for country in countries
+    }
+    amts_as_percent_of_revenue = [
+        amt * 100 / govt_revenue[country]
+        for amt, country in zip(amts_survey_year, countries)
+    ]
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+
+    # Bar plot for amts_as_percent_of_gdp
+    axes[0].bar([c.capitalize() for c in countries], amts_as_percent_of_gdp)
+    axes[0].set_xlabel("Country")
+    axes[0].set_ylabel("Percentage (%) of Country GDP \n in Survey Year")
+    axes[0].set_title("Policy Cost Relative to Country GDP")
+
+    # Bar plot for amts_as_percent_of_revenue
+    axes[1].bar([c.capitalize() for c in countries], amts_as_percent_of_revenue)
+    axes[1].set_xlabel("Country")
+    axes[1].set_ylabel("Percentage (%) of Govt Revenue  \n in Survey Year")
+    axes[1].set_title("Policy Cost Relative to Country Govt Revenue")
+
+    plt.suptitle(
+        "Policy Cost to Reach 1% Poverty Gap Target \n Relative to Country GDP and Govt Revenue"
+    )
+
+    plt.tight_layout()
+    plt.savefig("figs/{}.pdf".format(save_as), bbox_inches="tight")
+
+
+def get_table_policy_cost_gdp_oda(countries, save_as):
+    df = pd.read_csv("learn/currency_conversion.csv")
+
+    dic = get_country_interpolators(countries, "continuous_gap", True)
+
+    res = []
+    for country in countries:
+        amt = dic[country]["gap_to_cost_interpolator"](1.0).item()
+        res.append({"country": country, "policy_cost": amt})
+
+    df2 = pd.DataFrame(res)
+    df = df2.merge(df, on="country", how="left")
+    df.sort_values(by=["country"], inplace=True)
+    df["Policy Cost / GDP"] = df["policy_cost"] / df["GDP_billions_survey_year"]
+    df["ODA / GDP"] = df["oda_billions_latest_year"] / df["GDP_billions_survey_year"]
+    df.rename(
+        columns={
+            "policy_cost": "Policy Cost",
+            "GDP_billions_survey_year": "GDP",
+            "survey_year": "Survey Year",
+            "oda_billions_latest_year": "Status-quo ODA",
+            "country": "Country",
+        },
+        inplace=True,
+    )
+    new_df = df[
+        [
+            "Country",
+            "Survey Year",
+            "GDP",
+            "Status-quo ODA",
+            "Policy Cost",
+            "Policy Cost / GDP",
+            "ODA / GDP",
+        ]
+    ]
+
+    new_df.to_latex(
+        save_as + ".tex",
+        index=False,
+        float_format="%.2f",
+        escape=False,
+        formatters={"Country": str.capitalize},
+    )
 
 
 # def aggregate_plot_x_axis_wc_poverty_measure(countries, method_list, geo_extrapolation):

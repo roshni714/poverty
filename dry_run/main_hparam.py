@@ -12,6 +12,7 @@ from hparam.n_regressors_hparam_search import get_optimal_n_regressors
 from hparam.nn_hparam_search import (
     get_optimal_nn_quantile_regression_parameters,
     get_optimal_nn_improvement_parameters,
+    get_optimal_nn_pmt_parameters,
 )
 
 
@@ -190,6 +191,24 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
             savepath=f"{savedir}/n_regressors_{name}.csv",
         )
         opt_hparams["binary_gap"]["n_regressors"] = opt_n_regressors
+
+    if "modern_pmt" in config_hparams:
+        opt_hparams["modern_pmt"] = {}
+        modern_pmt = config_hparams["modern_pmt"]
+        opt_nn_hparams = get_optimal_nn_pmt_parameters(
+            nn_hparam_ranges=modern_pmt["neural_network"],
+            data_generator=train_data_generator,
+            device=device,
+            original_cols=original_cols,
+            ntrain=ntrain,
+            val_df=val_df,
+            outcome=outcome,
+            weight=weight,
+            savepath=f"{savedir}/nn_{name}.csv",
+        )
+        print(opt_nn_hparams)
+        opt_hparams["modern_pmt"]["neural_network"] = opt_nn_hparams
+        opt_hparams["modern_pmt"]["transfer_value"] = 2.15
 
     with open(f"{savedir}/output_{name}.yaml", "w") as file:
         yaml.dump(opt_hparams, file, default_flow_style=False)
