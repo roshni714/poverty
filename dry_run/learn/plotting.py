@@ -562,6 +562,150 @@ def get_table_policy_cost_gdp_oda(countries, save_as):
     )
 
 
+def get_table_oecd(countries, save_as):
+    df = pd.read_csv("learn/auxiliary_data.csv")
+    df["GDP"] = (
+        df["OECD_nominal_GDP_per_capita_2023"] * df["OECD_population_2023"] / 1000000000
+    )
+    df["Gov't Revenue"] = (
+        df["OECD_nominal_GDP_per_capita_2023"]
+        * df["OECD_population_2023"]
+        * df["OECD_govt_revenue_percentage_GDP_2023"]
+        / 1000000000
+    )
+
+    policy_cost = 5.0  # TODO need to write extrapolation code
+    df["Policy Cost"] = policy_cost
+    df["Policy Cost / GDP"] = df["Policy Cost"] / df["GDP"]
+    df["Policy Cost / Gov't Revenue"] = df["Policy Cost"] / df["Gov't Revenue"]
+
+    new_df = df[
+        [
+            "GDP",
+            "Gov't Revenue",
+            "Policy Cost",
+            "Policy Cost / GDP",
+            "Policy Cost / Gov't Revenue",
+        ]
+    ]
+
+    new_df.to_latex(
+        save_as + ".tex",
+        index=False,
+        float_format="%.2f",
+        escape=False,
+    )
+
+
+def get_table_oecd_plus_china(countries, save_as):
+    df = pd.read_csv("learn/auxiliary_data.csv")
+    df["GDP"] = (
+        df["OECD_nominal_GDP_per_capita_2023"] * df["OECD_population_2023"] / 1000000000
+    ) + (
+        df["China_nominal_GDP_per_capita_2023"]
+        * df["China_population_2023"]
+        / 1000000000
+    )
+    df["Gov't Revenue"] = (
+        df["OECD_nominal_GDP_per_capita_2023"]
+        * df["OECD_population_2023"]
+        * df["OECD_govt_revenue_percentage_GDP_2023"]
+        / 1000000000
+    ) + (
+        df["China_nominal_GDP_per_capita_2023"]
+        * df["China_population_2023"]
+        * df["China_govt_revenue_percentage_GDP_2023"]
+        / 1000000000
+    )
+
+    policy_cost = 5.0  # TODO need to write extrapolation code
+    df["Policy Cost"] = policy_cost
+    df["Policy Cost / GDP"] = df["Policy Cost"] / df["GDP"]
+    df["Policy Cost / Gov't Revenue"] = df["Policy Cost"] / df["Gov't Revenue"]
+
+    new_df = df[
+        [
+            "GDP",
+            "Gov't Revenue",
+            "Policy Cost",
+            "Policy Cost / GDP",
+            "Policy Cost / Gov't Revenue",
+        ]
+    ]
+
+    new_df.to_latex(save_as + ".tex", index=False, float_format="%.2f", escape=False)
+
+
+def get_table_diff_between_ubi_and_targeting(countries, save_as):
+    dic1 = get_country_interpolators(countries, "continuous_gap", True)
+    dic2 = get_country_interpolators(countries, "ubi", True)
+
+    res = []
+    for country in countries:
+        ubi_cost = dic2[country]["gap_to_cost_interpolator"](1.0).item()
+        targeting_cost = dic1[country]["gap_to_cost_interpolator"](1.0).item()
+        res.append(
+            {
+                "country": country,
+                "continuous_gap_cost": targeting_cost,
+                "ubi_cost": ubi_cost,
+                "difference_between_ubi_and_targeting": ubi_cost - targeting_cost,
+            }
+        )
+
+    df = pd.DataFrame(res)
+    df.rename(
+        columns={
+            "difference_between_ubi_and_targeting": "Cost Difference Between UBI and Targeting",
+            "continuous_gap_cost": "Targeting Cost",
+            "ubi_cost": "UBI Cost",
+            "country": "Country",
+        },
+        inplace=True,
+    )
+    df = df[
+        [
+            "Country",
+            "UBI Cost",
+            "Targeting Cost",
+            "Cost Difference Between UBI and Targeting",
+        ]
+    ]
+    df.to_latex(
+        save_as + ".tex",
+        index=False,
+        float_format="%.2f",
+        escape=False,
+        formatters={"Country": str.capitalize},
+    )
+
+
+def plot_bar_chart_ubi_ratio(countries, save_as):
+    dic1 = get_country_interpolators(countries, "continuous_gap", True)
+    dic2 = get_country_interpolators(countries, "ubi", True)
+
+    res = []
+    for country in countries:
+        ubi_cost = dic2[country]["gap_to_cost_interpolator"](1.0).item()
+        targeting_cost = dic1[country]["gap_to_cost_interpolator"](1.0).item()
+        res.append(
+            {
+                "country": country,
+                "ratio_between_ubi_and_targeting": ubi_cost / targeting_cost,
+            }
+        )
+
+    df = pd.DataFrame(res)
+    df.sort_values(
+        by=["ratio_between_ubi_and_targeting"], ascending=False, inplace=True
+    )
+    plt.bar_chart(df["country"], df["ratio_between_ubi_and_targeting"])
+    plt.xlabel("Country")
+    plt.ylabel("Ratio")
+    plt.suptitle("Ratio of UBI Cost to Targeting Cost vs. Country")
+    plt.savefig("figs/{}.pdf".format(save_as), bbox_inches="tight")
+
+
 # def aggregate_plot_x_axis_wc_poverty_measure(countries, method_list, geo_extrapolation):
 #     # Plot policy_cost_per_capita vs post_transfer_poverty_rate
 #     fig, ax = plt.subplots(1, 2, figsize=(20, 8))

@@ -69,7 +69,6 @@ def load_datasets(trainpath, testpath, summarypath, geo_extrapolation, outcome, 
     covs = list(train_data.columns)
     covs.remove(outcome)
     covs.remove(weight)
-    covs.remove("hh_wgt")
 
     train_data = convert_to_onehot(train_data, summary)
     test_data = convert_to_onehot(test_data, summary)
@@ -149,5 +148,7 @@ def _load_data(path):
         data = data.drop(columns=["case_id"])
     if "hh_id" in data.columns:
         data = data.drop(columns=["hh_id"])
+    if "hh_wgt" in data.columns:
+        data = data.drop(columns=["hh_wgt"])
 
     return data.reset_index(drop=True)

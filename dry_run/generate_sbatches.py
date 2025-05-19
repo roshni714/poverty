@@ -36,17 +36,17 @@ OUTPUT_PATH = (
 
 
 def generate_learn_run():
-    countries = ["malawi"]
+    countries = ["nigeria", "togo"]
     geo_extrapolation = [True]
     configs = [
-        # "output_gt_continuous_rate.yaml",
-        # "output_gt_binary_rate.yaml",
-        # "output_gt_binary_gap.yaml",
-        # "output_gt_continuous_gap.yaml",
+        "output_gt_continuous_rate.yaml",
+        "output_gt_binary_rate.yaml",
+        "output_gt_binary_gap.yaml",
+        "output_gt_continuous_gap.yaml",
         "output_gt_modern_pmt.yaml",
-        # "oracle_gap.yaml",
-        # "pmt.yaml",
-        # "ubi.yaml",
+        "oracle_gap.yaml",
+        "pmt.yaml",
+        "ubi.yaml",
     ]
 
     for country in countries:
@@ -109,7 +109,7 @@ def generate_hparam_run():
                 script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
                 with open(script_fn, "w") as f:
                     print(
-                        SBATCH_PREFACE.format(
+                        GPU_SBATCH_PREFACE.format(
                             exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
                         ),
                         file=f,
@@ -282,8 +282,8 @@ def generate_gt_run():
 
 
 # generate_gt_run()
-generate_hparam_run()
+# generate_hparam_run()
 # make_learnsavedir()
-# generate_learn_run()
+generate_learn_run()
 # generate_wgan_run()
 # generate_wgan_hparam_runs()

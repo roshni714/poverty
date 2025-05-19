@@ -65,7 +65,7 @@ def _load_data(country, method, geo_extrapolation):
     else:
         subfolder = "geo_interpolation"
     df = pd.read_csv(
-        "results/{}/{}/{}.csv".format(country, subfolder, METHODS[method]["csv"])
+        "learn/results/{}/{}/{}.csv".format(country, subfolder, METHODS[method]["csv"])
     )
     return df
 
@@ -137,8 +137,6 @@ def get_country_interpolators(countries, method, geo_extrapolation):
         gaps = list(df["post_transfer_poverty_gap"] * 100 / 2.15)
         cost_gaps = list(df["policy_cost_per_capita"] * country_conversion_factor)
 
-        print("gaps", gaps)
-        print("cost_gaps", cost_gaps)
         gaps.append(initial[country]["gap"])
         cost_gaps.append(0.0)
         gaps_pruned, cost_gaps_pruned = prune_results(
@@ -235,12 +233,6 @@ def get_country_interpolators_fraction(countries, method, geo_extrapolation):
             fill_value="extrapolate",
         )
         country_interpolators[country]["rate_interpolator"] = country_rate_interpolator
-        print(
-            min(pruned_rate_fractions),
-            max(pruned_rate_fractions),
-            min(pruned_gap_fractions),
-            max(pruned_gap_fractions),
-        )
     return country_interpolators
 
 
