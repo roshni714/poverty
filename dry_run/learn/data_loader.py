@@ -19,22 +19,23 @@ def get_data_for_geo_extrapolation(data, summary, geo_extrapolation):
         "variable_name"
     ].tolist()
 
-    fine_geo_cols = summary[summary["geographic_indicator_finer"] == True][
-        "variable_name"
-    ].tolist()
+    # fine_geo_cols = summary[summary["geographic_indicator_finer"] == True][
+    #     "variable_name"
+    # ].tolist()
     coarse_geo_cols = summary[summary["geographic_indicator_coarser"] == True][
         "variable_name"
     ].tolist()
 
-    remove_for_fine = set(geo_cols) - set(fine_geo_cols)
+    # remove_for_fine = set(geo_cols) - set(fine_geo_cols)
     remove_for_coarse = set(geo_cols) - set(coarse_geo_cols)
-    remove_for_fine = list(remove_for_fine)
+    # remove_for_fine = list(remove_for_fine)
     remove_for_coarse = list(remove_for_coarse)
 
     if geo_extrapolation:
         data = data.drop(columns=remove_for_coarse)
     else:
-        data = data.drop(columns=remove_for_fine)
+        assert False
+        # data = data.drop(columns=remove_for_fine)
     return data
 
 
@@ -84,6 +85,9 @@ def load_datasets(trainpath, testpath, summarypath, geo_extrapolation, outcome, 
     for col in test_missing_columns:
         res.append(pd.DataFrame({col: np.zeros(len(test_data))}))
     final_test_data = pd.concat(res, axis=1)
+
+    import pdb
+    pdb.set_trace()
 
     train_dataset = Dataset(
         final_train_data.astype("float32"), outcome=outcome, covs=covs, weight=weight
