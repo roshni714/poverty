@@ -26,7 +26,7 @@ def forward_selection(
 
     scores = []
 
-    for i in range(max_features):
+    for i in range(min(max_features, len(feature_list))):
         best_score = 0
         best_feature = None
         best_model = None

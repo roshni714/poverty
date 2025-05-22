@@ -2,6 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import interp1d
+from sklearn.linear_model import LinearRegression
 from learn.aggregation import (
     METHODS,
     get_conversion_factors,
@@ -15,6 +16,7 @@ from learn.aggregation import (
     get_aggregate_ubi_cost,
     prune_results,
 )
+from learn.predictive_quality import get_out_of_sample_r2
 
 
 def make_plot_for_country(
@@ -44,14 +46,14 @@ def make_plot_for_country(
         ax[0].plot(
             np.linspace(0.0, initial[country]["gap"]),
             np.ones(50) * 2.15 * conversion_factor,
-            linestyle="--",
+            linestyle=":",
             color=METHODS["ubi"]["color"],
             label="UBI $2.15",
         )
         ax[1].plot(
             np.linspace(0.0, initial[country]["rate"]),
             np.ones(50) * 2.15 * conversion_factor,
-            linestyle="--",
+            linestyle=":",
             color=METHODS["ubi"]["color"],
             label="UBI $2.15",
         )
@@ -136,7 +138,7 @@ def make_plot_for_country(
         fontsize=fontsize + 2,
     )
     plt.tight_layout()
-    plt.savefig("figs/{}.pdf".format(save_as), bbox_inches="tight")
+    plt.savefig("{}.pdf".format(save_as), bbox_inches="tight")
 
 
 def aggregate_plot_x_axis_population_weighted_poverty_measure_global_gap(
@@ -155,14 +157,14 @@ def aggregate_plot_x_axis_population_weighted_poverty_measure_global_gap(
     ax[0].plot(
         np.linspace(0.0, initial_popweighted_gap),
         np.ones(50) * ubi_cost,
-        linestyle="--",
+        linestyle=":",
         color=METHODS["ubi"]["color"],
         label="UBI $2.15",
     )
     ax[1].plot(
         np.linspace(0.0, initial_popweighted_rate),
         np.ones(50) * ubi_cost,
-        linestyle="--",
+        linestyle=":",
         color=METHODS["ubi"]["color"],
         label="UBI $2.15",
     )
@@ -222,7 +224,7 @@ def aggregate_plot_x_axis_population_weighted_poverty_measure_global_gap(
         )
 
     plt.tight_layout()
-    plt.savefig("figs/{}.pdf".format(save_as), dpi=300, bbox_inches="tight")
+    plt.savefig("{}.pdf".format(save_as), dpi=300, bbox_inches="tight")
 
 
 def aggregate_plot_x_axis_population_weighted_poverty_measure(
@@ -240,14 +242,14 @@ def aggregate_plot_x_axis_population_weighted_poverty_measure(
         ax[0].plot(
             np.linspace(0.0, initial_popweighted_gap),
             np.ones(50) * ubi_cost,
-            linestyle="--",
+            linestyle=":",
             color=METHODS["ubi"]["color"],
             label="UBI $2.15",
         )
         ax[1].plot(
             np.linspace(0.0, initial_popweighted_rate),
             np.ones(50) * ubi_cost,
-            linestyle="--",
+            linestyle=":",
             color=METHODS["ubi"]["color"],
             label="UBI $2.15",
         )
@@ -304,7 +306,7 @@ def aggregate_plot_x_axis_population_weighted_poverty_measure(
         )
 
     plt.tight_layout()
-    plt.savefig("figs/{}.pdf".format(save_as), dpi=300, bbox_inches="tight")
+    plt.savefig("{}.pdf".format(save_as), dpi=300, bbox_inches="tight")
 
 
 def aggregate_plot_x_axis_fraction(countries, method_list, geo_extrapolation, save_as):
@@ -367,7 +369,7 @@ def aggregate_plot_x_axis_fraction(countries, method_list, geo_extrapolation, sa
         ax[1].legend(loc="upper left", fontsize=fontsize * 0.75)
 
     plt.tight_layout()
-    plt.savefig("figs/{}.pdf".format(save_as), dpi=300, bbox_inches="tight")
+    plt.savefig("{}.pdf".format(save_as), dpi=300, bbox_inches="tight")
 
 
 def aggregate_plot_geo_extrapolation(countries, save_as):
@@ -442,14 +444,17 @@ def aggregate_plot_geo_extrapolation(countries, save_as):
         ax[1].legend(loc="upper right", fontsize=fontsize * 0.75)
 
     plt.tight_layout()
-    plt.savefig("figs/{}.pdf".format(save_as), dpi=300, bbox_inches="tight")
+    plt.savefig("{}.pdf".format(save_as), dpi=300, bbox_inches="tight")
 
 
 def convert_nominal_2023_to_nominal_survey_year(amt, country):
-    inflation_adjustment = {2018: 0.83, 2019: 0.84}
+    df1 = pd.read_csv("learn/inflation_adjustment.csv")
     df = pd.read_csv("learn/currency_conversion.csv")
     survey_year = df[df["country"] == country]["survey_year"].values[0]
-    amt = amt * inflation_adjustment[survey_year]
+    inflation_adjustment = df1[df1["survey_year"] == survey_year][
+        "inflation_adjustment_to_2023"
+    ].values[0]
+    amt = amt * (1 / inflation_adjustment)
     return amt
 
 
@@ -513,7 +518,7 @@ def plot_bar_chart_policy_amt_as_percent_of_gdp(countries, geo_extrapolation, sa
     )
 
     plt.tight_layout()
-    plt.savefig("figs/{}.pdf".format(save_as), bbox_inches="tight")
+    plt.savefig("{}.pdf".format(save_as), bbox_inches="tight")
 
 
 def get_table_policy_cost_gdp_oda(countries, save_as):
@@ -562,7 +567,7 @@ def get_table_policy_cost_gdp_oda(countries, save_as):
     )
 
 
-def get_table_oecd(countries, save_as):
+def get_table_oecd(countries, policy_cost, save_as):
     df = pd.read_csv("learn/auxiliary_data.csv")
     df["GDP"] = (
         df["OECD_nominal_GDP_per_capita_2023"] * df["OECD_population_2023"] / 1000000000
@@ -574,7 +579,6 @@ def get_table_oecd(countries, save_as):
         / 1000000000
     )
 
-    policy_cost = 5.0  # TODO need to write extrapolation code
     df["Policy Cost"] = policy_cost
     df["Policy Cost / GDP"] = df["Policy Cost"] / df["GDP"]
     df["Policy Cost / Gov't Revenue"] = df["Policy Cost"] / df["Gov't Revenue"]
@@ -597,28 +601,21 @@ def get_table_oecd(countries, save_as):
     )
 
 
-def get_table_oecd_plus_china(countries, save_as):
+def get_table_oecd_plus_china(countries, policy_cost, save_as):
     df = pd.read_csv("learn/auxiliary_data.csv")
     df["GDP"] = (
         df["OECD_nominal_GDP_per_capita_2023"] * df["OECD_population_2023"] / 1000000000
-    ) + (
-        df["China_nominal_GDP_per_capita_2023"]
-        * df["China_population_2023"]
-        / 1000000000
-    )
+    ) + (df["China_nominal_GDP_2023_billions"])
     df["Gov't Revenue"] = (
         df["OECD_nominal_GDP_per_capita_2023"]
         * df["OECD_population_2023"]
         * df["OECD_govt_revenue_percentage_GDP_2023"]
         / 1000000000
     ) + (
-        df["China_nominal_GDP_per_capita_2023"]
-        * df["China_population_2023"]
+        df["China_nominal_GDP_2023_billions"]
         * df["China_govt_revenue_percentage_GDP_2023"]
-        / 1000000000
     )
 
-    policy_cost = 5.0  # TODO need to write extrapolation code
     df["Policy Cost"] = policy_cost
     df["Policy Cost / GDP"] = df["Policy Cost"] / df["GDP"]
     df["Policy Cost / Gov't Revenue"] = df["Policy Cost"] / df["Gov't Revenue"]
@@ -634,6 +631,30 @@ def get_table_oecd_plus_china(countries, save_as):
     ]
 
     new_df.to_latex(save_as + ".tex", index=False, float_format="%.2f", escape=False)
+
+
+def get_table_out_of_sample_r2(countries, save_as):
+    res = []
+    for country in countries:
+        r2 = get_out_of_sample_r2(country)
+        res.append({"country": country, "out_of_sample_r2": r2})
+
+    df = pd.DataFrame(res)
+    df.sort_values(by=["out_of_sample_r2"], ascending=False, inplace=True)
+    df.rename(
+        columns={
+            "out_of_sample_r2": "Out-of-Sample $R^2$",
+            "country": "Country",
+        },
+        inplace=True,
+    )
+    df.to_latex(
+        save_as + ".tex",
+        index=False,
+        float_format="%.2f",
+        escape=False,
+        formatters={"Country": str.capitalize},
+    )
 
 
 def get_table_diff_between_ubi_and_targeting(countries, save_as):
@@ -699,11 +720,125 @@ def plot_bar_chart_ubi_ratio(countries, save_as):
     df.sort_values(
         by=["ratio_between_ubi_and_targeting"], ascending=False, inplace=True
     )
-    plt.bar_chart(df["country"], df["ratio_between_ubi_and_targeting"])
+    plt.figure(figsize=(12, 6))
+    plt.bar(df["country"], df["ratio_between_ubi_and_targeting"])
     plt.xlabel("Country")
     plt.ylabel("Ratio")
     plt.suptitle("Ratio of UBI Cost to Targeting Cost vs. Country")
-    plt.savefig("figs/{}.pdf".format(save_as), bbox_inches="tight")
+    plt.savefig("{}.pdf".format(save_as), bbox_inches="tight")
+
+
+def get_extrapolation(countries, save_as=None):
+    in_sample_countries = countries
+    oracle_df = pd.read_csv("learn/oracle_pov_rates_and_gaps.csv")
+    oracle_df = oracle_df.dropna()
+    dic1 = get_country_interpolators(
+        in_sample_countries, "oracle_gap", geo_extrapolation=True
+    )
+    dic2 = get_country_interpolators(
+        in_sample_countries, "continuous_gap", geo_extrapolation=True
+    )
+
+    in_sample_costs = []
+    in_sample_country_ratios = []
+    for country in in_sample_countries:
+        in_sample_country_ratios.append(
+            dic2[country]["gap_to_cost_interpolator"](1.0)
+            / dic1[country]["gap_to_cost_interpolator"](1.0)
+        )
+        in_sample_costs.append(dic2[country]["gap_to_cost_interpolator"](1.0))
+
+    initial = get_initial_poverty_gaps_and_rates(countries)
+    X = []
+    for country in in_sample_countries:
+        X.append(
+            [
+                initial[country]["gap"],
+                initial[country]["rate"],
+            ]
+        )
+    X_test = []
+    out_of_sample_countries = oracle_df["country"].unique().tolist()
+    for country in in_sample_countries:
+        if country in out_of_sample_countries:
+            out_of_sample_countries.remove(country)
+
+    for country in out_of_sample_countries:
+        X_test.append(
+            [
+                oracle_df[oracle_df["country"] == country][
+                    "initial_poverty_gap"
+                ].item(),
+                oracle_df[oracle_df["country"] == country][
+                    "initial_poverty_rate"
+                ].item(),
+            ]
+        )
+
+    X = np.array(X).reshape(len(X), 2)
+    y = np.array(in_sample_country_ratios).reshape(len(X), 1)
+    model = LinearRegression(fit_intercept=True)
+    model.fit(X, y)
+
+    X_test = np.array(X_test)
+    pred_ratio = model.predict(X_test)
+
+    costs = []
+    df2 = pd.read_csv("learn/eop_conversion_factor.csv")
+    for i, country in enumerate(out_of_sample_countries):
+        print(country)
+        oracle_gap_index = (
+            oracle_df[oracle_df["country"] == country]["initial_poverty_gap"]
+            .values[0]
+            .item()
+        )
+        ppp_exchange_rate = (
+            df2[df2["country"] == country]["PPP_conversion_factor_2017"]
+            .values[0]
+            .item()
+        )
+        market_exchange_rate = (
+            df2[df2["country"] == country]["market_exchange_rate_2017"].values[0].item()
+        )
+        population = (
+            df2[df2["country"] == country]["total_population_2023"].values[0].item()
+        )
+        oracle_gap = (
+            oracle_gap_index
+            / 100
+            * 2.15
+            * 365
+            * 1.23
+            * (ppp_exchange_rate / market_exchange_rate)
+            * population
+            / 1000000000
+        )
+        print(country, oracle_gap)
+        cost_for_country = max(pred_ratio[i], 1.0) * oracle_gap
+        costs.append(
+            {
+                "Country": country,
+                "Poverty Gap Index": oracle_gap_index,
+                "Predicted Feasible/Oracle Ratio": pred_ratio[i].item(),
+                "Extrapolated Policy Cost": float(cost_for_country),
+            }
+        )
+    costs = pd.DataFrame(costs)
+    if save_as is not None:
+        costs.to_latex(
+            save_as + ".tex",
+            index=False,
+            float_format="%.2f",
+            escape=False,
+            formatters={"Country": str.capitalize},
+        )
+    total_out_of_sample_cost = costs["Extrapolated Policy Cost"].sum()
+    total_in_sample_cost = sum(in_sample_costs)
+    total_cost = total_out_of_sample_cost + total_in_sample_cost
+    print("Total In-Sample Cost: ", total_in_sample_cost)
+    print("Total Out-of-Sample Cost: ", total_out_of_sample_cost)
+    print("Total Cost: ", total_cost)
+    return total_cost
 
 
 # def aggregate_plot_x_axis_wc_poverty_measure(countries, method_list, geo_extrapolation):

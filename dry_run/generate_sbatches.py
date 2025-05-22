@@ -19,9 +19,9 @@ GPU_SBATCH_PREFACE = """#!/bin/bash
 
 
 SBATCH_PREFACE = """#!/bin/bash
-#SBATCH -t 48:00:00
+#SBATCH -t 10:00:00
 #SBATCH -c 1
-#SBATCH --mem 10GB
+#SBATCH --mem 5GB
 #SBATCH -p normal
 #SBATCH --exclude=yen15
 #SBATCH --ntasks-per-node=1
@@ -36,7 +36,7 @@ OUTPUT_PATH = (
 
 
 def generate_learn_run():
-    countries = ["nigeria", "togo"]
+    countries = ["ethiopia"]
     geo_extrapolation = [True]
     configs = [
         "output_gt_continuous_rate.yaml",
@@ -72,7 +72,7 @@ def generate_learn_run():
 
 def generate_hparam_run():
 
-    countries = ["togo", "nigeria"]
+    countries = ["ethiopia", "kenya"]
     geo_extrapolation = [True]
     configs = [
         "gt_continuous_rate.yaml",
@@ -109,7 +109,7 @@ def generate_hparam_run():
                 script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
                 with open(script_fn, "w") as f:
                     print(
-                        GPU_SBATCH_PREFACE.format(
+                        SBATCH_PREFACE.format(
                             exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
                         ),
                         file=f,
@@ -282,8 +282,8 @@ def generate_gt_run():
 
 
 # generate_gt_run()
-# generate_hparam_run()
+generate_hparam_run()
 # make_learnsavedir()
-generate_learn_run()
+# generate_learn_run()
 # generate_wgan_run()
 # generate_wgan_hparam_runs()

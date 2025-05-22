@@ -123,9 +123,9 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
         yaml.dump(ubi_config, file, default_flow_style=False)
 
 
-countries = ["nigeria", "togo"]
+countries = ["ethiopia", "kenya"]
 geo_extrapolation = [True]
 for country in countries:
     for geo in geo_extrapolation:
-        generate_gt_hparam_config(country, geo, "cuda")
+        generate_gt_hparam_config(country, geo, "cpu")
     # generate_default_hparam_config(country)

@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from scipy.interpolate import interp1d
+from sklearn.linear_model import LinearRegression
 
 METHODS = {
     "oracle_gap": {
@@ -33,12 +34,12 @@ METHODS = {
         "color": "orange",
         "linestyle": "--",
     },
-    "pmt": {"csv": "pmt", "name": "Status-Quo PMT", "color": "red", "linestyle": "-"},
+    "pmt": {"csv": "pmt", "name": "PMT (Linear)", "color": "red", "linestyle": "-"},
     "modern_pmt": {
         "csv": "output_gt_modern_pmt",
-        "name": "Modern PMT",
+        "name": "PMT (NN)",
         "color": "red",
-        "linestyle": "--",
+        "linestyle": ":",
     },
     "ubi": {
         "csv": "ubi",
@@ -279,7 +280,7 @@ def get_aggregate_interpolators_fraction(countries, method, geo_extrapolation):
 
 
 def get_country_weights(countries):
-    conversion_factors = pd.read_csv("currency_conversion.csv")
+    conversion_factors = pd.read_csv("learn/currency_conversion.csv")
     conversion_factors = conversion_factors[
         conversion_factors["country"].isin(countries)
     ]

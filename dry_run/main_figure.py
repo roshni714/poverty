@@ -9,27 +9,32 @@ from learn import (
     get_table_oecd_plus_china,
     get_table_diff_between_ubi_and_targeting,
     plot_bar_chart_ubi_ratio,
+    get_table_out_of_sample_r2,
+    get_extrapolation,
 )
 
 METHODS_ALL = [
     "ubi",
-    "pmt",
     "modern_pmt",
-    "oracle_gap",
+    "pmt",
     "binary_gap",
     "continuous_gap",
     "binary_rate",
     "continuous_rate",
+    "oracle_gap",
 ]
 METHODS_HEADLINE = [
     "ubi",
-    "pmt",
     "modern_pmt",
+    "pmt",
     "binary_gap",
     "continuous_gap",
     "oracle_gap",
 ]
 METHODS_RATE_VS_GAP = ["binary_gap", "continuous_gap", "binary_rate", "continuous_rate"]
+
+# COUNTRIES = os.listdir("learn/results")
+COUNTRIES = ["malawi", "uganda", "togo", "nigeria", "madagascar"]
 
 
 def get_malawi_rate_vs_gap_figure_1():
@@ -53,9 +58,8 @@ def get_malawi_headline_figure_2():
 
 
 def get_headline_figure_3():
-    countries = os.listdir("learn/results")
     aggregate_plot_x_axis_population_weighted_poverty_measure_global_gap(
-        countries,
+        COUNTRIES,
         METHODS_HEADLINE,
         geo_extrapolation=True,
         save_as="figs/paper-figure-3-headline",
@@ -63,14 +67,12 @@ def get_headline_figure_3():
 
 
 def get_ubi_ratio_figure_4():
-    countries = os.listdir("learn/results")
-    plot_bar_chart_ubi_ratio(countries, False, save_as="figs/paper-figure-4-ubi_ratio")
+    plot_bar_chart_ubi_ratio(COUNTRIES, save_as="figs/paper-figure-4-ubi_ratio")
 
 
 def get_rate_vs_gap_headline_figure_5():
-    countries = os.listdir("learn/results")
     aggregate_plot_x_axis_population_weighted_poverty_measure(
-        countries,
+        COUNTRIES,
         METHODS_RATE_VS_GAP,
         geo_extrapolation=True,
         save_as="figs/paper-figure-5-rate_gap_comparison",
@@ -78,51 +80,55 @@ def get_rate_vs_gap_headline_figure_5():
 
 
 def get_gdp_plot_figure_6():
-    countries = os.listdir("learn/results")
     plot_bar_chart_policy_amt_as_percent_of_gdp(
-        countries, True, save_as="figs/paper-figure-6-policy_cost_gdp"
+        COUNTRIES, True, save_as="figs/paper-figure-6-policy_cost_gdp"
     )
 
 
-def get_appendix_table_2():
-    countries = os.listdir("learn/results")
+def get_appendix_table_out_of_sample_r2():
+    get_table_out_of_sample_r2(
+        COUNTRIES,
+        save_as="tables/appendix-table-2-out_of_sample_r2",
+    )
+
+
+def get_appendix_table_policy_cost_insample():
     get_table_policy_cost_gdp_oda(
-        countries, save_as="tables/appendix-table-2-policy_cost_gdp_oda"
+        COUNTRIES, save_as="tables/appendix-table-3-policy_cost_gdp_oda"
     )
 
 
-def get_appendix_table_3():
-    countries = os.listdir("learn/results")
-    get_table_oecd(countries, save_as="tables/appendix-3-oecd")
+def get_appendix_table_policy_cost_out_of_sample():
+    get_extrapolation(
+        COUNTRIES, save_as="tables/appendix-table-4-policy_cost_out_of_sample"
+    )
 
 
-def get_appendix_table_4():
-    countries = os.listdir("learn/results")
+def get_appendix_table_oecd():
+    total_cost = get_extrapolation(COUNTRIES)
+    get_table_oecd(COUNTRIES, total_cost, save_as="tables/appendix-5-oecd")
+
+
+def get_appendix_table_oecd_plus_china():
+    total_cost = get_extrapolation(COUNTRIES)
     get_table_oecd_plus_china(
-        countries, save_as="tables/appendix-table-4-oecd_plus_china"
+        COUNTRIES, total_cost, save_as="tables/appendix-table-6-oecd_plus_china"
     )
 
 
-def get_appendix_table_5():
-    countries = os.listdir("learn/results")
+def get_appendix_table_diff_between_ubi_and_targeting():
     get_table_diff_between_ubi_and_targeting(
-        countries, save_as="tables/appendix-5-diff_between_ubi_and_targeting"
+        COUNTRIES, save_as="tables/appendix-table-7-diff_between_ubi_and_targeting"
     )
-
-
-def get_extrapolation():
-    in_sample_countries = os.listdir("learn/results")
-    out_of_sample_countries = []
 
 
 def get_country_level_analysis():
-    countries = os.listdir("learn/results")
-    for country in countries:
+    for country in COUNTRIES:
         make_plot_for_country(
             country,
             METHODS_ALL,
             geo_extrapolation=True,
-            save_as="appendix-figure-{}",
+            save_as="figs/appendix-figure-{}".format(country),
             ubi_off=False,
         )
 
@@ -130,13 +136,16 @@ def get_country_level_analysis():
 if __name__ == "__main__":
     os.makedirs("figs", exist_ok=True)
     os.makedirs("tables", exist_ok=True)
-    get_malawi_rate_vs_gap_figure_1()
-    get_malawi_headline_figure_2()
-    get_headline_figure_3()
-    get_rate_vs_gap_headline_figure_4()
-    get_gdp_plot_figure_5()
-    get_appendix_table_2()
-    # get_appendix_table_3()
-    # get_appendix_table_4()
-    get_appendix_table_5()
+    # get_malawi_rate_vs_gap_figure_1()
+    # get_malawi_headline_figure_2()
+    # get_headline_figure_3()
+    # get_ubi_ratio_figure_4()
+    # get_rate_vs_gap_headline_figure_5()
+    # get_gdp_plot_figure_6()
+    # get_appendix_table_out_of_sample_r2()
+    get_appendix_table_policy_cost_insample()
+    get_appendix_table_policy_cost_out_of_sample()
+    get_appendix_table_oecd()
+    get_appendix_table_oecd_plus_china()
+    get_appendix_table_diff_between_ubi_and_targeting()
     get_country_level_analysis()

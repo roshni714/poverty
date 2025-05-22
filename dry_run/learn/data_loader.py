@@ -86,9 +86,6 @@ def load_datasets(trainpath, testpath, summarypath, geo_extrapolation, outcome, 
         res.append(pd.DataFrame({col: np.zeros(len(test_data))}))
     final_test_data = pd.concat(res, axis=1)
 
-    import pdb
-    pdb.set_trace()
-
     train_dataset = Dataset(
         final_train_data.astype("float32"), outcome=outcome, covs=covs, weight=weight
     )
