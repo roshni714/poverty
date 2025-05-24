@@ -154,22 +154,22 @@ def get_training_data_for_geo_extrapolation(
         "variable_name"
     ].tolist()
 
-    fine_geo_cols = summary[summary["geographic_indicator_finer"] == True][
-        "variable_name"
-    ].tolist()
+    # fine_geo_cols = summary[summary["geographic_indicator_finer"] == True][
+    #     "variable_name"
+    # ].tolist()
     coarse_geo_cols = summary[summary["geographic_indicator_coarser"] == True][
         "variable_name"
     ].tolist()
 
-    remove_for_fine = set(geo_cols) - set(fine_geo_cols)
+    # remove_for_fine = set(geo_cols) - set(fine_geo_cols)
     remove_for_coarse = set(geo_cols) - set(coarse_geo_cols)
-    remove_for_fine = list(remove_for_fine)
+    # remove_for_fine = list(remove_for_fine)
     remove_for_coarse = list(remove_for_coarse)
 
     if geo_extrapolation:
         data = data.drop(columns=remove_for_coarse)
     else:
-        data = data.drop(columns=remove_for_fine)
+        assert False
 
     return data
 

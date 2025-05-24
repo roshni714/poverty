@@ -449,7 +449,7 @@ def aggregate_plot_geo_extrapolation(countries, save_as):
 
 def convert_nominal_2023_to_nominal_survey_year(amt, country):
     df1 = pd.read_csv("learn/inflation_adjustment.csv")
-    df = pd.read_csv("learn/currency_conversion.csv")
+    df = pd.read_csv("learn/eop_conversion_factor.csv")
     survey_year = df[df["country"] == country]["survey_year"].values[0]
     inflation_adjustment = df1[df1["survey_year"] == survey_year][
         "inflation_adjustment_to_2023"
@@ -472,7 +472,7 @@ def plot_bar_chart_policy_amt_as_percent_of_gdp(countries, geo_extrapolation, sa
         for amt, country in zip(amts, countries)
     ]
 
-    df = pd.read_csv("learn/currency_conversion.csv")
+    df = pd.read_csv("learn/eop_conversion_factor.csv")
     gdp = (
         df[df["country"].isin(countries)][["country", "GDP_billions_survey_year"]]
         .set_index("country")
@@ -522,7 +522,7 @@ def plot_bar_chart_policy_amt_as_percent_of_gdp(countries, geo_extrapolation, sa
 
 
 def get_table_policy_cost_gdp_oda(countries, save_as):
-    df = pd.read_csv("learn/currency_conversion.csv")
+    df = pd.read_csv("learn/eop_conversion_factor.csv")
 
     dic = get_country_interpolators(countries, "continuous_gap", True)
 
@@ -535,26 +535,27 @@ def get_table_policy_cost_gdp_oda(countries, save_as):
     df = df2.merge(df, on="country", how="left")
     df.sort_values(by=["country"], inplace=True)
     df["Policy Cost / GDP"] = df["policy_cost"] / df["GDP_billions_survey_year"]
-    df["ODA / GDP"] = df["oda_billions_latest_year"] / df["GDP_billions_survey_year"]
+    #df["ODA / GDP"] = df["oda_billions_latest_year"] / df["GDP_billions_survey_year"]
     df.rename(
         columns={
             "policy_cost": "Policy Cost",
             "GDP_billions_survey_year": "GDP",
             "survey_year": "Survey Year",
-            "oda_billions_latest_year": "Status-quo ODA",
+    #        "oda_billions_latest_year": "Status-quo ODA",
             "country": "Country",
         },
         inplace=True,
     )
+    df = df.sort_values(by=["Country"])
     new_df = df[
         [
             "Country",
             "Survey Year",
             "GDP",
-            "Status-quo ODA",
+        #    "Status-quo ODA",
             "Policy Cost",
             "Policy Cost / GDP",
-            "ODA / GDP",
+        #    "ODA / GDP",
         ]
     ]
 
@@ -640,7 +641,7 @@ def get_table_out_of_sample_r2(countries, save_as):
         res.append({"country": country, "out_of_sample_r2": r2})
 
     df = pd.DataFrame(res)
-    df.sort_values(by=["out_of_sample_r2"], ascending=False, inplace=True)
+    df.sort_values(by=["country"])
     df.rename(
         columns={
             "out_of_sample_r2": "Out-of-Sample $R^2$",
@@ -648,6 +649,7 @@ def get_table_out_of_sample_r2(countries, save_as):
         },
         inplace=True,
     )
+    df.sort_values(by=["Country"], inplace=True)
     df.to_latex(
         save_as + ".tex",
         index=False,
@@ -721,7 +723,7 @@ def plot_bar_chart_ubi_ratio(countries, save_as):
         by=["ratio_between_ubi_and_targeting"], ascending=False, inplace=True
     )
     plt.figure(figsize=(12, 6))
-    plt.bar(df["country"], df["ratio_between_ubi_and_targeting"])
+    plt.bar([country.capitalize() for country in df["country"]], df["ratio_between_ubi_and_targeting"])
     plt.xlabel("Country")
     plt.ylabel("Ratio")
     plt.suptitle("Ratio of UBI Cost to Targeting Cost vs. Country")
@@ -730,8 +732,8 @@ def plot_bar_chart_ubi_ratio(countries, save_as):
 
 def get_extrapolation(countries, save_as=None):
     in_sample_countries = countries
-    oracle_df = pd.read_csv("learn/oracle_pov_rates_and_gaps.csv")
-    oracle_df = oracle_df.dropna()
+    df = pd.read_csv("learn/eop_conversion_factor.csv")
+    df = df.dropna()
     dic1 = get_country_interpolators(
         in_sample_countries, "oracle_gap", geo_extrapolation=True
     )
@@ -758,7 +760,7 @@ def get_extrapolation(countries, save_as=None):
             ]
         )
     X_test = []
-    out_of_sample_countries = oracle_df["country"].unique().tolist()
+    out_of_sample_countries = df["country"].unique().tolist()
     for country in in_sample_countries:
         if country in out_of_sample_countries:
             out_of_sample_countries.remove(country)
@@ -766,11 +768,11 @@ def get_extrapolation(countries, save_as=None):
     for country in out_of_sample_countries:
         X_test.append(
             [
-                oracle_df[oracle_df["country"] == country][
-                    "initial_poverty_gap"
+                df[df["country"] == country][
+                    "oracle_gap"
                 ].item(),
-                oracle_df[oracle_df["country"] == country][
-                    "initial_poverty_rate"
+                df[df["country"] == country][
+                    "oracle_rate"
                 ].item(),
             ]
         )
@@ -784,24 +786,23 @@ def get_extrapolation(countries, save_as=None):
     pred_ratio = model.predict(X_test)
 
     costs = []
-    df2 = pd.read_csv("learn/eop_conversion_factor.csv")
     for i, country in enumerate(out_of_sample_countries):
         print(country)
         oracle_gap_index = (
-            oracle_df[oracle_df["country"] == country]["initial_poverty_gap"]
+            df[df["country"] == country]["oracle_gap"]
             .values[0]
             .item()
         )
         ppp_exchange_rate = (
-            df2[df2["country"] == country]["PPP_conversion_factor_2017"]
+            df[df["country"] == country]["PPP_conversion_factor_2017"]
             .values[0]
             .item()
         )
         market_exchange_rate = (
-            df2[df2["country"] == country]["market_exchange_rate_2017"].values[0].item()
+            df[df["country"] == country]["market_exchange_rate_2017"].values[0].item()
         )
         population = (
-            df2[df2["country"] == country]["total_population_2023"].values[0].item()
+            df[df["country"] == country]["total_population_2023"].values[0].item()
         )
         oracle_gap = (
             oracle_gap_index
@@ -824,6 +825,7 @@ def get_extrapolation(countries, save_as=None):
             }
         )
     costs = pd.DataFrame(costs)
+    costs = costs.sort_values(by=["Country"])
     if save_as is not None:
         costs.to_latex(
             save_as + ".tex",

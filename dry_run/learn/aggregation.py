@@ -400,7 +400,6 @@ def get_aggregate_interpolators_population_weighted_poverty_measure_global_gap(
     # Compute wc gap to cost interpolator
     country_costs = []
     for country in countries:
-        print(country)
         country_actual_gaps = np.clip(gaps, a_min=None, a_max=initial[country]["gap"])
         country_costs.append(
             np.clip(
