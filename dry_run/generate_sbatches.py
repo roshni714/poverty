@@ -36,7 +36,7 @@ OUTPUT_PATH = (
 
 
 def generate_learn_run():
-    countries = ["ethiopia"]
+    countries = ["cote_divoire", "burkina_faso"]
     geo_extrapolation = [True]
     configs = [
         "output_gt_continuous_rate.yaml",
@@ -72,7 +72,7 @@ def generate_learn_run():
 
 def generate_hparam_run():
 
-    countries = ["ethiopia", "kenya"]
+    countries = ["cote_divoire", "burkina_faso"]
     geo_extrapolation = [True]
     configs = [
         "gt_continuous_rate.yaml",
@@ -282,8 +282,8 @@ def generate_gt_run():
 
 
 # generate_gt_run()
-generate_hparam_run()
+# generate_hparam_run()
 # make_learnsavedir()
-# generate_learn_run()
+generate_learn_run()
 # generate_wgan_run()
 # generate_wgan_hparam_runs()
