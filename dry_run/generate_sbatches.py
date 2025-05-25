@@ -19,7 +19,7 @@ GPU_SBATCH_PREFACE = """#!/bin/bash
 
 
 SBATCH_PREFACE = """#!/bin/bash
-#SBATCH -t 10:00:00
+#SBATCH -t 1-
 #SBATCH -c 1
 #SBATCH --mem 5GB
 #SBATCH -p normal
@@ -36,7 +36,7 @@ OUTPUT_PATH = (
 
 
 def generate_learn_run():
-    countries = ["cote_divoire", "burkina_faso"]
+    countries = ["south_africa"]
     geo_extrapolation = [True]
     configs = [
         "output_gt_continuous_rate.yaml",
@@ -72,7 +72,7 @@ def generate_learn_run():
 
 def generate_hparam_run():
 
-    countries = ["cote_divoire", "burkina_faso"]
+    countries = ["south_africa"]
     geo_extrapolation = [True]
     configs = [
         "gt_continuous_rate.yaml",

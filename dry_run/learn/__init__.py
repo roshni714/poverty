@@ -10,4 +10,5 @@ from learn.plotting import (
     plot_bar_chart_ubi_ratio,
     get_table_out_of_sample_r2,
     get_extrapolation,
+    make_macro_file,
 )
