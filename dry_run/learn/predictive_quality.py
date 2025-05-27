@@ -1,5 +1,4 @@
 from sklearn.linear_model import LinearRegression
-from sklearn.metrics import r2_score
 from learn.data_loader import load_datasets
 import numpy as np
 
@@ -27,7 +26,7 @@ def get_out_of_sample_rmse(country, upper_val=10.0):
     # Fit a linear regression model
     model = LinearRegression(fit_intercept=True)
     model.fit(X_combined[idx], y_combined[idx], sample_weight=r_combined[idx])
-    # Calculate R^2 on the test set
+    # Calculate RMSE
     X_test, y_test, r_test = test_dataset.get_data(normalize_weight=False)
     idx_test = y_test <= upper_val
     r_test /= r_test[idx_test].sum()
