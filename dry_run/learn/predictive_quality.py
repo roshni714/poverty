@@ -1,25 +1,10 @@
 from sklearn.linear_model import LinearRegression
-from scipy.stats import pearsonr
+from sklearn.metrics import r2_score
 from learn.data_loader import load_datasets
 import numpy as np
 
 
-def m(x, w):
-    """Weighted Mean"""
-    return np.sum(x * w) / np.sum(w)
-
-
-def cov(x, y, w):
-    """Weighted Covariance"""
-    return np.sum(w * (x - m(x, w)) * (y - m(y, w))) / np.sum(w)
-
-
-def corr(x, y, w):
-    """Weighted Correlation"""
-    return cov(x, y, w) / np.sqrt(cov(x, x, w) * cov(y, y, w))
-
-
-def get_out_of_sample_r2(country, upper_val=10.0):
+def get_out_of_sample_rmse(country, upper_val=10.0):
     train_dataset, validation_dataset, test_covariate_dataset, test_dataset = (
         load_datasets(
             f"data/{country}/train.parquet",
@@ -47,9 +32,6 @@ def get_out_of_sample_r2(country, upper_val=10.0):
     idx_test = y_test <= upper_val
     r_test /= r_test[idx_test].sum()
     y_pred = model.predict(X_test[idx_test])
-    r = corr(y_test[idx_test], y_pred, r_test[idx_test])
-    r2 = r**2
+    rmse = np.sqrt(np.mean((y_test[idx_test] - y_pred) ** 2))
 
-    # print(country, r2)
-
-    return r2
+    return rmse

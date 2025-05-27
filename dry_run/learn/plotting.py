@@ -16,7 +16,7 @@ from learn.aggregation import (
     get_aggregate_ubi_cost,
     prune_results,
 )
-from learn.predictive_quality import get_out_of_sample_r2
+from learn.predictive_quality import get_out_of_sample_rmse
 
 
 def get_country_name(country):
@@ -591,7 +591,7 @@ def get_table_oecd(policy_cost, save_as):
         new_df.to_latex(
             save_as + ".tex",
             index=False,
-            float_format="%.4f",
+            float_format="%.2f",
             escape=False,
         )
     return new_df
@@ -629,22 +629,22 @@ def get_table_oecd_plus_china(policy_cost, save_as):
     ]
     if save_as:
         new_df.to_latex(
-            save_as + ".tex", index=False, float_format="%.4f", escape=False
+            save_as + ".tex", index=False, float_format="%.2f", escape=False
         )
     return new_df
 
 
-def get_table_out_of_sample_r2(countries, save_as):
+def get_table_out_of_sample_rmse(countries, save_as):
     res = []
     for country in countries:
-        r2 = get_out_of_sample_r2(country)
-        res.append({"country": country, "out_of_sample_r2": r2})
+        r2 = get_out_of_sample_rmse(country)
+        res.append({"country": country, "out_of_sample_rmse": r2})
 
     df = pd.DataFrame(res)
     df.sort_values(by=["country"])
     df.rename(
         columns={
-            "out_of_sample_r2": "Evaluation Set $R^2$",
+            "out_of_sample_rmse": "Evaluation Set RMSE",
             "country": "Country",
         },
         inplace=True,
@@ -750,6 +750,7 @@ def get_extrapolation(countries, save_as=None):
             / dic1[country]["gap_to_cost_interpolator"](1.0)
         )
         in_sample_costs.append(dic2[country]["gap_to_cost_interpolator"](1.0))
+        print(country, "in-sample cost:", in_sample_costs[-1])
 
     initial = get_initial_poverty_gaps_and_rates(countries)
     X = []
@@ -871,7 +872,7 @@ def make_string_country_list(l):
         )
 
 
-def make_macro_file(countries):
+def make_macro_file(countries, save_as):
     countries = sorted(countries)
 
     all_countries_string = make_string_country_list(countries)
@@ -942,6 +943,7 @@ def make_macro_file(countries):
 
     conversion_factors = get_conversion_factors(countries)
     cost["ubi"] = 2.15 * sum([conversion_factors[country] for country in countries])
+    print("HEADLINE COST", cost["continuous_gap"])
 
     malawi_costs = {}
     for method in methods:
@@ -978,79 +980,76 @@ def make_macro_file(countries):
         countries, save_as=None
     )
     oecd_df = get_table_oecd(total_cost, save_as=None)
-    oecd_gdp_percent = oecd_df["Policy Cost (\\% of GDP)"].values[0].item() * 100
-    oecd_revenue_percent = (
-        oecd_df["Policy Cost (\\% of Gov't Revenue)"].values[0].item() * 100
-    )
+    oecd_gdp_percent = oecd_df["Policy Cost (\\% of GDP)"].values[0].item()
+    oecd_revenue_percent = oecd_df["Policy Cost (\\% of Gov't Revenue)"].values[0].item() 
+    
     oecd_plus_china_df = get_table_oecd_plus_china(total_cost, save_as=None)
-    oecd_plus_china_gdp_percent = (
-        oecd_plus_china_df["Policy Cost (\\% of GDP)"].values[0].item() * 100
-    )
-    oecd_plus_china_revenue_percent = (
-        oecd_plus_china_df["Policy Cost (\\% of GDP)"].values[0].item() * 100
-    )
+    oecd_plus_china_gdp_percent = oecd_plus_china_df["Policy Cost (\\% of GDP)"].values[0].item() 
+    
+    oecd_plus_china_revenue_percent = oecd_plus_china_df["Policy Cost (\\% of GDP)"].values[0].item()
+    
     dropped_countries_string = make_string_country_list(sorted(dropped_countries))
 
-    with open("results.tex", "w") as f:
-        f.write("\\newcommand{{\\sampleNumCountries}}" + f"{{{len(countries)}}}\n")
-        f.write("\\newcommand{{\\sampleCountries}}" + f"{{{all_countries_string}}}\n")
+    with open(save_as + ".tex", "w") as f:
+        f.write("\\newcommand{\\sampleNumCountries}" + f"{{{len(countries)}}}\n")
+        f.write("\\newcommand{\\sampleCountries}" + f"{{{all_countries_string}}}\n")
         f.write(
-            "\\newcommand{{\sampleShareWorldsPoorExact}}" + f"{{{total_world_poor}}}\n"
+            "\\newcommand{\\sampleShareWorldsPoorExact}" + f"{{{total_world_poor}}}\n"
         )
         f.write(
-            "\\newcommand{{\sampleShareWorldsPoor}}" + f"{{{total_world_poor:.0f}}}\n"
+            "\\newcommand{\\sampleShareWorldsPoor}" + f"{{{total_world_poor:.0f}}}\n"
         )
-        f.write("\\newcommand{{\sampleGap}}" + f"{{{initial_poverty_gap:.0f}}}\n")
-        f.write("\\newcommand{{\sampleRate}}" + f"{{{initial_poverty_rate:.0f}}}\n")
-        f.write("\\newcommand{{\sampleMinRate}}" + f"{{{min_pov_rate:.0f}}}\n")
-        f.write("\\newcommand{{\sampleMaxRate}}" + f"{{{max_pov_rate:.0f}}}\n")
-        f.write("\\newcommand{{\sampleMinRateCountry}}" + f"{{{min_country}}}\n")
-        f.write("\\newcommand{{\sampleMaxRateCountry}}" + f"{{{max_country}}}\n")
-        f.write("\\newcommand{{\sampleODAPercent}}" + f"{{{sample_oda:.0f}}}\n")
+        f.write("\\newcommand{\\sampleGap}" + f"{{{initial_poverty_gap:.0f}}}\n")
+        f.write("\\newcommand{\\sampleRate}" + f"{{{initial_poverty_rate:.0f}}}\n")
+        f.write("\\newcommand{\\sampleMinRate}" + f"{{{min_pov_rate:.0f}}}\n")
+        f.write("\\newcommand{\\sampleMaxRate}" + f"{{{max_pov_rate:.0f}}}\n")
+        f.write("\\newcommand{\\sampleMinRateCountry}" + f"{{{min_country}}}\n")
+        f.write("\\newcommand{\\sampleMaxRateCountry}" + f"{{{max_country}}}\n")
+        f.write("\\newcommand{\\sampleODAPercent}" + f"{{{sample_oda:.0f}}}\n")
         f.write(
-            "\\newcommand{{\samplePolicyCostPercent}}"
+            "\\newcommand{\\samplePolicyCostPercent}"
             + f"{{{sample_policy_cost:.0f}}}\n"
         )
 
         f.write(
-            "\\newcommand{{\headlineUBI}}" + "{{{}}}\n".format(round(cost["ubi"], 1))
+            "\\newcommand{\\headlineUBI}" + "{{{}}}\n".format(round(cost["ubi"], 1))
         )
         f.write(
-            "\\newcommand{{\headlinePMT}}" + "{{{}}}\n".format(round(cost["pmt"], 1))
+            "\\newcommand{\\headlinePMT}" + "{{{}}}\n".format(round(cost["pmt"], 1))
         )
         f.write(
-            "\\newcommand{{\headlineGap}}"
+            "\\newcommand{\\headlineGap}"
             + "{{{}}}\n".format(round(cost["continuous_gap"], 1))
         )
         f.write(
-            "\\newcommand{{\headlineOracle}}"
+            "\\newcommand{\\headlineOracle}"
             + "{{{}}}\n".format(round(cost["oracle_gap"], 1))
         )
         f.write(
-            "\\newcommand{{\headlineBinaryGap}}"
+            "\\newcommand{\\headlineBinaryGap}"
             + "{{{}}}\n".format(round(cost["binary_gap"], 1))
         )
         f.write(
-            "\\newcommand{{\headlineUBIVariable}}"
+            "\\newcommand{\\headlineUBIVariable}"
             + "{{{}}}\n".format(round(cost["ubi_variable"], 1))
         )
 
         f.write(
-            "\\newcommand{{\headlineGapUBIPercent}}"
+            "\\newcommand{\\headlineGapUBIPercent}"
             + "{{{}}}\n".format(round((cost["continuous_gap"] / cost["ubi"]) * 100), 0)
         )
         f.write(
-            "\\newcommand{{\headlineGapUBIVariablePercent}}"
+            "\\newcommand{\\headlineGapUBIVariablePercent}"
             + "{{{}}}\n".format(
                 round((cost["continuous_gap"] / cost["ubi_variable"]) * 100), 0
             )
         )
         f.write(
-            "\\newcommand{{\headlineGapOracleRatio}}"
+            "\\newcommand{\\headlineGapOracleRatio}"
             + "{{{}}}\n".format(round((cost["continuous_gap"] / cost["oracle_gap"])), 1)
         )
         f.write(
-            "\\newcommand{{\headlineBinaryContPercentIncrease}}"
+            "\\newcommand{\\headlineBinaryContPercentIncrease}"
             + "{{{}}}\n".format(
                 (
                     round(
@@ -1064,58 +1063,58 @@ def make_macro_file(countries):
         )
 
         f.write(
-            "\\newcommand{{\extrapolationCost}}"
+            "\\newcommand{\\extrapolationCost}"
             + "{{{}}}\n".format(round(total_cost, 0))
         )
         f.write(
-            "\\newcommand{{\extrapolationOECDGDPPercent}}"
+            "\\newcommand{\\extrapolationOECDGDPPercent}"
             + "{{{}}}\n".format(round(oecd_gdp_percent, 2))
         )
         f.write(
-            "\\newcommand{{\extrapolationOECDGovtRevenuePercent}}"
+            "\\newcommand{\\extrapolationOECDGovtRevPercent}"
             + "{{{}}}\n".format(round(oecd_revenue_percent, 2))
         )
         f.write(
-            "\\newcommand{{\extrapolationOECDPlusChinaGDPPercent}}"
+            "\\newcommand{\\extrapolationOECDPlusChinaGDPPercent}"
             + "{{{}}}\n".format(round(oecd_plus_china_gdp_percent, 2))
         )
         f.write(
-            "\\newcommand{{\extrapolationOECDPlusChinaGovtRevenuePercent}}"
+            "\\newcommand{\\extrapolationOECDPlusChinaGovtRevPercent}"
             + "{{{}}}\n".format(round(oecd_plus_china_revenue_percent, 2))
         )
         f.write(
-            "\\newcommand{{\extrapolationOutOfSampleCost}}"
+            "\\newcommand{\\extrapolationOutOfSampleCost}"
             + "{{{}}}\n".format(round(out_of_sample_cost, 0))
         )
         f.write(
-            "\\newcommand{{\extrapolationDroppedCountries}}"
+            "\\newcommand{\\extrapolationDroppedCountries}"
             + "{{{}}}\n".format(dropped_countries_string)
         )
 
         f.write(
-            "\\newcommand{{\malawiShareWorldsPoor}}"
+            "\\newcommand{\\malawiShareWorldsPoor}"
             + "{{{}}}\n".format(malawi_world_poor)
         )
         f.write(
-            "\\newcommand{{\malawiUBIVariableAmount}}"
+            "\\newcommand{\\malawiUBIVariableAmount}"
             + "{{{}}}\n".format(
                 round(malawi_costs["ubi_variable"] / conversion_factors["malawi"], 2)
             )
         )
         f.write(
-            "\\newcommand{{\malawiGapOracleRatio}}"
+            "\\newcommand{\\malawiGapOracleRatio}"
             + "{{{}}}\n".format(
                 round(malawi_costs["continuous_gap"] / malawi_costs["oracle_gap"], 1)
             )
         )
         f.write(
-            "\\newcommand{{\malawiGapUBIPercent}}"
+            "\\newcommand{\\malawiGapUBIPercent}"
             + "{{{}}}\n".format(
                 round((malawi_costs["continuous_gap"] * 100 / malawi_costs["ubi"])), 1
             )
         )
         f.write(
-            "\\newcommand{{\malawiGapUBIVariablePercent}}"
+            "\\newcommand{\\malawiGapUBIVariablePercent}"
             + "{{{}}}\n".format(
                 round(
                     (
@@ -1128,13 +1127,13 @@ def make_macro_file(countries):
             )
         )
         f.write(
-            "\\newcommand{{\malawiGapPMTPercent}}"
+            "\\newcommand{\\malawiGapPMTPercent}"
             + "{{{}}}\n".format(
                 round(malawi_costs["continuous_gap"] * 100 / malawi_costs["pmt"], 1)
             )
         )
         f.write(
-            "\\newcommand{{\malawiGapBinaryPercentIncrease}}"
+            "\\newcommand{\\malawiBinaryContPercentIncrease}"
             + "{{{}}}\n".format(
                 round(
                     (malawi_costs["binary_gap"] - malawi_costs["continuous_gap"])
@@ -1146,11 +1145,11 @@ def make_macro_file(countries):
         )
 
         f.write(
-            "\\newcommand{{\oracleFeasibleRatioMin}}"
+            "\\newcommand{\\oracleFeasibleRatioMin}"
             + "{{{}}}\n".format(round(min_ratio, 1))
         )
         f.write(
-            "\\newcommand{{\oracleFeasibleRatioMax}}"
+            "\\newcommand{\\oracleFeasibleRatioMax}"
             + "{{{}}}\n".format(round(max_ratio, 1))
         )
 

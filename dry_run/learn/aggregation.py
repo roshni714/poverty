@@ -261,7 +261,7 @@ def get_aggregate_interpolators_fraction(countries, method, geo_extrapolation):
     )
 
     # Compute aggregate rate interpolator
-    fracs = np.linspace(0, 100, 50)
+    fracs = np.linspace(0, 100, 200)
     costs = []
     for country in countries:
         country_gap_interpolator = country_interpolators[country]["gap_interpolator"]
@@ -372,7 +372,7 @@ def get_aggregate_interpolators_population_weighted_poverty_measure_global_gap(
         countries, method, geo_extrapolation
     )
 
-    gaps = np.linspace(min_poverty_gap, max_initial_poverty_gap, 50)
+    gaps = np.linspace(min_poverty_gap, max_initial_poverty_gap, 200)
     agg_gaps = 0.0
     agg_rates = 0.0
     for i, country in enumerate(countries):
@@ -471,8 +471,8 @@ def get_aggregate_interpolators_population_weighted_poverty_measure(
         countries, method, geo_extrapolation
     )
 
-    gaps = np.linspace(min_poverty_gap, max_initial_poverty_gap, 50)
-    rates = np.linspace(min_poverty_rate, max_initial_poverty_rate, 50)
+    gaps = np.linspace(min_poverty_gap, max_initial_poverty_gap, 200)
+    rates = np.linspace(min_poverty_rate, max_initial_poverty_rate, 200)
     agg_gaps = 0.0
     agg_rates = 0.0
     for i, country in enumerate(countries):
