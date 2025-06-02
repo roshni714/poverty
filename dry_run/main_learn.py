@@ -7,6 +7,8 @@ from opt_targeted_transfers import (
     GapTargetedTransfers,
     BinaryRateTargetedTransfers,
     BinaryGapTargetedTransfers,
+    OracleGapTargetedTransfers,
+    OracleRateTargetedTransfers,
     write_result,
 )
 from learn.data_loader import load_datasets
@@ -41,7 +43,59 @@ def run_evaluation(tt, test_covariate_dataset, test_dataset, savepath):
         new_dic[metric] = auc_res[metric]["auc"]
     write_result(savepath + "_auc.csv", new_dic)
 
+def learn_oracle_rate(
+    train_dataset,
+    validation_dataset,
+    test_covariate_dataset,
+    test_dataset,
+    oracle_rate_params,
+    device,
+    savepath,
+):
+    """
+    Learn the oracle rate targeted transfers
+    """
+    print("Learning oracle rate targeted transfers...")
+    tt = OracleRateTargetedTransfers(
+        c_bar=C_BAR
+    )
 
+    run_evaluation(
+        tt, 
+        # Oracle policy -> learninig requires outcomes; pass outcomes instead of covariates
+        test_covariate_dataset=test_dataset, 
+        test_dataset=test_dataset,
+        savepath=savepath
+    )
+    
+
+def learn_oracle_gap(
+    train_dataset,
+    validation_dataset,
+    test_covariate_dataset,
+    test_dataset,
+    oracle_gap_params,
+    device,
+    savepath,
+):
+    """
+    Learn the oracle rate targeted transfers
+    """
+    print("Learning oracle rate targeted transfers...")
+    scheme = oracle_gap_params.get('scheme', 'lift_to_line')
+    tt = OracleGapTargetedTransfers(
+        c_bar=C_BAR,
+        scheme=scheme
+    )
+
+    run_evaluation(
+        tt, 
+        # Oracle policy -> learninig requires outcomes; pass outcomes instead of covariates
+        test_covariate_dataset=test_dataset, 
+        test_dataset=test_dataset,
+        savepath=savepath
+    )
+    
 def learn_continuous_rate(
     train_dataset,
     validation_dataset,
@@ -211,6 +265,8 @@ def main(
                 "binary_rate",
                 "continuous_gap",
                 "binary_gap",
+                "oracle_rate",
+                "oracle_gap",
                 "data",
                 "savedir",
             ]
@@ -239,6 +295,8 @@ def main(
         "binary_rate": learn_binary_rate,
         "continuous_gap": learn_continuous_gap,
         "binary_gap": learn_binary_gap,
+        "oracle_rate": learn_oracle_rate,
+        "oracle_gap": learn_oracle_gap,
     }
 
     for key in config_keys:

@@ -1,4 +1,4 @@
-savedir: hparam/results
+savedir: /data/eop/malawi/simulation_results/hparams
 device: cuda
 data:
   ntrain: 6480
@@ -7,8 +7,8 @@ data:
   outcome: consumption_per_capita_per_day
   weight: hh_wgt
   gt:
-    trainpath: data/train.parquet
-    summarypath: data/summary_2019.parquet
+    trainpath: /data/eop/malawi/cleaned/train.parquet
+    summarypath: /data/eop/malawi/cleaned/summary_2019.parquet
 continuous_gap:
   n_regressors: [10, 20, 30]
   neural_network:
