@@ -234,6 +234,7 @@ def learn_pmt(
     tt.fit(
         train_dataset,
         validation_dataset,
+        alpha=pmt_params["lasso"]["alpha"],
     )
     run_evaluation(tt, test_covariate_dataset, test_dataset, savepath)
 

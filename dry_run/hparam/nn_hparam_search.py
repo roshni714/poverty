@@ -6,11 +6,85 @@ from opt_targeted_transfers import (
     get_conditional_improvement_regressor,
     get_conditional_improvement_loss,
     get_pmt_nn_regressor,
+    get_pmt_lasso_regressor,
     get_mse_loss,
 )
 import pandas as pd
 import numpy as np
 from constants import C_BAR
+
+
+def get_optimal_lasso_parameters(
+    lasso_hparam_ranges,
+    data_generator,
+    val_df,
+    device,
+    original_cols,
+    ntrain,
+    outcome,
+    weight,
+    savepath,
+):
+    """
+    Get optimal Lasso hyperparameters.
+
+    Args:
+        lasso_hparam_ranges (dict): Hyperparameter ranges for Lasso.
+        data_generator (generator): Data generator.
+        device (str): Device to train the model on.
+        original_cols (list): Original columns before one-hot encoding.
+        ntrain (int): Number of training samples.
+        outcome (str): Outcome variable.
+        weight (str): Weight variable.
+        savepath (str): Path to save results.
+
+    Returns:
+        opt_params: Optimal hyperparameters for Lasso.
+    """
+
+    if "alpha" in lasso_hparam_ranges:
+        alpha_range = lasso_hparam_ranges["alpha"]
+    else:
+        alpha_range = [0.1]
+
+    results = []
+
+    for trial in range(3):
+        train_df = data_generator(nsamples=ntrain, seed=54734234 + trial)
+        covs = original_cols.copy()
+        covs.remove(outcome)
+        covs.remove(weight)
+        train_dataset = Dataset(train_df, outcome=outcome, weight=weight, covs=covs)
+        big_val_dataset = Dataset(val_df, outcome=outcome, weight=weight, covs=covs)
+        new_train_dataset, new_val_dataset = split(train_dataset)
+
+        for alpha in alpha_range:
+            print(f"Training Lasso with alpha {alpha} during trial {trial}...")
+
+            model = get_pmt_lasso_regressor(
+                train_dataset=new_train_dataset,
+                validation_dataset=new_val_dataset,
+                alpha=alpha,
+            )
+
+            loss = get_mse_loss(
+                predictor=model, validation_dataset=big_val_dataset
+            ).item()
+            results.append(
+                {
+                    "alpha": alpha,
+                    "loss": loss,
+                    "trial": trial,
+                }
+            )
+
+    df = pd.DataFrame.from_records(results)
+    df.to_csv(savepath, index=False)
+    df = df.groupby(["alpha"]).mean().reset_index()
+    optimal_params = df.loc[df["loss"].idxmin()].to_dict()
+    del optimal_params["loss"]
+    del optimal_params["trial"]
+    return optimal_params
 
 
 def get_optimal_nn_pmt_parameters(

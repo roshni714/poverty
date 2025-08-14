@@ -31,12 +31,12 @@ SBATCH_PREFACE = """#!/bin/bash
 """
 
 OUTPUT_PATH = (
-    "/home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/dry_run/scripts"
+    "/home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/dry_run/scripts3"
 )
 
 
 def generate_learn_run():
-    countries = ["south_africa"]
+    countries = ["togo"]
     geo_extrapolation = [True]
     configs = [
         "output_gt_continuous_rate.yaml",
@@ -45,7 +45,7 @@ def generate_learn_run():
         "output_gt_continuous_gap.yaml",
         "output_gt_modern_pmt.yaml",
         "oracle_gap.yaml",
-        "pmt.yaml",
+        "output_gt_pmt.yaml",
         "ubi.yaml",
     ]
 
@@ -72,7 +72,7 @@ def generate_learn_run():
 
 def generate_hparam_run():
 
-    countries = ["south_africa"]
+    countries = ["south_sudan"]
     geo_extrapolation = [True]
     configs = [
         "gt_continuous_rate.yaml",
@@ -80,6 +80,7 @@ def generate_hparam_run():
         "gt_binary_gap.yaml",
         "gt_continuous_gap.yaml",
         "gt_modern_pmt.yaml",
+        "gt_pmt.yaml",
     ]
 
     # script_fn = os.path.join(OUTPUT_PATH, "a_make_hparamdir.sh")
@@ -282,8 +283,8 @@ def generate_gt_run():
 
 
 # generate_gt_run()
-# generate_hparam_run()
+generate_hparam_run()
 # make_learnsavedir()
-generate_learn_run()
+# generate_learn_run()
 # generate_wgan_run()
 # generate_wgan_hparam_runs()

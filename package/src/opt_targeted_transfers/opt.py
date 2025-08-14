@@ -12,7 +12,7 @@ from opt_targeted_transfers.evaluate import (
     expected_value_transfers,
     policy_cost,
 )
-from opt_targeted_transfers.prediction import get_pmt_linear_regressor, get_pmt_nn_regressor
+from opt_targeted_transfers.prediction import get_pmt_nn_regressor, get_pmt_lasso_regressor
 from opt_targeted_transfers.conditional_improvement import (
     get_conditional_improvement_regressor,
     get_avg_estimated_benefit,
@@ -38,7 +38,7 @@ class TargetedTransfers:
 
     def __init__(
         self,
-        c_bar=2.15,
+        c_bar=3.0,
         budget=None,
     ):
         self.c_bar = c_bar
@@ -137,10 +137,10 @@ class RateTargetedTransfers(TargetedTransfers):
     Computes the optimal rate targeting transfer policy.
     """
 
-    def __init__(self, c_bar=2.15, budget=None):
+    def __init__(self, c_bar=3.0, budget=None):
         """
         Initialize a new instance of the UnconditionalTargetedTransfers class.
-        :param c_bar: The minimum threshold value (poverty line). Defaults to 2.15.
+        :param c_bar: The minimum threshold value (poverty line). Defaults to 3.0.
         :type c_bar: float
         :param tolerance: The tolerance. Defaults to None.
         :type tolerance: float or None
@@ -292,7 +292,7 @@ class RateTargetedTransfers(TargetedTransfers):
 
 
 class BinaryTargetedTransfers(TargetedTransfers):
-    def __init__(self, c_bar=2.15, budget=None, n_regressors=20):
+    def __init__(self, c_bar=3.0, budget=None, n_regressors=20):
 
         super().__init__(c_bar=c_bar, budget=budget)
 
@@ -377,7 +377,10 @@ class BinaryTargetedTransfers(TargetedTransfers):
         idx_receive_transfers = household_idx_ranked_by_benefit[
             indicator_receive_transfers
         ]
-        threshold = estimated_benefits[idx_receive_transfers[-1]]
+        if len(idx_receive_transfers) == 0:
+            threshold = np.inf
+        else:
+            threshold = estimated_benefits[idx_receive_transfers[-1]]
         return threshold
 
     def _get_indices_to_receive_transfers_threshold(
@@ -445,7 +448,7 @@ class BinaryTargetedTransfers(TargetedTransfers):
 
 
 class BinaryGapTargetedTransfers(BinaryTargetedTransfers):
-    def __init__(self, c_bar=2.15, budget=None, n_regressors=20):
+    def __init__(self, c_bar=3.0, budget=None, n_regressors=20):
 
         super().__init__(c_bar=c_bar, budget=budget, n_regressors=n_regressors)
 
@@ -484,7 +487,7 @@ class BinaryGapTargetedTransfers(BinaryTargetedTransfers):
 
 
 class BinaryRateTargetedTransfers(BinaryTargetedTransfers):
-    def __init__(self, c_bar=2.15, budget=None, n_regressors=20):
+    def __init__(self, c_bar=3.0, budget=None, n_regressors=20):
 
         super().__init__(c_bar=c_bar, budget=budget, n_regressors=n_regressors)
 
@@ -527,9 +530,9 @@ class GapTargetedTransfers(TargetedTransfers):
     Poverty-gap targeting.
     """
 
-    def __init__(self, c_bar=2.15, budget=None, n_regressors=20):
+    def __init__(self, c_bar=3.0, budget=None, n_regressors=20):
         """
-        :param c_bar: The minimum threshold value (poverty line). Defaults to 2.15.
+        :param c_bar: The minimum threshold value (poverty line). Defaults to 3.0.
         :type c_bar: float
         """
 
@@ -695,7 +698,7 @@ class OracleGapTargetedTransfers(TargetedTransfers):
         to raise them to the floor. The floor is set to minimally satisfy the specified tolerance.
     """
 
-    def __init__(self, c_bar=2.15, budget=None, scheme="lift_to_line"):
+    def __init__(self, c_bar=3.0, budget=None, scheme="lift_to_line"):
 
         assert scheme in ("lift_to_line", "floor")
 
@@ -719,7 +722,7 @@ class OracleGapTargetedTransfers(TargetedTransfers):
 
 
 class OracleRateTargetedTransfers(TargetedTransfers):
-    def __init__(self, c_bar=2.15, budget=None):
+    def __init__(self, c_bar=3.0, budget=None):
 
         super().__init__(c_bar=c_bar, budget=budget)
         self.name = "oracle_rate"
@@ -737,7 +740,7 @@ class OracleRateTargetedTransfers(TargetedTransfers):
 class UBITargetedTransfers(TargetedTransfers):
     def __init__(self, c_bar, budget=None):
         """
-        :param c_bar: The minimum threshold value (poverty line). Defaults to 2.15.
+        :param c_bar: The minimum threshold value (poverty line). Defaults to 3.0.
         :type c_bar: float
         """
 
@@ -759,9 +762,9 @@ class ModernPMTTargetedTransfers(BinaryTargetedTransfers):
     Modern PMT style targeting
     """
 
-    def __init__(self, c_bar=2.15, budget=None, transfer_value=1.0):
+    def __init__(self, c_bar=3.0, budget=None, transfer_value=1.0):
         """
-        :param c_bar: The minimum threshold value (poverty line). Defaults to 2.15.
+        :param c_bar: The minimum threshold value (poverty line). Defaults to 3.0.
         :type c_bar: float
         """
 
@@ -819,9 +822,9 @@ class PMTTargetedTransfers(BinaryTargetedTransfers):
     PMT style targeting
     """
 
-    def __init__(self, c_bar=2.15, budget=None, transfer_value=1.0):
+    def __init__(self, c_bar=3.0, budget=None, transfer_value=1.0):
         """
-        :param c_bar: The minimum threshold value (poverty line). Defaults to 2.15.
+        :param c_bar: The minimum threshold value (poverty line). Defaults to 3.0.
         :type c_bar: float
         """
 
@@ -833,14 +836,14 @@ class PMTTargetedTransfers(BinaryTargetedTransfers):
         self,
         train_dataset,
         validation_dataset,
+        alpha=0.1
     ):
         """
         Fitting linear regression
         """
 
-        self.consumption_predictor = get_pmt_linear_regressor(
-            train_dataset, validation_dataset
-        )
+        self.consumption_predictor = get_pmt_lasso_regressor(
+            train_dataset, validation_dataset, alpha=alpha)
 
     def run_opt(self, test_covariate_dataset):
 

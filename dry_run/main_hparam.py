@@ -13,7 +13,9 @@ from hparam.nn_hparam_search import (
     get_optimal_nn_quantile_regression_parameters,
     get_optimal_nn_improvement_parameters,
     get_optimal_nn_pmt_parameters,
+    get_optimal_lasso_parameters,
 )
+from constants import C_BAR
 
 
 @argh.arg("--config", default="hparam/configs/hparam_config.yml")
@@ -208,7 +210,25 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         )
         print(opt_nn_hparams)
         opt_hparams["modern_pmt"]["neural_network"] = opt_nn_hparams
-        opt_hparams["modern_pmt"]["transfer_value"] = 2.15
+        opt_hparams["modern_pmt"]["transfer_value"] = C_BAR
+
+    if "pmt" in config_hparams:
+        opt_hparams["pmt"] = {}
+        pmt = config_hparams["pmt"]
+        opt_lasso_hparams = get_optimal_lasso_parameters(
+            lasso_hparam_ranges=pmt["lasso"],
+            data_generator=train_data_generator,
+            device=device,
+            original_cols=original_cols,
+            ntrain=ntrain,
+            val_df=val_df,
+            outcome=outcome,
+            weight=weight,
+            savepath=f"{savedir}/lasso_{name}.csv",
+        )
+        print(opt_lasso_hparams)
+        opt_hparams["pmt"]["lasso"] = opt_lasso_hparams
+        opt_hparams["pmt"]["transfer_value"] = C_BAR
 
     with open(f"{savedir}/output_{name}.yaml", "w") as file:
         yaml.dump(opt_hparams, file, default_flow_style=False)

@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 import yaml
+from constants import C_BAR
 
 
 def generate_gt_hparam_config(country, geo_extrapolation, device):
@@ -57,14 +58,10 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
     modern_pmt_config["modern_pmt"] = default_nn_config.copy()
     del modern_pmt_config["modern_pmt"]["n_regressors"]
 
-    pmt_config = {
-        "pmt": {"transfer_value": 2.15},
-        "data": {
-            "outcome": "consumption_per_capita_per_day",
-            "weight": "headcount_adjusted_hh_wgt",
-            "geo_extrapolation": geo_extrapolation,
-        },
-        "savedir": f"learn/results/{country}/{subfolder}",
+    pmt_config = base_config.copy()
+    pmt_config["pmt"] = {
+        "transfer_value": C_BAR,
+        "lasso": {"alpha": [0, 0.01, 0.1, 1.0]},
     }
 
     oracle_config = {
@@ -99,6 +96,7 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
         "gt_binary_gap",
         "gt_continuous_gap",
         "gt_modern_pmt",
+        "gt_pmt",
     ]
     configs = [
         continuous_rate_config,
@@ -106,15 +104,13 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
         binary_gap_config,
         continuous_gap_config,
         modern_pmt_config,
+        pmt_config,
     ]
 
     for i, name in enumerate(names):
         config = configs[i]
         with open(f"hparam/configs/{country}/{subfolder}/{name}.yaml", "w") as file:
             yaml.dump(config, file, default_flow_style=False)
-
-    with open(f"hparam/results/{country}/{subfolder}/pmt.yaml", "w") as file:
-        yaml.dump(pmt_config, file, default_flow_style=False)
 
     with open(f"hparam/results/{country}/{subfolder}/oracle_gap.yaml", "w") as file:
         yaml.dump(oracle_config, file, default_flow_style=False)
@@ -123,7 +119,7 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
         yaml.dump(ubi_config, file, default_flow_style=False)
 
 
-countries = ["niger", "guinea_bissau", "south_africa", "cote_divoire", "burkina_faso"]
+countries = ["senegal"]
 geo_extrapolation = [True]
 for country in countries:
     for geo in geo_extrapolation:

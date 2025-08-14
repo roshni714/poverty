@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from scipy.interpolate import interp1d
 from sklearn.linear_model import LinearRegression
+from constants import C_BAR
 
 METHODS = {
     "oracle_gap": {
@@ -12,553 +13,301 @@ METHODS = {
     },
     "continuous_gap": {
         "csv": "output_gt_continuous_gap",
-        "name": "Gap Targeting (Continuous-Valued)",
+        "name": "Gap Targeting (Continuous)",
         "color": "blue",
         "linestyle": "-",
     },
     "binary_gap": {
         "csv": "output_gt_binary_gap",
-        "name": "Gap Targeting (Binary-Valued)",
+        "name": "Gap Targeting (Binary)",
         "color": "blue",
         "linestyle": "--",
     },
     "continuous_rate": {
         "csv": "output_gt_continuous_rate",
-        "name": "Rate Targeting (Continuous-Valued)",
+        "name": "Rate Targeting (Continuous)",
         "color": "orange",
         "linestyle": "-",
     },
     "binary_rate": {
         "csv": "output_gt_binary_rate",
-        "name": "Rate Targeting (Binary-Valued)",
+        "name": "Rate Targeting (Binary)",
         "color": "orange",
         "linestyle": "--",
     },
-    "pmt": {"csv": "pmt", "name": "PMT (Linear)", "color": "red", "linestyle": "-"},
+    "pmt": {
+        "csv": "output_gt_pmt",
+        "name": "PMT (Lasso)",
+        "color": "red",
+        "linestyle": "-",
+    },
     "modern_pmt": {
         "csv": "output_gt_modern_pmt",
         "name": "PMT (NN)",
         "color": "red",
-        "linestyle": ":",
+        "linestyle": "--",
     },
     "ubi": {
         "csv": "ubi",
-        "name": "UBI (Variable)",
+        "name": "UBI by Country",
         "color": "purple",
         "linestyle": "-",
     },
 }
 
+AUX_DATA_CSV = "learn/aux_data_07302025.csv"
 
-def _load_data(country, method, geo_extrapolation):
-    """
-    Load the data for a specific country and method.
+# def prune_results(xs, ys, val=0.0):
+#     mask = np.abs(xs - val) < 1e-3
+#     if mask.sum() <= 1:
+#         return xs, ys
+#     xs_nonzero = list(np.array(xs)[~mask])
+#     ys_nonzero = list(np.array(ys)[~mask])
 
-    :param country: The name of the country.
-    :type country: str
-    :param method: The method to load data for.
-    :type method: str
-    :return: A DataFrame containing the data for the specified country and method.
-    :rtype: pandas.DataFrame
-    """
-    if geo_extrapolation:
-        subfolder = "geo_extrapolation"
-    else:
-        subfolder = "geo_interpolation"
-    df = pd.read_csv(
-        "learn/results/{}/{}/{}.csv".format(country, subfolder, METHODS[method]["csv"])
-    )
-    return df
+#     ys_zero = ys[mask]
+#     xs = xs_nonzero + [val]
+#     ys = ys_nonzero + [min(ys_zero)]
+#     return np.array(xs), np.array(ys)
 
 
-def get_initial_poverty_gaps_and_rates(countries):
-    initial = {}
-    for country in countries:
-        df = _load_data(country, "oracle_gap", geo_extrapolation=True)
-        initial[country] = {
-            "gap": (df["post_transfer_poverty_gap"].max() / 2.15) * 100,
-            "rate": df["post_transfer_poverty_rate"].max() * 100,
-        }
-    return initial
+class CountryMethodPovertyResults:
+    def __init__(self, country, method, geo_extrapolation):
+        self.country = country
+        self.method = method
+        self.geo_extrapolation = geo_extrapolation
+        self.conversion_factor = self._get_conversion_factor()
+        self._get_min_poverty_gap_and_rate()
+        self._get_initial_poverty_gap_and_rate()
+        self._get_result_interpolators()
 
+    def _load_data(self, method):
+        """
+        Load the data for a specific country and method.
 
-def get_min_poverty_gaps_and_rates(countries, method="oracle_gap"):
-    min = {}
-    for country in countries:
-        df = _load_data(country, method, geo_extrapolation=True)
-        min[country] = {
-            "gap": (df["post_transfer_poverty_gap"].min() / 2.15) * 100,
-            "rate": df["post_transfer_poverty_rate"].min() * 100,
-        }
-    return min
+        :param country: The name of the country.
+        :type country: str
+        :param method: The method to load data for.
+        :type method: str
+        :return: A DataFrame containing the data for the specified country and method.
+        :rtype: pandas.DataFrame
+        """
+        if self.geo_extrapolation:
+            subfolder = "geo_extrapolation"
+        else:
+            subfolder = "geo_interpolation"
+        df = pd.read_csv(
+            "learn/results/{}/{}/{}.csv".format(
+                self.country, subfolder, METHODS[method]["csv"]
+            )
+        )
+        return df
 
-
-def prune_results(xs, ys, val=0.0):
-    mask = np.abs(xs - val) < 1e-3
-    if mask.sum() <= 1:
-        return xs, ys
-    xs_nonzero = list(np.array(xs)[~mask])
-    ys_nonzero = list(np.array(ys)[~mask])
-
-    ys_zero = ys[mask]
-    xs = xs_nonzero + [val]
-    ys = ys_nonzero + [min(ys_zero)]
-    return np.array(xs), np.array(ys)
-
-
-def get_conversion_factors(countries):
-    df = pd.read_csv("learn/eop_conversion_factor.csv")
-    conversion_factors = {}
-    for country in countries:
-        country_df = df[df["country"] == country]
+    def _get_conversion_factor(self):
+        df = pd.read_csv(AUX_DATA_CSV)
+        country_df = df[df["country"] == self.country]
         factor = (
             country_df["total_population_survey_year"].values[0]
             * 365
-            * 1.23
+            * 1.14  # Conversion factor from 2021 to 2023
             * (
-                country_df["PPP_conversion_factor_2017"].values[0]
-                / country_df["market_exchange_rate_2017"].values[0]
+                country_df["PPP_conversion_factor_2021"].values[0]
+                / country_df["market_exchange_rate_2021"].values[0]
             )
             / 1000000000
         )
-        conversion_factors[country] = factor
-    return conversion_factors
+        return factor
 
+    def _get_initial_poverty_gap_and_rate(self):
+        df = self._load_data(self.method)
+        self.initial_gap = (df["post_transfer_poverty_gap"].max() / C_BAR) * 100
+        self.initial_rate = df["post_transfer_poverty_rate"].max() * 100
 
-def get_country_interpolators(countries, method, geo_extrapolation):
-    country_interpolators = {}
-    conversion_factors = get_conversion_factors(countries)
+    def _get_min_poverty_gap_and_rate(self):
+        df = self._load_data(self.method)
+        self.min_gap = (df["post_transfer_poverty_gap"].min() / C_BAR) * 100
+        self.min_rate = df["post_transfer_poverty_rate"].min() * 100
 
-    initial = get_initial_poverty_gaps_and_rates(countries)
-
-    for country in countries:
-        df = _load_data(country, method, geo_extrapolation)
-        country_conversion_factor = conversion_factors[country]
-
-        gaps = list(df["post_transfer_poverty_gap"] * 100 / 2.15)
+    def _get_result_interpolators(self):
+        df = self._load_data(self.method)
+        country_conversion_factor = self.conversion_factor
+        gaps = list(df["post_transfer_poverty_gap"] * 100 / C_BAR)
         cost_gaps = list(df["policy_cost_per_capita"] * country_conversion_factor)
-
-        gaps.append(initial[country]["gap"])
+        gaps.append(self.initial_gap)
         cost_gaps.append(0.0)
 
-        gaps_pruned, cost_gaps_pruned = prune_results(
-            np.array(gaps), np.array(cost_gaps)
-        )
+        # gaps_pruned, cost_gaps_pruned = prune_results(
+        #    np.array(gaps), np.array(cost_gaps)
+        # )
 
         # print("gaps pruned", gaps_pruned)
-        country_gap_to_cost_interpolator = interp1d(
-            gaps_pruned, cost_gaps_pruned, kind="linear"
-        )
+        country_gap_to_cost_interpolator = interp1d(gaps, cost_gaps, kind="linear")
 
-        country_interpolators[country] = {}
-        country_interpolators[country][
-            "gap_to_cost_interpolator"
-        ] = country_gap_to_cost_interpolator
-
-        country_interpolators[country]["gap_to_cost_interpolator_domain"] = (
-            min(gaps_pruned),
-            max(gaps_pruned),
+        self.gap_to_cost_interpolator = country_gap_to_cost_interpolator
+        self.gap_to_cost_interpolator_domain = (
+            min(gaps),
+            max(gaps),
         )
         rates = list(df["post_transfer_poverty_rate"] * 100)
-        rates.append(initial[country]["rate"])
+        rates.append(self.initial_rate)
         rates1 = rates.copy()
         rates1.append(0.0)
         gaps1 = gaps.copy()
         gaps1.append(0.0)
-        gaps_pruned, rates_pruned = prune_results(np.array(gaps1), np.array(rates1))
+        # (np.array(gaps1), np.array(rates1))
         country_gap_to_rate_interpolator = interp1d(
-            gaps_pruned,
-            rates_pruned,
+            rates,
+            gaps,
             kind="linear",
         )
-        country_interpolators[country][
-            "gap_to_rate_interpolator"
-        ] = country_gap_to_rate_interpolator
+        self.rate_to_gap_interpolator = country_gap_to_rate_interpolator
 
-        country_interpolators[country]["gap_to_rate_interpolator_domain"] = (
-            min(gaps_pruned),
-            max(gaps_pruned),
+        self.rate_to_gap_interpolator_domain = (
+            min(gaps),
+            max(gaps),
         )
 
-        rates_pruned, costs_pruned = prune_results(np.array(rates), np.array(cost_gaps))
+        # rates_pruned, costs_pruned = prune_results(np.array(rates), np.array(cost_gaps))
         rate_to_cost_interpolator = interp1d(
-            rates_pruned,
-            costs_pruned,
+            rates,
+            cost_gaps,
             kind="linear",
         )
-        country_interpolators[country][
-            "rate_to_cost_interpolator"
-        ] = rate_to_cost_interpolator
-        country_interpolators[country]["rate_to_cost_interpolator_domain"] = (
-            min(rates_pruned),
-            max(rates_pruned),
+        self.rate_to_cost_interpolator = rate_to_cost_interpolator
+        self.rate_to_cost_interpolator_domain = (
+            min(rates),
+            max(rates),
         )
 
-    return country_interpolators
 
+class AggregatePovertyResults:
 
-def get_country_interpolators_fraction(countries, method, geo_extrapolation):
-    country_interpolators = {}
-    conversion_factors = get_conversion_factors(countries)
+    def __init__(self, countries, method, geo_extrapolation):
+        self.countries = countries
+        self.method = method
+        self.geo_extrapolation = geo_extrapolation
+        self.country_results = {
+            country: CountryMethodPovertyResults(country, method, geo_extrapolation)
+            for country in countries
+        }
+        self._get_country_weights_and_pop()
+        self._get_aggregate_interpolators()
 
-    initial = get_initial_poverty_gaps_and_rates(countries)
-
-    for country in countries:
-        df = _load_data(country, method, geo_extrapolation)
-        country_conversion_factor = conversion_factors[country]
-
-        gap_fractions = [0.0] + list(
-            (initial[country]["gap"] - (df["post_transfer_poverty_gap"] * 100 / 2.15))
-            * 100
-            / initial[country]["gap"]
+    def _get_country_weights_and_pop(self):
+        conversion_factors = pd.read_csv(AUX_DATA_CSV)
+        conversion_factors = conversion_factors[
+            conversion_factors["country"].isin(self.countries)
+        ]
+        conversion_factors["weight"] = (
+            conversion_factors["total_population_survey_year"]
+            / conversion_factors["total_population_survey_year"].sum()
+        )
+        self.country_weights = (
+            conversion_factors[["country", "weight", "total_population_survey_year"]]
+            .set_index("country")
+            .to_dict()
         )
 
-        cost_gaps = [0.0] + list(
-            df["policy_cost_per_capita"] * country_conversion_factor
+    def get_aggregate_ubi_cost(self):
+        aggregate_conversion_factor = sum(
+            [
+                self.country_results[country].conversion_factor
+                for country in self.countries
+            ]
+        )
+        return C_BAR * aggregate_conversion_factor
+
+    def get_initial_aggregate_gap_and_rate(self):
+        initial_gaps = [
+            self.country_results[country].initial_gap for country in self.countries
+        ]
+        initial_rates = [
+            self.country_results[country].initial_rate for country in self.countries
+        ]
+        weights = np.array(
+            [self.country_weights["weight"][country] for country in self.countries]
+        )
+        pop_weighted_initial_poverty_gap = (np.array(initial_gaps) * weights).sum()
+        pop_weighted_initial_poverty_rate = (np.array(initial_rates) * weights).sum()
+        return pop_weighted_initial_poverty_gap, pop_weighted_initial_poverty_rate
+
+    def get_min_aggregate_gap_and_rate(self):
+        min_gaps = [self.country_results[country].min_gap for country in self.countries]
+        min_rates = [
+            self.country_results[country].min_rate for country in self.countries
+        ]
+        weights = np.array(
+            [self.country_weights["weight"][country] for country in self.countries]
+        )
+        pop_weighted_min_poverty_gap = (np.array(min_gaps) * weights).sum()
+        pop_weighted_min_poverty_rate = (np.array(min_rates) * weights).sum()
+        return pop_weighted_min_poverty_gap, pop_weighted_min_poverty_rate
+
+    def get_max_min_gap_and_rate(self):
+        max_min_poverty_gap = max(
+            [self.country_results[country].min_gap for country in self.countries]
+        )
+        max_min_poverty_rate = max(
+            [self.country_results[country].min_rate for country in self.countries]
+        )
+        return max_min_poverty_gap, max_min_poverty_rate
+
+    def _get_aggregate_interpolators(self):
+        _, max_min_rate = self.get_max_min_gap_and_rate()
+        max_max_rate = max(
+            [self.country_results[country].initial_rate for country in self.countries]
+        )
+        weights = np.array(
+            [self.country_weights["weight"][country] for country in self.countries]
         )
 
-        pruned_gap_fractions, pruned_cost_gaps = prune_results(
-            np.array(gap_fractions), np.array(cost_gaps), val=100.0
-        )
-
-        country_gap_interpolator = interp1d(
-            pruned_gap_fractions,
-            pruned_cost_gaps,
-            kind="linear",
-        )
-
-        country_interpolators[country] = {}
-        country_interpolators[country]["gap_interpolator"] = country_gap_interpolator
-
-        rate_fractions = [0.0] + list(
-            (
-                (initial[country]["rate"] - (df["post_transfer_poverty_rate"] * 100))
-                / initial[country]["rate"]
+        wc_rates = np.linspace(max_min_rate, max_max_rate, 50)
+        agg_gaps = 0.0
+        agg_rates = 0.0
+        for i, country in enumerate(self.countries):
+            country_result = self.country_results[country]
+            country_actual_rates = np.clip(
+                wc_rates, a_min=None, a_max=country_result.initial_rate
             )
-            * 100
-        )
-        # rates.append(initial[country]["rate"] * country_conversion_factor)
-        cost_rates = [0.0] + list(
-            df["policy_cost_per_capita"] * country_conversion_factor
-        )
-
-        pruned_rate_fractions, pruned_cost_rates = prune_results(
-            np.array(rate_fractions), np.array(cost_rates), val=100.0
-        )
-        # cost_rates.append(0.0)
-        country_rate_interpolator = interp1d(
-            pruned_rate_fractions,
-            pruned_cost_rates,
-            kind="linear",
-        )
-        country_interpolators[country]["rate_interpolator"] = country_rate_interpolator
-    return country_interpolators
-
-
-def get_aggregate_interpolators_fraction(countries, method, geo_extrapolation):
-    country_interpolators = get_country_interpolators_fraction(
-        countries, method, geo_extrapolation
-    )
-
-    # Compute aggregate rate interpolator
-    fracs = np.linspace(0, 100, 200)
-    costs = []
-    for country in countries:
-        country_gap_interpolator = country_interpolators[country]["gap_interpolator"]
-        costs.append(np.clip(country_gap_interpolator(fracs), a_min=0.0, a_max=None))
-    costs = np.array(costs)
-    aggregate_gap_costs = np.sum(costs, axis=0)
-    aggregate_gap_interpolator = interp1d(fracs, aggregate_gap_costs, kind="linear")
-
-    # Compute aggregate rate interpolator
-    rate_costs = []
-    for country in countries:
-        country_rate_interpolator = country_interpolators[country]["rate_interpolator"]
-        rate_costs.append(
-            np.clip(country_rate_interpolator(fracs), a_min=0.0, a_max=None)
-        )
-    rate_costs = np.array(rate_costs)
-    aggregate_rate_costs = np.sum(rate_costs, axis=0)
-    aggregate_rate_interpolator = interp1d(fracs, aggregate_rate_costs, kind="linear")
-
-    return {
-        "gap": {
-            "interpolator": aggregate_gap_interpolator,
-            "range": (fracs[0], fracs[-1]),
-        },
-        "rate": {
-            "interpolator": aggregate_rate_interpolator,
-            "range": (fracs[0], fracs[-1]),
-        },
-    }
-
-
-def get_country_weights(countries):
-    conversion_factors = pd.read_csv("learn/eop_conversion_factor.csv")
-    conversion_factors = conversion_factors[
-        conversion_factors["country"].isin(countries)
-    ]
-    conversion_factors["weight"] = (
-        conversion_factors["total_population_survey_year"]
-        / conversion_factors["total_population_survey_year"].sum()
-    )
-    return (
-        conversion_factors[["country", "weight", "total_population_survey_year"]]
-        .set_index("country")
-        .to_dict()
-    )
-
-
-def get_wc_gap_to_actual_gap_country(initial, country, wc_gaps):
-    actual_gaps = np.clip(wc_gaps, a_min=None, a_max=initial[country]["gap"])
-    return actual_gaps
-
-
-def get_wc_rate_to_actual_rate_country(initial, country, wc_rates):
-    actual_rates = np.clip(wc_rates, a_min=None, a_max=initial[country]["rate"])
-    return actual_rates
-
-
-def get_wc_gap_to_actual_rate_country(initial, country_interpolators, country, wc_gaps):
-    actual_gaps = get_wc_gap_to_actual_gap_country(initial, country, wc_gaps)
-    actual_rates = country_interpolators[country]["gap_to_rate_interpolator"](
-        actual_gaps
-    )
-    return actual_rates
-
-
-def get_aggregate_conversion_factor(countries):
-    conversion_factors = get_conversion_factors(countries)
-    aggregate_conversion_factor = (
-        np.array([conversion_factors[country] for country in countries])
-    ).sum()
-    return aggregate_conversion_factor
-
-
-def get_aggregate_ubi_cost(countries):
-    aggregate_conversion_factor = get_aggregate_conversion_factor(countries)
-    return 2.15 * aggregate_conversion_factor
-
-
-def get_initial_aggregate_gap_and_rate(countries):
-    initial = get_initial_poverty_gaps_and_rates(countries)
-    country_weights = get_country_weights(countries)
-    weights = np.array([country_weights["weight"][country] for country in countries])
-    pop_weighted_initial_poverty_gap = (
-        np.array([initial[country]["gap"] for country in countries]) * weights
-    ).sum()
-    pop_weighted_initial_poverty_rate = (
-        np.array([initial[country]["rate"] for country in countries]) * weights
-    ).sum()
-    return pop_weighted_initial_poverty_gap, pop_weighted_initial_poverty_rate
-
-
-def get_aggregate_interpolators_population_weighted_poverty_measure_global_gap(
-    countries, method, geo_extrapolation
-):
-    initial = get_initial_poverty_gaps_and_rates(countries)
-    country_weights = get_country_weights(countries)
-    weights = np.array([country_weights["weight"][country] for country in countries])
-    pop_weighted_initial_poverty_gap, pop_weighted_initial_poverty_rate = (
-        get_initial_aggregate_gap_and_rate(countries)
-    )
-
-    min = get_min_poverty_gaps_and_rates(countries)
-    min_poverty_gap = max([min[country]["gap"] for country in countries])
-    min_poverty_rate = max([min[country]["rate"] for country in countries])
-
-    max_initial_poverty_gap = max([initial[country]["gap"] for country in countries])
-    country_interpolators = get_country_interpolators(
-        countries, method, geo_extrapolation
-    )
-
-    gaps = np.linspace(min_poverty_gap, max_initial_poverty_gap, 200)
-    agg_gaps = 0.0
-    agg_rates = 0.0
-    for i, country in enumerate(countries):
-        agg_gaps += (
-            get_wc_gap_to_actual_gap_country(initial, country, wc_gaps=gaps)
-            * weights[i]
-        )
-        agg_rates += (
-            get_wc_gap_to_actual_rate_country(
-                initial,
-                country_interpolators=country_interpolators,
-                country=country,
-                wc_gaps=gaps,
+            weighted_country_actual_rates = country_actual_rates * weights[i]
+            weighted_country_actual_gaps = (
+                country_result.rate_to_gap_interpolator(country_actual_rates)
+                * weights[i]
             )
-            * weights[i]
+            agg_rates += weighted_country_actual_rates
+            agg_gaps += weighted_country_actual_gaps
+
+        aggregate_interpolator_wc_rate_to_actual_gap = interp1d(
+            wc_rates, agg_gaps, kind="linear"
         )
-    # print(max(agg_gaps), pop_weighted_initial_poverty_gap)
-    np.testing.assert_almost_equal(
-        max(agg_gaps), pop_weighted_initial_poverty_gap, decimal=2
-    )
-    # assert max(agg_rates) == pop_weighted_initial_poverty_rate
+        aggregate_interpolator_wc_rate_to_actual_rate = interp1d(
+            wc_rates, agg_rates, kind="linear"
+        )
 
-    # print(gaps)
-    # print(agg_gaps)
-    # print(agg_rates)
-    aggregate_interpolator_wc_gap_to_actual_gap = interp1d(
-        gaps, agg_gaps, kind="linear"
-    )
-
-    aggregate_interpolator_wc_gap_to_actual_rate = interp1d(
-        gaps, agg_rates, kind="linear"
-    )
-
-    # print("wc gaps", gaps)
-    # print("agg_gaps", agg_gaps)
-    # print("agg_rates", agg_rates)
-
-    # Compute wc gap to cost interpolator
-    country_costs = []
-    for country in countries:
-        country_actual_gaps = np.clip(gaps, a_min=None, a_max=initial[country]["gap"])
-        country_costs.append(
-            np.clip(
-                country_interpolators[country]["gap_to_cost_interpolator"](
-                    country_actual_gaps
-                ),
-                a_min=0.0,
-                a_max=None,
+        agg_costs = 0.0
+        for i, country in enumerate(self.countries):
+            country_result = self.country_results[country]
+            country_actual_rates = np.clip(
+                wc_rates, a_min=None, a_max=country_result.initial_rate
             )
-        )
-        # print(country_actual_gaps)
-        # print(country_costs)
-    costs = np.array(country_costs)
-    aggregate_gap_costs = np.sum(costs, axis=0)
-
-    aggregate_interpolator_actual_gap_to_cost = interp1d(
-        aggregate_interpolator_wc_gap_to_actual_gap(gaps),
-        aggregate_gap_costs,
-        kind="linear",
-    )
-    aggregate_interpolator_actual_rate_to_cost = interp1d(
-        aggregate_interpolator_wc_gap_to_actual_rate(gaps),
-        aggregate_gap_costs,
-        kind="linear",
-    )
-
-    return {
-        "gap": {
-            "interpolator": aggregate_interpolator_actual_gap_to_cost,
-            "range": (min_poverty_gap, pop_weighted_initial_poverty_gap),
-        },
-        "rate": {
-            "interpolator": aggregate_interpolator_actual_rate_to_cost,
-            "range": (min_poverty_rate, pop_weighted_initial_poverty_rate),
-        },
-    }
-
-
-def get_aggregate_interpolators_population_weighted_poverty_measure(
-    countries, method, geo_extrapolation
-):
-    initial = get_initial_poverty_gaps_and_rates(countries)
-    country_weights = get_country_weights(countries)
-    weights = np.array([country_weights["weight"][country] for country in countries])
-    pop_weighted_initial_poverty_gap, pop_weighted_initial_poverty_rate = (
-        get_initial_aggregate_gap_and_rate(countries)
-    )
-
-    min_stuff = get_min_poverty_gaps_and_rates(countries, method)
-    min_poverty_gap = max([min_stuff[country]["gap"] for country in countries])
-    min_poverty_rate = max([min_stuff[country]["rate"] for country in countries])
-
-    max_initial_poverty_gap = max([initial[country]["gap"] for country in countries])
-    max_initial_poverty_rate = max([initial[country]["rate"] for country in countries])
-    country_interpolators = get_country_interpolators(
-        countries, method, geo_extrapolation
-    )
-
-    gaps = np.linspace(min_poverty_gap, max_initial_poverty_gap, 200)
-    rates = np.linspace(min_poverty_rate, max_initial_poverty_rate, 200)
-    agg_gaps = 0.0
-    agg_rates = 0.0
-    for i, country in enumerate(countries):
-        agg_gaps += (
-            get_wc_gap_to_actual_gap_country(initial, country, wc_gaps=gaps)
-            * weights[i]
-        )
-        agg_rates += (
-            get_wc_rate_to_actual_rate_country(initial, country=country, wc_rates=rates)
-            * weights[i]
-        )
-    np.testing.assert_almost_equal(
-        max(agg_rates), pop_weighted_initial_poverty_rate, decimal=2
-    )
-    # assert max(agg_rates) == pop_weighted_initial_poverty_rate
-
-    aggregate_interpolator_wc_gap_to_actual_gap = interp1d(
-        gaps, agg_gaps, kind="linear"
-    )
-
-    aggregate_interpolator_wc_rate_to_actual_rate = interp1d(
-        rates, agg_rates, kind="linear"
-    )
-
-    # Compute wc gap to cost interpolator
-    country_costs_gaps = []
-    country_costs_rates = []
-    for country in countries:
-        country_actual_gaps = get_wc_gap_to_actual_gap_country(
-            initial, country, wc_gaps=gaps
-        )
-
-        country_actual_rates = get_wc_rate_to_actual_rate_country(
-            initial, country=country, wc_rates=rates
-        )
-        domain_gap = country_interpolators[country]["gap_to_cost_interpolator_domain"]
-        assert min(country_actual_gaps) >= domain_gap[0]
-        assert max(country_actual_gaps) <= domain_gap[1]
-
-        domain_rate = country_interpolators[country]["rate_to_cost_interpolator_domain"]
-        assert min(country_actual_rates) >= domain_rate[0]
-        assert max(country_actual_rates) <= domain_rate[1]
-
-        country_costs_gaps.append(
-            np.clip(
-                country_interpolators[country]["gap_to_cost_interpolator"](
-                    country_actual_gaps
-                ),
-                a_min=0.0,
-                a_max=None,
+            country_actual_costs = country_result.rate_to_cost_interpolator(
+                country_actual_rates
             )
-        )
-        country_costs_rates.append(
-            np.clip(
-                country_interpolators[country]["rate_to_cost_interpolator"](
-                    country_actual_rates
-                ),
-                a_min=0.0,
-                a_max=None,
-            )
-        )
-    costs_gap = np.array(country_costs_gaps)
-    costs_rates = np.array(country_costs_rates)
-    aggregate_gap_costs = np.sum(costs_gap, axis=0)
-    aggregate_rate_costs = np.sum(costs_rates, axis=0)
+            agg_costs += country_actual_costs
 
-    x1s = aggregate_interpolator_wc_gap_to_actual_gap(gaps)
-    aggregate_interpolator_actual_gap_to_cost = interp1d(
-        x1s,
-        aggregate_gap_costs,
-        kind="linear",
-    )
-    x2s = aggregate_interpolator_wc_rate_to_actual_rate(rates)
-    aggregate_interpolator_actual_rate_to_cost = interp1d(
-        x2s,
-        aggregate_rate_costs,
-        kind="linear",
-    )
+        aggregate_interpolator_wc_rate_to_costs = interp1d(
+            wc_rates, agg_costs, kind="linear"
+        )
 
-    return {
-        "gap": {
-            "interpolator": aggregate_interpolator_actual_gap_to_cost,
-            "range": (min(x1s), max(x1s)),
-        },
-        "rate": {
-            "interpolator": aggregate_interpolator_actual_rate_to_cost,
-            "range": (min(x2s), max(x2s)),
-        },
-    }
+        actual_rates = aggregate_interpolator_wc_rate_to_actual_rate(wc_rates)
+        actual_gaps = aggregate_interpolator_wc_rate_to_actual_gap(wc_rates)
+        actual_costs = aggregate_interpolator_wc_rate_to_costs(wc_rates)
+
+        self.aggregate_interpolator_rate_to_cost = interp1d(
+            actual_rates, actual_costs, kind="linear"
+        )
+
+        self.aggregate_interpolator_gap_to_cost = interp1d(
+            actual_gaps, actual_costs, kind="linear"
+        )
+        self.aggregate_interpolator_rate_domain = (min(actual_rates), max(actual_rates))
+        self.aggregate_interpolator_gap_domain = (min(actual_gaps), max(actual_gaps))

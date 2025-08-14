@@ -25,5 +25,6 @@ from opt_targeted_transfers.conditional_improvement import (
 from opt_targeted_transfers.reporting import write_result
 from opt_targeted_transfers.prediction import (
     get_pmt_nn_regressor,
+    get_pmt_lasso_regressor,
     get_mse_loss
 )

@@ -6,7 +6,7 @@ import copy
 
 
 def get_avg_estimated_benefit(
-    validation_dataset, loss_type, idx_to_receive_transfers, t, c_bar=2.15
+    validation_dataset, loss_type, idx_to_receive_transfers, t, c_bar
 ):
     X, y, r = validation_dataset.get_data()
 
@@ -26,7 +26,7 @@ def get_avg_estimated_benefit(
 
 
 def get_conditional_improvement_loss(
-    validation_dataset, loss_type, predictor, t, c_bar=2.15
+    validation_dataset, loss_type, predictor, t, c_bar
 ):
     """
     Get the conditional gap improvement loss for a given transfer size.
@@ -65,7 +65,7 @@ def get_conditional_improvement_regressor(
     validation_dataset,
     loss_type,
     t,
-    c_bar=2.15,
+    c_bar,
     n_layers=1,
     n_hidden_units=64,
     lr=5e-3,
