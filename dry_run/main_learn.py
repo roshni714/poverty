@@ -354,10 +354,6 @@ def main(
     for key in config_keys:
         if key in LEARNING_METHODS:
             method = LEARNING_METHODS[key]
-            if "oracle" in key:
-                budgets = oracle_budgets
-            else:
-                budgets = budgets
             method(
                 train_dataset,
                 validation_dataset,
@@ -370,12 +366,16 @@ def main(
                 savepath=savepath,
             )
         elif key in NONLEARNING_METHODS:
+            if "oracle" in key:
+                learn_budgets = oracle_budgets
+            else:
+                learn_budgets = budgets
             method = NONLEARNING_METHODS[key]
             method(
                 test_covariate_dataset,
                 test_dataset,
                 povertyline=povertyline,
-                budgets=budgets,
+                budgets=learn_budgets,
                 savepath=savepath,
             )
         else:

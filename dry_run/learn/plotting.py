@@ -65,16 +65,16 @@ def make_plot_for_country(
             np.ones(50) * povertyline * results[0].conversion_factor,
             linestyle="--",
             color=METHODS["ubi"]["color"],
-            label="UBI $3.00",
+            label="UBI ${}".format(povertyline),
         )
         ax[0].plot(
             np.linspace(0.0, results[i].initial_rate),
             np.ones(50) * povertyline * results[0].conversion_factor,
             linestyle="--",
             color=METHODS["ubi"]["color"],
-            label="UBI $3.00",
+            label="UBI ${}".format(povertyline),
         )
-        print("ubi $3.00", povertyline * results[0].conversion_factor)
+        print("ubi ${}".format(povertyline), povertyline * results[0].conversion_factor)
 
     for i, method in enumerate(method_list):
         dic = methods[method]
