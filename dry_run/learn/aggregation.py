@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 from scipy.interpolate import interp1d
 from sklearn.linear_model import LinearRegression
-from constants import C_BAR
 
 METHODS = {
     "oracle_gap": {
@@ -55,7 +54,8 @@ METHODS = {
     },
 }
 
-AUX_DATA_CSV = "learn/aux_data_07302025.csv"
+COUNTRY_AUX_DATA_CSV = "learn/aux_data_20250813.csv"
+SECONDARY_AUX_DATA_CSV = ""
 
 # def prune_results(xs, ys, val=0.0):
 #     mask = np.abs(xs - val) < 1e-3
@@ -71,10 +71,12 @@ AUX_DATA_CSV = "learn/aux_data_07302025.csv"
 
 
 class CountryMethodPovertyResults:
-    def __init__(self, country, method, geo_extrapolation):
+    def __init__(self, country, method, geo_extrapolation, povertyline, year):
         self.country = country
         self.method = method
         self.geo_extrapolation = geo_extrapolation
+        self.year = year
+        self.povertyline = povertyline
         self.conversion_factor = self._get_conversion_factor()
         self._get_min_poverty_gap_and_rate()
         self._get_initial_poverty_gap_and_rate()
@@ -96,50 +98,55 @@ class CountryMethodPovertyResults:
         else:
             subfolder = "geo_interpolation"
         df = pd.read_csv(
-            "learn/results/{}/{}/{}.csv".format(
-                self.country, subfolder, METHODS[method]["csv"]
+            "learn/results/{}/{}/year={}/{}.csv".format(
+                self.country, subfolder, self.year, METHODS[method]["csv"]
             )
         )
         return df
 
     def _get_conversion_factor(self):
-        df = pd.read_csv(AUX_DATA_CSV)
+        df = pd.read_csv(COUNTRY_AUX_DATA_CSV)
+        # second_df = pd.read_csv(SECONDARY_AUX_DATA_CSV)
+        # nominal_conversion_factor = second_df["conversion_factor_nominal_USD_{}_to_2023".format(self.year)].values[0]
+        print("WARNING: FIX HARDCODED NOMINAL CONVERSION FACTOR")
+        if self.year == 2021:
+            nominal_conversion_factor = 1.14
+        elif self.year == 2017:
+            nominal_conversion_factor = 1.26
+
         country_df = df[df["country"] == self.country]
         factor = (
             country_df["total_population_survey_year"].values[0]
             * 365
-            * 1.14  # Conversion factor from 2021 to 2023
+            * nominal_conversion_factor  # Conversion factor from 2021 to 2023
             * (
-                country_df["PPP_conversion_factor_2021"].values[0]
-                / country_df["market_exchange_rate_2021"].values[0]
+                country_df["PPP_conversion_factor_{}".format(self.year)].values[0]
+                / country_df["market_exchange_rate_{}".format(self.year)].values[0]
             )
             / 1000000000
         )
         return factor
 
     def _get_initial_poverty_gap_and_rate(self):
-        df = self._load_data(self.method)
-        self.initial_gap = (df["post_transfer_poverty_gap"].max() / C_BAR) * 100
+        df = self._load_data("oracle_gap")
+        self.initial_gap = (
+            df["post_transfer_poverty_gap"].max() / self.povertyline
+        ) * 100
         self.initial_rate = df["post_transfer_poverty_rate"].max() * 100
 
     def _get_min_poverty_gap_and_rate(self):
         df = self._load_data(self.method)
-        self.min_gap = (df["post_transfer_poverty_gap"].min() / C_BAR) * 100
+        self.min_gap = (df["post_transfer_poverty_gap"].min() / self.povertyline) * 100
         self.min_rate = df["post_transfer_poverty_rate"].min() * 100
 
     def _get_result_interpolators(self):
         df = self._load_data(self.method)
         country_conversion_factor = self.conversion_factor
-        gaps = list(df["post_transfer_poverty_gap"] * 100 / C_BAR)
+        gaps = list(df["post_transfer_poverty_gap"] * 100 / self.povertyline)
         cost_gaps = list(df["policy_cost_per_capita"] * country_conversion_factor)
         gaps.append(self.initial_gap)
         cost_gaps.append(0.0)
 
-        # gaps_pruned, cost_gaps_pruned = prune_results(
-        #    np.array(gaps), np.array(cost_gaps)
-        # )
-
-        # print("gaps pruned", gaps_pruned)
         country_gap_to_cost_interpolator = interp1d(gaps, cost_gaps, kind="linear")
 
         self.gap_to_cost_interpolator = country_gap_to_cost_interpolator
@@ -155,15 +162,15 @@ class CountryMethodPovertyResults:
         gaps1.append(0.0)
         # (np.array(gaps1), np.array(rates1))
         country_gap_to_rate_interpolator = interp1d(
-            rates,
-            gaps,
+            rates1,
+            gaps1,
             kind="linear",
         )
         self.rate_to_gap_interpolator = country_gap_to_rate_interpolator
 
         self.rate_to_gap_interpolator_domain = (
-            min(gaps),
-            max(gaps),
+            min(rates1),
+            max(rates1),
         )
 
         # rates_pruned, costs_pruned = prune_results(np.array(rates), np.array(cost_gaps))
@@ -181,28 +188,30 @@ class CountryMethodPovertyResults:
 
 class AggregatePovertyResults:
 
-    def __init__(self, countries, method, geo_extrapolation):
+    def __init__(self, countries, method, geo_extrapolation, year, povertyline):
         self.countries = countries
         self.method = method
         self.geo_extrapolation = geo_extrapolation
+        self.year = year
+        self.povertyline = povertyline
         self.country_results = {
-            country: CountryMethodPovertyResults(country, method, geo_extrapolation)
+            country: CountryMethodPovertyResults(
+                country, method, geo_extrapolation, povertyline, year
+            )
             for country in countries
         }
         self._get_country_weights_and_pop()
         self._get_aggregate_interpolators()
 
     def _get_country_weights_and_pop(self):
-        conversion_factors = pd.read_csv(AUX_DATA_CSV)
-        conversion_factors = conversion_factors[
-            conversion_factors["country"].isin(self.countries)
-        ]
-        conversion_factors["weight"] = (
-            conversion_factors["total_population_survey_year"]
-            / conversion_factors["total_population_survey_year"].sum()
+        df = pd.read_csv(COUNTRY_AUX_DATA_CSV)
+        df = df[df["country"].isin(self.countries)]
+        df["weight"] = (
+            df["total_population_survey_year"]
+            / df["total_population_survey_year"].sum()
         )
         self.country_weights = (
-            conversion_factors[["country", "weight", "total_population_survey_year"]]
+            df[["country", "weight", "total_population_survey_year"]]
             .set_index("country")
             .to_dict()
         )
@@ -214,7 +223,7 @@ class AggregatePovertyResults:
                 for country in self.countries
             ]
         )
-        return C_BAR * aggregate_conversion_factor
+        return self.povertyline * aggregate_conversion_factor
 
     def get_initial_aggregate_gap_and_rate(self):
         initial_gaps = [
@@ -260,7 +269,7 @@ class AggregatePovertyResults:
             [self.country_weights["weight"][country] for country in self.countries]
         )
 
-        wc_rates = np.linspace(max_min_rate, max_max_rate, 50)
+        wc_rates = np.linspace(max_min_rate, max_max_rate, 200)
         agg_gaps = 0.0
         agg_rates = 0.0
         for i, country in enumerate(self.countries):

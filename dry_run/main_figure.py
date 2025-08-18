@@ -13,6 +13,7 @@ from learn import (
     get_extrapolation,
     make_macro_file,
 )
+import argh
 
 METHODS_ALL = [
     "ubi",
@@ -42,181 +43,252 @@ COUNTRIES = [
     "cote_divoire",
     "ghana",
     "guinea_bissau",
-    "senegal",
-    "mali",
+    "kenya",
     "malawi",
+    "mali",
     "niger",
     "nigeria",
     "senegal",
+    "south_africa",
+    "south_sudan",
+    "tanzania",
+    "togo",
+    "uganda",
 ]
 
 
-def get_malawi_rate_vs_gap_figure_1():
+def get_malawi_rate_vs_gap_figure_1(povertyline, year):
     make_plot_for_country(
         "malawi",
         METHODS_RATE_VS_GAP,
+        povertyline=povertyline,
+        year=year,
         geo_extrapolation=True,
-        save_as="exhibits/figs/paper-figure-1-malawi_rate_vs_gap",
+        save_as="exhibits/year={}/figs/paper-figure-1-malawi_rate_vs_gap".format(year),
         ubi_off=True,
     )
 
 
-def get_malawi_rate_vs_gap_figure_1a_cont():
+def get_malawi_rate_vs_gap_figure_1a_cont(povertyline, year):
     make_plot_for_country(
         "malawi",
         METHODS_RATE_VS_GAP_CONT,
+        povertyline=povertyline,
+        year=year,
         geo_extrapolation=True,
-        save_as="exhibits/figs/presentation-figure-malawi_rate_vs_gap_cont",
+        save_as="exhibits/year={}/figs/presentation-figure-malawi_rate_vs_gap_cont".format(
+            year
+        ),
         ubi_off=True,
     )
 
 
-def get_malawi_headline_figure_2():
+def get_malawi_headline_figure_2(povertyline, year):
     make_plot_for_country(
         "malawi",
         METHODS_HEADLINE,
+        povertyline=povertyline,
+        year=year,
         geo_extrapolation=True,
-        save_as="exhibits/figs/paper-figure-2-malawi_headline",
+        save_as="exhibits/year={}/figs/paper-figure-2-malawi_headline".format(year),
         ubi_off=False,
     )
 
 
-def get_headline_figure_3():
+def get_headline_figure_3(povertyline, year):
     aggregate_plot(
         COUNTRIES,
         METHODS_HEADLINE,
+        povertyline=povertyline,
+        year=year,
         geo_extrapolation=True,
-        save_as="exhibits/figs/paper-figure-3-headline",
+        save_as="exhibits/year={}/figs/paper-figure-3-headline".format(year),
     )
 
 
-def get_rate_vs_gap_headline_figure_4():
+def get_rate_vs_gap_headline_figure_4(povertyline, year):
     aggregate_plot(
         COUNTRIES,
         METHODS_RATE_VS_GAP,
+        povertyline=povertyline,
+        year=year,
         geo_extrapolation=True,
-        save_as="exhibits/figs/paper-figure-4-rate_gap_comparison",
+        save_as="exhibits/year={}/figs/paper-figure-4-rate_gap_comparison".format(year),
     )
 
 
-def get_oracle_ratio_figure_5():
+def get_oracle_ratio_figure_5(povertyline, year):
     plot_bar_chart_oracle_ratio(
-        COUNTRIES, save_as="exhibits/figs/paper-figure-5-oracle_ratio"
+        COUNTRIES,
+        povertyline=povertyline,
+        year=year,
+        save_as="exhibits/year={}/figs/paper-figure-5-oracle_ratio".format(year),
     )
 
 
-def get_ubi_ratio_figure_6():
+def get_ubi_ratio_figure_6(povertyline, year):
     plot_bar_chart_ubi_ratio(
-        COUNTRIES, save_as="exhibits/figs/paper-figure-6-ubi_ratio"
+        COUNTRIES,
+        povertyline=povertyline,
+        year=year,
+        save_as="exhibits/year={}/figs/paper-figure-6-ubi_ratio".format(year),
     )
 
 
-def get_gdp_plot_figure_7():
+def get_gdp_plot_figure_7(povertyline, year):
     plot_bar_chart_policy_amt_as_percent_of_gdp(
-        COUNTRIES, True, save_as="exhibits/figs/paper-figure-7-policy_cost_gdp"
+        COUNTRIES,
+        True,
+        povertyline=povertyline,
+        year=year,
+        save_as="exhibits/year={}/figs/paper-figure-7-policy_cost_gdp".format(year),
     )
 
 
-def get_appendix_table_out_of_sample_rmse():
+def get_appendix_table_out_of_sample_rmse(povertyline, year):
     get_table_out_of_sample_rmse(
         COUNTRIES,
-        save_as="exhibits/tables/appendix-table-2-out_of_sample_rmse",
+        povertyline=povertyline,
+        year=year,
+        save_as="exhibits/year={}/tables/appendix-table-2-out_of_sample_rmse".format(
+            year
+        ),
     )
 
 
-def get_appendix_table_policy_cost_insample():
+def get_appendix_table_policy_cost_insample(povertyline, year):
     get_table_policy_cost_gdp_oda(
-        COUNTRIES, save_as="exhibits/tables/appendix-table-3-policy_cost_gdp_oda"
+        COUNTRIES,
+        povertyline=povertyline,
+        year=year,
+        save_as="exhibits/year={}/tables/appendix-table-3-policy_cost_gdp_oda".format(
+            year
+        ),
     )
 
 
-def get_appendix_table_policy_cost_out_of_sample():
+def get_appendix_table_policy_cost_out_of_sample(povertyline, year):
     get_extrapolation(
-        COUNTRIES, save_as="exhibits/tables/appendix-table-4-policy_cost_out_of_sample"
+        COUNTRIES,
+        povertyline=povertyline,
+        year=year,
+        save_as="exhibits/year={}/tables/appendix-table-4-policy_cost_out_of_sample".format(
+            year
+        ),
     )
 
 
-def get_appendix_table_oecd():
-    total_cost, _, _, _ = get_extrapolation(COUNTRIES)
-    get_table_oecd(total_cost, save_as="exhibits/tables/appendix-table-5-oecd")
+def get_appendix_table_oecd(povertyline, year):
+    total_cost, _, _, _ = get_extrapolation(
+        COUNTRIES, povertyline=povertyline, year=year
+    )
+    get_table_oecd(
+        total_cost, save_as="exhibits/year={}/tables/appendix-table-5-oecd".format(year)
+    )
 
 
-def get_appendix_table_oecd_plus_china():
-    total_cost, _, _, _ = get_extrapolation(COUNTRIES)
+def get_appendix_table_oecd_plus_china(povertyline, year):
+    total_cost, _, _, _ = get_extrapolation(
+        COUNTRIES, povertyline=povertyline, year=year
+    )
     get_table_oecd_plus_china(
-        total_cost, save_as="exhibits/tables/appendix-table-6-oecd_plus_china"
+        total_cost,
+        save_as="exhibits/year={}/tables/appendix-table-6-oecd_plus_china".format(year),
     )
 
 
-def get_appendix_table_diff_between_ubi_and_targeting():
+def get_appendix_table_diff_between_ubi_and_targeting(povertyline, year):
     get_table_diff_between_ubi_and_targeting(
         COUNTRIES,
-        save_as="exhibits/tables/appendix-table-7-diff_between_ubi_and_targeting",
+        povertyline=povertyline,
+        year=year,
+        save_as="exhibits/year={}/tables/appendix-table-7-diff_between_ubi_and_targeting".format(
+            year
+        ),
     )
 
 
-def get_country_level_analysis():
+def get_country_level_analysis(povertyline, year):
     for country in COUNTRIES:
         make_plot_for_country(
             country,
             METHODS_ALL,
             geo_extrapolation=True,
-            save_as="exhibits/figs/appendix-figure-{}".format(country),
+            povertyline=povertyline,
+            year=year,
+            save_as="exhibits/year={}/figs/appendix-figure-{}".format(year, country),
             ubi_off=False,
         )
 
 
-def make_presentation_figures():
-    aggregate_headline_rate_plot(
+def make_presentation_figures(povertyline, year):
+    aggregate_plot(
         COUNTRIES,
         ["ubi"],
+        povertyline=povertyline,
+        year=year,
         geo_extrapolation=True,
-        save_as="exhibits/figs/presentation-figure-1-ubi",
+        save_as="exhibits/presentation/year={}/figure-1-ubi".format(year),
     )
-    aggregate_headline_rate_plot(
+    aggregate_plot(
         COUNTRIES,
         ["ubi", "oracle_gap"],
+        povertyline=povertyline,
+        year=year,
         geo_extrapolation=True,
-        save_as="exhibits/figs/presentation-figure-2-oracle",
+        save_as="exhibits/presentation/figure-2-oracle",
     )
-    aggregate_headline_rate_plot(
+    aggregate_plot(
         COUNTRIES,
-        ["ubi", "modern_pmt", "pmt", "oracle_gap"],
+        povertyline=povertyline,
+        year=year,
+        methods=["ubi", "modern_pmt", "pmt", "oracle_gap"],
         geo_extrapolation=True,
-        save_as="exhibits/figs/presentation-figure-3-modern_pmt-pmt",
+        save_as="exhibits/presentation/figure-3-modern_pmt-pmt",
     )
-    aggregate_headline_rate_plot(
+    aggregate_plot(
         COUNTRIES,
         ["ubi", "modern_pmt", "pmt", "continuous_gap", "oracle_gap"],
         geo_extrapolation=True,
-        save_as="exhibits/figs/presentation-figure-4-gap",
+        save_as="exhibits/presentation/figure-4-gap",
     )
-    aggregate_headline_rate_plot(
+    aggregate_plot(
         COUNTRIES,
         ["ubi", "modern_pmt", "pmt", "binary_gap", "continuous_gap", "oracle_gap"],
         geo_extrapolation=True,
-        save_as="exhibits/figs/presentation-figure-5-binary-gap",
+        save_as="exhibits/presentation/figure-5-binary-gap",
     )
 
 
-if __name__ == "__main__":
-    os.makedirs("exhibits", exist_ok=True)
-    os.makedirs("exhibits/figs", exist_ok=True)
-    os.makedirs("exhibits/tables", exist_ok=True)
-    get_malawi_rate_vs_gap_figure_1()
-    # get_malawi_rate_vs_gap_figure_1a_cont()
-    get_malawi_headline_figure_2()
-    get_headline_figure_3()
-    # get_ubi_ratio_figure_6()
-    # get_oracle_ratio_figure_5()
-    get_rate_vs_gap_headline_figure_4()
-    # get_gdp_plot_figure_7()
+@argh.arg("--year", help="Year to generate figures for", type=int, default=2021)
+def main(year=2021):
+    os.makedirs(f"exhibits/year={year}/figs", exist_ok=True)
+    os.makedirs(f"exhibits/year={year}/tables", exist_ok=True)
+
+    if year == 2017:
+        povertyline = 2.15
+    elif year == 2021:
+        povertyline = 3.0
+
+    get_malawi_rate_vs_gap_figure_1(povertyline, year)
+    get_malawi_headline_figure_2(povertyline, year)
+    get_headline_figure_3(povertyline, year)
+    get_rate_vs_gap_headline_figure_4(povertyline, year)
+    get_oracle_ratio_figure_5(povertyline, year)
+    get_ubi_ratio_figure_6(povertyline, year)
+    # get_gdp_plot_figure_7(povertyline, year)
     # get_appendix_table_out_of_sample_rmse()
     # get_appendix_table_policy_cost_insample()
     # get_appendix_table_policy_cost_out_of_sample()
     # get_appendix_table_oecd()
     # get_appendix_table_oecd_plus_china()
     # get_appendix_table_diff_between_ubi_and_targeting()
-    get_country_level_analysis()
+    get_country_level_analysis(povertyline, year)
     # make_macro_file(COUNTRIES, save_as="exhibits/empirical_macros")
     # make_presentation_figures()
+
+
+if __name__ == "__main__":
+    _parser = argh.ArghParser()
+    _parser.add_commands([main])
+    _parser.dispatch()

@@ -3,6 +3,8 @@ import numpy as np
 
 from opt_targeted_transfers import Dataset, split
 
+AUX_DATA_CSV = "learn/aux_data_20250813.csv"
+
 
 def get_data_for_geo_extrapolation(data, summary, geo_extrapolation):
     """
@@ -39,7 +41,9 @@ def get_data_for_geo_extrapolation(data, summary, geo_extrapolation):
     return data
 
 
-def load_datasets(trainpath, testpath, summarypath, geo_extrapolation, outcome, weight):
+def load_datasets(
+    trainpath, testpath, summarypath, geo_extrapolation, country, outcome, weight, year
+):
     """
     Load datasets.
 
@@ -53,6 +57,14 @@ def load_datasets(trainpath, testpath, summarypath, geo_extrapolation, outcome, 
         train_dataset (Dataset): Training dataset.
         test_dataset (Dataset): Test dataset.
     """
+    if year == 2021:
+        conversion_factor = 1.0
+    else:
+        df = pd.read_csv(AUX_DATA_CSV)
+        conversion_factor = df[df.country == country][
+            "overall_conversion_factor_ratio_from_2021_to_{}".format(year)
+        ].values[0]
+
     data1 = _load_data(trainpath)
     data2 = _load_data(testpath)
     summary = pd.read_parquet(summarypath)
@@ -73,6 +85,9 @@ def load_datasets(trainpath, testpath, summarypath, geo_extrapolation, outcome, 
 
     train_data = convert_to_onehot(train_data, summary)
     test_data = convert_to_onehot(test_data, summary)
+
+    train_data[outcome] = train_data[outcome] * conversion_factor
+    test_data[outcome] = test_data[outcome] * conversion_factor
 
     train_missing_columns = set(all_data.columns) - set(train_data.columns)
     res = [train_data]

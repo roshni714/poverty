@@ -19,7 +19,7 @@ GPU_SBATCH_PREFACE = """#!/bin/bash
 
 
 SBATCH_PREFACE = """#!/bin/bash
-#SBATCH -t 1-
+#SBATCH -t 0-03:00:00
 #SBATCH -c 1
 #SBATCH --mem 5GB
 #SBATCH -p normal
@@ -31,12 +31,12 @@ SBATCH_PREFACE = """#!/bin/bash
 """
 
 OUTPUT_PATH = (
-    "/home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/dry_run/scripts3"
+    "/home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/dry_run/scripts"
 )
 
 
-def generate_learn_run():
-    countries = ["togo"]
+def generate_learn_run_2017_povertyline():
+    countries = ["mali"]
     geo_extrapolation = [True]
     configs = [
         "output_gt_continuous_rate.yaml",
@@ -65,14 +65,49 @@ def generate_learn_run():
                         ),
                         file=f,
                     )
-                    base_cmd = f"python main_learn.py main --config hparam/results/{country}/{subfolder}/{config} --trainpath data/{country}/train.parquet --testpath data/{country}/test.parquet --summarypath data/{country}/summary.parquet --device cpu"
+                    base_cmd = f"python main_learn.py main --config hparam/results/{country}/{subfolder}/{config} --trainpath data/{country}/train.parquet --testpath data/{country}/test.parquet --summarypath data/{country}/summary.parquet --device cpu --country {country} --povertyline 2.15 --year 2017"
+                    print(base_cmd, file=f)
+                    print("sleep 1", file=f)
+
+
+def generate_learn_run_2021_povertyline():
+    countries = ["kenya"]
+    geo_extrapolation = [True]
+    configs = [
+        # "output_gt_continuous_rate.yaml",
+        # "output_gt_binary_rate.yaml",
+        # "output_gt_binary_gap.yaml",
+        # "output_gt_continuous_gap.yaml",
+        # "output_gt_modern_pmt.yaml",
+        "oracle_gap.yaml",
+        "output_gt_pmt.yaml",
+        "ubi.yaml",
+    ]
+
+    for country in countries:
+        for geo in geo_extrapolation:
+            if geo:
+                subfolder = "geo_extrapolation"
+            else:
+                subfolder = "geo_interpolation"
+            for config in configs:
+                exp_id = country + "_" + subfolder + "_" + config
+                script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
+                with open(script_fn, "w") as f:
+                    print(
+                        SBATCH_PREFACE.format(
+                            exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
+                        ),
+                        file=f,
+                    )
+                    base_cmd = f"python main_learn.py main --config hparam/results/{country}/{subfolder}/{config} --trainpath data/{country}/train.parquet --testpath data/{country}/test.parquet --summarypath data/{country}/summary.parquet --device cpu --country {country} --povertyline 3.0 --year 2021"
                     print(base_cmd, file=f)
                     print("sleep 1", file=f)
 
 
 def generate_hparam_run():
 
-    countries = ["south_sudan"]
+    countries = ["kenya"]
     geo_extrapolation = [True]
     configs = [
         "gt_continuous_rate.yaml",
@@ -148,8 +183,25 @@ def generate_hparam_run():
 
 
 def make_learnsavedir():
-    countries = ["malawi", "uganda"]
+    countries = [
+        "benin",
+        "burkina_faso",
+        "cote_divoire",
+        "ghana",
+        "guinea_bissau",
+        "kenya",
+        "malawi",
+        "mali",
+        "niger",
+        "nigeria",
+        "senegal",
+        "south_africa",
+        "tanzania",
+        "togo",
+        "uganda",
+    ]
     geo_extrapolation = [True]
+    years = [2017]
 
     script_fn = os.path.join(OUTPUT_PATH, "make_learnsavedir.sh")
     with open(script_fn, "w") as f:
@@ -177,6 +229,15 @@ def make_learnsavedir():
                 if not os.path.exists(f"learn/results/{country}/{subfolder}"):
                     print(f"mkdir learn/results/{country}/{subfolder}", file=f)
                     print("sleep 1", file=f)
+                for year in years:
+                    if not os.path.exists(
+                        f"learn/results/{country}/{subfolder}/year={year}"
+                    ):
+                        print(
+                            f"mkdir learn/results/{country}/{subfolder}/year={year}",
+                            file=f,
+                        )
+                        print("sleep 1", file=f)
 
 
 def generate_wgan_run():
@@ -283,7 +344,9 @@ def generate_gt_run():
 
 
 # generate_gt_run()
-generate_hparam_run()
+# generate_hparam_run()
+generate_learn_run_2017_povertyline()
+# generate_learn_run()
 # make_learnsavedir()
 # generate_learn_run()
 # generate_wgan_run()
