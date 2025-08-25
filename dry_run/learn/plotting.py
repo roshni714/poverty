@@ -12,7 +12,7 @@ from learn.aggregation import (
 )
 from learn.predictive_quality import get_out_of_sample_rmse
 
-POVERTY_RATE_TARGET = 3.0
+POVERTY_RATE_TARGET = 5.0
 
 
 def get_country_name(country):
@@ -56,7 +56,7 @@ def make_plot_for_country(
     oracle_results = CountryMethodPovertyResults(
         country, "oracle_gap", geo_extrapolation, povertyline=povertyline, year=year
     )
-    fontsize = 35
+    fontsize = 30
     # Plot policy_cost_per_capita vs post_transfer_poverty_rate
     fig, ax = plt.subplots(1, 2, figsize=(24, 8))
     if not ubi_off:
@@ -119,15 +119,13 @@ def make_plot_for_country(
     )
 
     for i in range(2):
-        ax[i].set_ylabel("Policy Cost ($ Billion)", fontsize=fontsize)
+        ax[i].set_ylabel("Policy Cost ($ Billion Per Year)", fontsize=fontsize)
         ax[i].grid(True)
         ax[i].tick_params(axis="x", labelsize=fontsize * 0.75)
         ax[i].tick_params(axis="y", labelsize=fontsize * 0.75)
 
-    ax[1].legend(
-        loc="center left", fontsize=fontsize * 0.75, bbox_to_anchor=(1.05, 0.5)
-    )
-    fig.tight_layout(rect=[0, 0, 0.85, 1])
+    ax[1].legend(fontsize=fontsize * 0.75)  # , #bbox_to_anchor=(1.05, 0.5)
+    # fig.tight_layout(rect=[0, 0, 0.85, 1])
     plt.tight_layout()
     plt.savefig("{}.pdf".format(save_as), bbox_inches="tight")
     plt.close()
@@ -137,8 +135,8 @@ def aggregate_plot(
     countries, method_list, geo_extrapolation, povertyline, year, save_as
 ):
     # Plot policy_cost_per_capita vs post_transfer_poverty_rate
-    fig, ax = plt.subplots(1, 2, figsize=(20, 8))
-    fontsize = 25
+    fig, ax = plt.subplots(1, 2, figsize=(24, 8))
+    fontsize = 30
 
     results = []
 
@@ -165,14 +163,14 @@ def aggregate_plot(
         np.ones(50) * ubi_cost,
         linestyle="--",
         color=METHODS["ubi"]["color"],
-        label="UBI $3.00",
+        label="UBI ${}".format(povertyline),
     )
     ax[1].plot(
         np.linspace(0.0, initial_gap),
         np.ones(50) * ubi_cost,
         linestyle="--",
         color=METHODS["ubi"]["color"],
-        label="UBI $3.00",
+        label="UBI ${}".format(povertyline),
     )
 
     for i, method in enumerate(method_list):
@@ -205,15 +203,13 @@ def aggregate_plot(
     )
 
     for i in range(2):
-        ax[i].set_ylabel("Policy Cost ($ Billion)", fontsize=fontsize)
+        ax[i].set_ylabel("Policy Cost ($ Billion Per Year)", fontsize=fontsize)
         ax[i].grid(True)
         ax[i].tick_params(axis="x", labelsize=fontsize * 0.75)
         ax[i].tick_params(axis="y", labelsize=fontsize * 0.75)
 
-    ax[1].legend(
-        loc="center left", fontsize=fontsize * 0.75, bbox_to_anchor=(1.05, 0.5)
-    )
-    fig.tight_layout(rect=[0, 0, 0.85, 1])
+    ax[1].legend(fontsize=fontsize * 0.75)  # , #bbox_to_anchor=(1.05, 0.5)
+    # fig.tight_layout(rect=[0, 0, 0.85, 1])
 
     plt.tight_layout()
     plt.savefig("{}.pdf".format(save_as), dpi=300, bbox_inches="tight")
@@ -222,10 +218,11 @@ def aggregate_plot(
 
 def convert_nominal_2023_to_nominal_survey_year(amt, country):
     df = pd.read_csv(COUNTRY_AUX_DATA_CSV)
-    second_df = pd.read_csv(SECONDARY_AUX_DATA_CSV)
-    survey_year = df[df["country"] == country]["survey_year"].values[0]
-    inflation_adjustment = second_df[
-        "conversion_factor_nominal_USD_{}_to_2023".format(survey_year)
+    second_df = pd.read_csv("learn/inflation_adjustment.csv")
+    survey_year = int(df[df["country"] == country]["survey_year"].values[0])
+    print(survey_year)
+    inflation_adjustment = second_df[second_df.survey_year == survey_year][
+        "inflation_adjustment_to_2023"
     ].values[0]
     amt = amt * (1 / inflation_adjustment)
     return amt
@@ -303,7 +300,7 @@ def plot_bar_chart_policy_amt_as_percent_of_gdp(
     # Bar plot for amts_as_percent_of_revenue
     axes[1].bar(xlabels[sort_index2], amts_as_percent_of_revenue[sort_index2], zorder=3)
     axes[1].set_xlabel("Country", fontsize=fontsize)
-    axes[1].set_ylabel("% of Govt Revenue", fontsize=fontsize)
+    axes[1].set_ylabel("% of Gov't Revenue", fontsize=fontsize)
     axes[1].set_xticklabels(xlabels[sort_index2], rotation=90, fontsize=fontsize)
     axes[1].set_yticklabels(axes[1].get_yticks(), fontsize=fontsize)
     # axes[1].set_title("Policy Cost as Percentage of Country Govt Revenue", fontsize=fontsize)
@@ -312,7 +309,7 @@ def plot_bar_chart_policy_amt_as_percent_of_gdp(
     plt.savefig("{}.pdf".format(save_as), bbox_inches="tight")
 
 
-def get_table_policy_cost_gdp_oda(countries, povertyline, year, save_as):
+def get_table_policy_cost_gdp(countries, povertyline, year, save_as):
     df = pd.read_csv(COUNTRY_AUX_DATA_CSV)
 
     results = [
@@ -335,14 +332,20 @@ def get_table_policy_cost_gdp_oda(countries, povertyline, year, save_as):
     df = df2.merge(df, on="country", how="left")
     df.sort_values(by=["country"], inplace=True)
     df["Policy Cost / GDP"] = df["policy_cost"] / df["GDP_survey_year"]
-    df["ODA / GDP"] = df["ODA"] / df["GDP_survey_year"]
+    df["government_revenue_survey_year"] = (
+        df["government_revenue_percentage_survey_year"] * df["GDP_survey_year"] / 100
+    )
+    df["Policy Cost / Gov't Revenue"] = (
+        df["policy_cost"] / df["government_revenue_survey_year"]
+    )
+    df["survey_year"] = df["survey_year"].astype(int)
     df.rename(
         columns={
             "policy_cost": "Policy Cost",
             "GDP_survey_year": "GDP",
-            "survey_year": "Survey Year",
-            "ODA": "Status-quo ODA",
+            "survey_year": "Reference Year",
             "country": "Country",
+            "government_revenue_survey_year": "Gov't Revenue",
         },
         inplace=True,
     )
@@ -350,12 +353,12 @@ def get_table_policy_cost_gdp_oda(countries, povertyline, year, save_as):
     new_df = df[
         [
             "Country",
-            "Survey Year",
-            "GDP",
-            "Status-quo ODA",
+            "Reference Year",
             "Policy Cost",
+            "GDP",
+            "Gov't Revenue",
             "Policy Cost / GDP",
-            "ODA / GDP",
+            "Policy Cost / Gov't Revenue",
         ]
     ]
 
@@ -434,6 +437,111 @@ def get_table_oecd_plus_china(policy_cost, save_as):
             save_as + ".tex", index=False, float_format="%.2f", escape=False
         )
     return new_df
+
+
+def get_table_survey_info(countries, save_as):
+    df = pd.read_csv(COUNTRY_AUX_DATA_CSV)
+    df = df[df["country"].isin(countries)]
+
+    sample_sizes = []
+    covariate_dimensions = []
+
+    for country in countries:
+        n, d = get_data_dimension(country)
+        sample_sizes.append(n)
+        covariate_dimensions.append(d)
+
+    new_df = pd.DataFrame(
+        {
+            "country": countries,
+            "sample_size": sample_sizes,
+            "covariate_dimension": covariate_dimensions,
+        }
+    )
+
+    df = df.merge(new_df, on="country", how="left")
+
+    columns = [
+        "country",
+        "survey_name",
+        "survey_year",
+        "sample_size",
+        "covariate_dimension",
+        "survey_poverty_rate",
+        "wb_poverty_rate_survey_year",
+    ]
+    df["survey_year"] = df["survey_year"].astype(int)
+    df = df[columns]
+    df["survey_poverty_rate"] *= 100
+    df["wb_poverty_rate_survey_year"] *= 100
+    df.sort_values(by=["country"], inplace=True)
+    df.rename(
+        columns={
+            "country": "Country",
+            "sample_size": "Sample Size",
+            "covariate_dimension": "Covariate Dimension",
+            "survey_poverty_rate": "Survey Poverty Rate",
+            "wb_poverty_rate_survey_year": "WB Poverty Rate (Survey Year)",
+            "survey_name": "Survey Name",
+            "survey_year": "Survey Year",
+        },
+        inplace=True,
+    )
+    df.to_latex(
+        save_as + ".tex",
+        index=False,
+        float_format="%.2f",
+        escape=False,
+        formatters={"Country": get_country_name},
+    )
+
+
+def preprocess_wpc_data(countries):
+    df = pd.read_csv("learn/wpc_data.csv")
+    df.rename(
+        columns={
+            "Country (color codes: inputs, intermediates, final outputs, error checks)": "country",
+            "Population": "total_population",
+            "Share of country's population that is in extreme poverty (WPC)": "wpc_poverty_rate",
+            "Share of world's extremely poor population that live in this country (based on WPC)": "wpc_share_world_poor",
+        },
+        inplace=True,
+    )
+
+    def process_name(name):
+        name = name.replace(" ", "_")
+        name = name.replace("-", "_")
+        name = "".join(c.lower() for c in name if c.isalnum() or c == "_")
+        return name
+
+    df["country"] = df["country"].apply(process_name)
+    df = df[df["country"].isin(countries)]
+    columns = ["country", "wpc_poverty_rate", "wpc_share_world_poor"]
+    df = df[columns]
+    df["wpc_poverty_rate"] = df["wpc_poverty_rate"].str.replace("%", "").astype(float)
+    df["wpc_share_world_poor"] = (
+        df["wpc_share_world_poor"].str.replace("%", "").astype(float)
+    )
+    return df
+
+
+def get_table_wpc(countries, save_as):
+    df = preprocess_wpc_data(countries)
+    df.rename(
+        columns={
+            "country": "Country",
+            "wpc_poverty_rate": "Poverty Rate",
+            "wpc_share_world_poor": "Share of World's Poor",
+        },
+        inplace=True,
+    )
+    df.to_latex(
+        save_as + ".tex",
+        index=False,
+        float_format="%.2f",
+        escape=False,
+        formatters={"Country": get_country_name},
+    )
 
 
 def get_table_out_of_sample_rmse(countries, save_as):
@@ -786,18 +894,15 @@ def make_string_country_list(l):
 
 def make_macro_file(countries, povertyline, year, save_as):
     countries = sorted(countries)
-
     all_countries_string = make_string_country_list(countries)
 
-    df = pd.read_csv(COUNTRY_AUX_DATA_CSV)
-    total_world_poor = df[df.country.isin(countries)][
-        "share_of_worlds_poor_most_recent"
-    ].sum()
-    malawi_world_poor = df[df.country == "malawi"][
-        "share_of_worlds_poor_most_recent"
+    wpc_data = preprocess_wpc_data(countries)
+    total_world_poor = wpc_data["wpc_share_world_poor"].sum()
+    malawi_world_poor = wpc_data[wpc_data["country"] == "malawi"][
+        "wpc_share_world_poor"
     ].values[0]
 
-    df = pd.read_csv("learn/eop_conversion_factor.csv")
+    df = pd.read_csv(COUNTRY_AUX_DATA_CSV)
     population_total = df[df.country.isin(countries)][
         "total_population_survey_year"
     ].sum()
@@ -838,8 +943,8 @@ def make_macro_file(countries, povertyline, year, save_as):
         ]
     )
 
-    df["ODA / GDP"] = df["ODA"] / df["GDP_billions_survey_year"]
-    sample_oda = df[df["country"].isin(countries)]["ODA / GDP"].mean() * 100
+    # df["ODA / GDP"] = df["ODA"] / df["GDP_billions_survey_year"]
+    # sample_oda = df[df["country"].isin(countries)]["ODA / GDP"].mean() * 100
 
     cont_gap_results = [
         CountryMethodPovertyResults(
@@ -877,11 +982,13 @@ def make_macro_file(countries, povertyline, year, save_as):
             year=year,
         )
         if method == "ubi":
-            cost[method + "_variable"] = method_results.rate_to_cost_interpolator(
-                POVERTY_RATE_TARGET
-            ).item()
+            cost[method + "_variable"] = (
+                method_results.aggregate_interpolator_rate_to_cost(
+                    POVERTY_RATE_TARGET
+                ).item()
+            )
         else:
-            cost[method] = method_results.rate_to_cost_interpolator(
+            cost[method] = method_results.aggregate_interpolator_rate_to_cost(
                 POVERTY_RATE_TARGET
             ).item()
 
@@ -907,33 +1014,33 @@ def make_macro_file(countries, povertyline, year, save_as):
     malawi_costs["ubi"] = povertyline * malawi_results.conversion_factor
 
     ratios = []
-    for country in countries:
+    for i, country in enumerate(countries):
         ratios.append(
-            cont_gap_results.rate_to_cost_interpolator(POVERTY_RATE_TARGET).item()
-            / oracle_results.rate_to_cost_interpolator(POVERTY_RATE_TARGET).item()
+            cont_gap_results[i].rate_to_cost_interpolator(POVERTY_RATE_TARGET).item()
+            / oracle_results[i].rate_to_cost_interpolator(POVERTY_RATE_TARGET).item()
         )
     min_ratio = min(ratios)
     max_ratio = max(ratios)
 
-    total_cost, _, out_of_sample_cost, dropped_countries = get_extrapolation(
-        countries, save_as=None
-    )
-    oecd_df = get_table_oecd(total_cost, save_as=None)
-    oecd_gdp_percent = oecd_df["Policy Cost (\\% of GDP)"].values[0].item()
-    oecd_revenue_percent = (
-        oecd_df["Policy Cost (\\% of Gov't Revenue)"].values[0].item()
-    )
+    # total_cost, _, out_of_sample_cost, dropped_countries = get_extrapolation(
+    #     countries, save_as=None
+    # )
+    # oecd_df = get_table_oecd(total_cost, save_as=None)
+    # oecd_gdp_percent = oecd_df["Policy Cost (\\% of GDP)"].values[0].item()
+    # oecd_revenue_percent = (
+    #     oecd_df["Policy Cost (\\% of Gov't Revenue)"].values[0].item()
+    # )
 
-    oecd_plus_china_df = get_table_oecd_plus_china(total_cost, save_as=None)
-    oecd_plus_china_gdp_percent = (
-        oecd_plus_china_df["Policy Cost (\\% of GDP)"].values[0].item()
-    )
+    # oecd_plus_china_df = get_table_oecd_plus_china(total_cost, save_as=None)
+    # oecd_plus_china_gdp_percent = (
+    #     oecd_plus_china_df["Policy Cost (\\% of GDP)"].values[0].item()
+    # )
 
-    oecd_plus_china_revenue_percent = (
-        oecd_plus_china_df["Policy Cost (\\% of GDP)"].values[0].item()
-    )
+    # oecd_plus_china_revenue_percent = (
+    #     oecd_plus_china_df["Policy Cost (\\% of GDP)"].values[0].item()
+    # )
 
-    dropped_countries_string = make_string_country_list(sorted(dropped_countries))
+    # dropped_countries_string = make_string_country_list(sorted(dropped_countries))
 
     malawi_n, malawi_d = get_data_dimension("malawi")
     data_dimension = [get_data_dimension(country)[1] for country in countries]
@@ -955,7 +1062,6 @@ def make_macro_file(countries, povertyline, year, save_as):
         f.write("\\newcommand{\\sampleMaxRate}" + f"{{{max_pov_rate:.0f}}}\n")
         f.write("\\newcommand{\\sampleMinRateCountry}" + f"{{{min_country}}}\n")
         f.write("\\newcommand{\\sampleMaxRateCountry}" + f"{{{max_country}}}\n")
-        f.write("\\newcommand{\\sampleODAPercent}" + f"{{{sample_oda:.0f}}}\n")
         f.write(
             "\\newcommand{\\samplePolicyCostPercent}"
             + f"{{{sample_policy_cost:.0f}}}\n"
@@ -1016,34 +1122,34 @@ def make_macro_file(countries, povertyline, year, save_as):
             )
         )
 
-        f.write(
-            "\\newcommand{\\extrapolationCost}"
-            + "{{{}}}\n".format(round(total_cost, 1))
-        )
-        f.write(
-            "\\newcommand{\\extrapolationOECDGDPPercent}"
-            + "{{{}}}\n".format(round(oecd_gdp_percent, 2))
-        )
-        f.write(
-            "\\newcommand{\\extrapolationOECDGovtRevPercent}"
-            + "{{{}}}\n".format(round(oecd_revenue_percent, 2))
-        )
-        f.write(
-            "\\newcommand{\\extrapolationOECDPlusChinaGDPPercent}"
-            + "{{{}}}\n".format(round(oecd_plus_china_gdp_percent, 2))
-        )
-        f.write(
-            "\\newcommand{\\extrapolationOECDPlusChinaGovtRevPercent}"
-            + "{{{}}}\n".format(round(oecd_plus_china_revenue_percent, 2))
-        )
-        f.write(
-            "\\newcommand{\\extrapolationOutOfSampleCost}"
-            + "{{{}}}\n".format(round(out_of_sample_cost, 0))
-        )
-        f.write(
-            "\\newcommand{\\extrapolationDroppedCountries}"
-            + "{{{}}}\n".format(dropped_countries_string)
-        )
+        # f.write(
+        #     "\\newcommand{\\extrapolationCost}"
+        #     + "{{{}}}\n".format(round(total_cost, 1))
+        # )
+        # f.write(
+        #     "\\newcommand{\\extrapolationOECDGDPPercent}"
+        #     + "{{{}}}\n".format(round(oecd_gdp_percent, 2))
+        # )
+        # f.write(
+        #     "\\newcommand{\\extrapolationOECDGovtRevPercent}"
+        #     + "{{{}}}\n".format(round(oecd_revenue_percent, 2))
+        # )
+        # f.write(
+        #     "\\newcommand{\\extrapolationOECDPlusChinaGDPPercent}"
+        #     + "{{{}}}\n".format(round(oecd_plus_china_gdp_percent, 2))
+        # )
+        # f.write(
+        #     "\\newcommand{\\extrapolationOECDPlusChinaGovtRevPercent}"
+        #     + "{{{}}}\n".format(round(oecd_plus_china_revenue_percent, 2))
+        # )
+        # f.write(
+        #     "\\newcommand{\\extrapolationOutOfSampleCost}"
+        #     + "{{{}}}\n".format(round(out_of_sample_cost, 0))
+        # )
+        # f.write(
+        #     "\\newcommand{\\extrapolationDroppedCountries}"
+        #     + "{{{}}}\n".format(dropped_countries_string)
+        # )
 
         f.write(
             "\\newcommand{\\malawiShareWorldsPoor}"
@@ -1052,7 +1158,9 @@ def make_macro_file(countries, povertyline, year, save_as):
         f.write(
             "\\newcommand{\\malawiUBIVariableAmount}"
             + "{{{}}}\n".format(
-                round(malawi_costs["ubi_variable"] / conversion_factors["malawi"], 2)
+                round(
+                    malawi_costs["ubi_variable"] / malawi_results.conversion_factor, 2
+                )
             )
         )
         f.write(
@@ -1112,61 +1220,3 @@ def make_macro_file(countries, povertyline, year, save_as):
         f.write("\\newcommand{\\malawiSampleSize}" + "{{{}}}\n".format(malawi_n))
         f.write("\\newcommand{\\minDimension}" + "{{{}}}\n".format(min_d))
         f.write("\\newcommand{\\maxDimension}" + "{{{}}}\n".format(max_d))
-
-
-# def aggregate_plot_x_axis_wc_poverty_measure(countries, method_list, geo_extrapolation):
-#     # Plot policy_cost_per_capita vs post_transfer_poverty_rate
-#     fig, ax = plt.subplots(1, 2, figsize=(20, 8))
-#     fontsize = 20
-#     for method in method_list:
-#         dic = get_aggregate_interpolators_wc_poverty_measure(
-#             countries=countries, method=method, geo_extrapolation=geo_extrapolation
-#         )
-#         gap_range = dic["gap"]["range"]
-#         gap_interpolator = dic["gap"]["interpolator"]
-#         rate_range = dic["rate"]["range"]
-#         rate_interpolator = dic["rate"]["interpolator"]
-#         print(gap_range, rate_range)
-
-#         ax[0].plot(
-#             np.linspace(gap_range[0], gap_range[1], 100),
-#             gap_interpolator(np.linspace(gap_range[0], gap_range[1], 100)),
-#             label=METHODS[method]["name"],
-#             color=METHODS[method]["color"],
-#             linestyle=METHODS[method]["linestyle"],
-#         )
-#         ax[1].plot(
-#             np.linspace(rate_range[0], rate_range[1], 100),
-#             rate_interpolator(np.linspace(rate_range[0], rate_range[1], 100)),
-#             label=METHODS[method]["name"],
-#             color=METHODS[method]["color"],
-#             linestyle=METHODS[method]["linestyle"],
-#         )
-
-#         ax[1].set_xlabel("Worst-Case Poverty Rate in a Country\n(%)", fontsize=fontsize)
-#         ax[0].set_xlabel(
-#             "Worst-Case Poverty Gap in a Country \n(Billions of Nominal 2023 USD)",
-#             fontsize=fontsize,
-#         )
-#         ax[1].set_title(
-#             "Total Policy Cost vs Post-Transfer Poverty Rate", fontsize=fontsize
-#         )
-#         ax[0].set_title(
-#             "Total Policy Cost vs Post-Transfer Poverty Gap", fontsize=fontsize
-#         )
-#         for i in range(2):
-#             ax[i].set_ylabel(
-#                 "Total Policy Cost \n(Billions of Nominal 2023 USD)", fontsize=fontsize
-#             )
-#             ax[i].grid(True)
-#             ax[i].tick_params(axis="x", labelsize=15)
-#             ax[i].tick_params(axis="y", labelsize=15)
-
-#         plt.suptitle(
-#             "Total Policy Cost vs. Worst-Case Poverty Measure in a Country",
-#             fontsize=fontsize,
-#         )
-#         ax[1].legend(loc="upper right", fontsize=fontsize * 0.75)
-
-#     plt.tight_layout()
-#     plt.savefig("figs/aggregate_wc.pdf", dpi=300, bbox_inches="tight")

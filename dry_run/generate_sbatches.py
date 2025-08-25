@@ -36,7 +36,8 @@ OUTPUT_PATH = (
 
 
 def generate_learn_run_2017_povertyline():
-    countries = ["mali"]
+    countries = ["south_sudan"]
+    # countries = ["kenya", "malawi", "mali", "
     geo_extrapolation = [True]
     configs = [
         "output_gt_continuous_rate.yaml",

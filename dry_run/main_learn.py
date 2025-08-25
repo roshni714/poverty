@@ -209,9 +209,7 @@ def learn_modern_pmt(
     Learn the modern PMT targeted transfers
     """
     print("Learning modern PMT targeted transfers...")
-    tt = ModernPMTTargetedTransfers(
-        c_bar=povertyline, transfer_value=modern_pmt_params["transfer_value"]
-    )
+    tt = ModernPMTTargetedTransfers(c_bar=povertyline, transfer_value=povertyline)
     tt.fit(
         train_dataset=train_dataset,
         validation_dataset=validation_dataset,
@@ -236,9 +234,7 @@ def learn_pmt(
     Learn PMT targeted transfers
     """
     print("Learning PMT targeted transfers...")
-    tt = PMTTargetedTransfers(
-        c_bar=povertyline, transfer_value=pmt_params["transfer_value"]
-    )
+    tt = PMTTargetedTransfers(c_bar=povertyline, transfer_value=povertyline)
     tt.fit(
         train_dataset,
         validation_dataset,

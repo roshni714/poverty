@@ -6,31 +6,31 @@ from sklearn.linear_model import LinearRegression
 METHODS = {
     "oracle_gap": {
         "csv": "oracle_gap",
-        "name": "Oracle Gap Targeting",
+        "name": "Oracle Gap Minimization",
         "color": "green",
         "linestyle": "-",
     },
     "continuous_gap": {
         "csv": "output_gt_continuous_gap",
-        "name": "Gap Targeting (Continuous)",
+        "name": "Gap Minimization (Unrestricted)",
         "color": "blue",
         "linestyle": "-",
     },
     "binary_gap": {
         "csv": "output_gt_binary_gap",
-        "name": "Gap Targeting (Binary)",
+        "name": "Gap Minimization (Binary)",
         "color": "blue",
         "linestyle": "--",
     },
     "continuous_rate": {
         "csv": "output_gt_continuous_rate",
-        "name": "Rate Targeting (Continuous)",
+        "name": "Rate Minimization (Unrestricted)",
         "color": "orange",
         "linestyle": "-",
     },
     "binary_rate": {
         "csv": "output_gt_binary_rate",
-        "name": "Rate Targeting (Binary)",
+        "name": "Rate Minimization (Binary)",
         "color": "orange",
         "linestyle": "--",
     },
