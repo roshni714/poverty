@@ -9,6 +9,7 @@ from learn.aggregation import (
     CountryMethodPovertyResults,
     COUNTRY_AUX_DATA_CSV,
     SECONDARY_AUX_DATA_CSV,
+    preprocess_wpc_data
 )
 from learn.predictive_quality import get_out_of_sample_rmse
 
@@ -494,35 +495,6 @@ def get_table_survey_info(countries, save_as):
         escape=False,
         formatters={"Country": get_country_name},
     )
-
-
-def preprocess_wpc_data(countries):
-    df = pd.read_csv("learn/wpc_data.csv")
-    df.rename(
-        columns={
-            "Country (color codes: inputs, intermediates, final outputs, error checks)": "country",
-            "Population": "total_population",
-            "Share of country's population that is in extreme poverty (WPC)": "wpc_poverty_rate",
-            "Share of world's extremely poor population that live in this country (based on WPC)": "wpc_share_world_poor",
-        },
-        inplace=True,
-    )
-
-    def process_name(name):
-        name = name.replace(" ", "_")
-        name = name.replace("-", "_")
-        name = "".join(c.lower() for c in name if c.isalnum() or c == "_")
-        return name
-
-    df["country"] = df["country"].apply(process_name)
-    df = df[df["country"].isin(countries)]
-    columns = ["country", "wpc_poverty_rate", "wpc_share_world_poor"]
-    df = df[columns]
-    df["wpc_poverty_rate"] = df["wpc_poverty_rate"].str.replace("%", "").astype(float)
-    df["wpc_share_world_poor"] = (
-        df["wpc_share_world_poor"].str.replace("%", "").astype(float)
-    )
-    return df
 
 
 def get_table_wpc(countries, save_as):

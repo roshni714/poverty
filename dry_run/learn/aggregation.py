@@ -55,7 +55,7 @@ METHODS = {
 }
 
 COUNTRY_AUX_DATA_CSV = "learn/aux_data_20250813.csv"
-SECONDARY_AUX_DATA_CSV = ""
+SECONDARY_AUX_DATA_CSV = "learn/wpc_data.csv"
 
 # def prune_results(xs, ys, val=0.0):
 #     mask = np.abs(xs - val) < 1e-3
@@ -68,6 +68,41 @@ SECONDARY_AUX_DATA_CSV = ""
 #     xs = xs_nonzero + [val]
 #     ys = ys_nonzero + [min(ys_zero)]
 #     return np.array(xs), np.array(ys)
+
+def preprocess_wpc_data(countries=None):
+    df = pd.read_csv("learn/wpc_data.csv")
+    df.rename(
+        columns={
+            "Country (color codes: inputs, intermediates, final outputs, error checks)": "country",
+            "Population": "total_population",
+            "Share of country's population that is in extreme poverty (WPC)": "wpc_poverty_rate",
+            "Share of world's extremely poor population that live in this country (based on WPC)": "wpc_share_world_poor",
+        },
+        inplace=True,
+    )
+
+    def process_name(name):
+        name = name.replace(" ", "_")
+        name = name.replace("-", "_")
+        name = "".join(c.lower() for c in name if c.isalnum() or c == "_")
+        return name
+    
+    df.sort_values(by="country", inplace=True)
+    df["country"] = df["country"].apply(process_name)
+    if countries is not None:
+        df = df[df["country"].isin(countries)]
+    columns = ["country", "wpc_poverty_rate", "wpc_share_world_poor"]
+    df = df[columns]
+    df["wpc_poverty_rate"] = df["wpc_poverty_rate"].str.replace("%", "").astype(float)
+    df["wpc_share_world_poor"] = (
+        df["wpc_share_world_poor"].str.replace("%", "").astype(float)
+    )
+    return df
+
+def compute_national_ceiling():
+    df = preprocess_wpc_data()
+
+
 
 
 class CountryMethodPovertyResults:
