@@ -116,8 +116,8 @@ class CountryMethodPovertyResults:
         self.year = year
         self.povertyline = povertyline
         self.conversion_factor = self._get_conversion_factor()
-        self._get_min_poverty_gap_and_rate()
-        self._get_initial_poverty_gap_and_rate()
+        self._get_min_poverty_gap_index_and_rate()
+        self._get_initial_poverty_gap_index_and_rate()
         self._get_result_interpolators()
 
     def _load_data(self, method):
@@ -147,7 +147,7 @@ class CountryMethodPovertyResults:
 
         # second_df = pd.read_csv(SECONDARY_AUX_DATA_CSV)
         # nominal_conversion_factor = second_df["conversion_factor_nominal_USD_{}_to_2023".format(self.year)].values[0]
-        print("WARNING: FIX HARDCODED NOMINAL CONVERSION FACTOR")
+        # print("WARNING: FIX HARDCODED NOMINAL CONVERSION FACTOR")
         if self.year == 2021:
             nominal_conversion_factor = 1.14
         elif self.year == 2017:
@@ -158,7 +158,7 @@ class CountryMethodPovertyResults:
         factor = (
             country_df["total_population_survey_year"].values[0]
             * 365
-            * nominal_conversion_factor  # Conversion factor from 2021 to 2023
+            * nominal_conversion_factor
             * (
                 country_df["PPP_conversion_factor_{}".format(self.year)].values[0]
                 / country_df["market_exchange_rate_{}".format(self.year)].values[0]
@@ -167,16 +167,23 @@ class CountryMethodPovertyResults:
         )
         return factor
 
-    def _get_initial_poverty_gap_and_rate(self):
+    def _get_initial_poverty_gap_index_and_rate(self):
         df = self._load_data("oracle_gap")
-        self.initial_gap = (
+        self.initial_gap_index = (
             df["post_transfer_poverty_gap"].max() / self.povertyline
         ) * 100
         self.initial_rate = df["post_transfer_poverty_rate"].max() * 100
 
-    def _get_min_poverty_gap_and_rate(self):
+    def get_poverty_gap(self):
+        return (
+            self.conversion_factor * (self.initial_gap_index / 100) * self.povertyline
+        )
+
+    def _get_min_poverty_gap_index_and_rate(self):
         df = self._load_data(self.method)
-        self.min_gap = (df["post_transfer_poverty_gap"].min() / self.povertyline) * 100
+        self.min_gap_index = (
+            df["post_transfer_poverty_gap"].min() / self.povertyline
+        ) * 100
         self.min_rate = df["post_transfer_poverty_rate"].min() * 100
 
     def _get_result_interpolators(self):
@@ -184,7 +191,7 @@ class CountryMethodPovertyResults:
         country_conversion_factor = self.conversion_factor
         gaps = list(df["post_transfer_poverty_gap"] * 100 / self.povertyline)
         cost_gaps = list(df["policy_cost_per_capita"] * country_conversion_factor)
-        gaps.append(self.initial_gap)
+        gaps.append(self.initial_gap_index)
         cost_gaps.append(0.0)
 
         country_gap_to_cost_interpolator = interp1d(gaps, cost_gaps, kind="linear")
@@ -278,9 +285,20 @@ class AggregatePovertyResults:
         )
         return self.povertyline * aggregate_conversion_factor
 
-    def get_initial_aggregate_gap_and_rate(self):
+    def get_aggregate_poverty_gap(self):
+        gaps = np.array(
+            [
+                self.country_results[country].get_poverty_gap()
+                for country in self.countries
+            ]
+        )
+
+        return np.sum(gaps)
+
+    def get_initial_aggregate_gap_index_and_rate(self):
         initial_gaps = [
-            self.country_results[country].initial_gap for country in self.countries
+            self.country_results[country].initial_gap_index
+            for country in self.countries
         ]
         initial_rates = [
             self.country_results[country].initial_rate for country in self.countries
@@ -288,12 +306,16 @@ class AggregatePovertyResults:
         weights = np.array(
             [self.country_weights["weight"][country] for country in self.countries]
         )
-        pop_weighted_initial_poverty_gap = (np.array(initial_gaps) * weights).sum()
+        pop_weighted_initial_poverty_gap_index = (
+            np.array(initial_gaps) * weights
+        ).sum()
         pop_weighted_initial_poverty_rate = (np.array(initial_rates) * weights).sum()
-        return pop_weighted_initial_poverty_gap, pop_weighted_initial_poverty_rate
+        return pop_weighted_initial_poverty_gap_index, pop_weighted_initial_poverty_rate
 
-    def get_min_aggregate_gap_and_rate(self):
-        min_gaps = [self.country_results[country].min_gap for country in self.countries]
+    def get_min_aggregate_gap_index_and_rate(self):
+        min_gaps = [
+            self.country_results[country].min_gap_index for country in self.countries
+        ]
         min_rates = [
             self.country_results[country].min_rate for country in self.countries
         ]
@@ -306,7 +328,7 @@ class AggregatePovertyResults:
 
     def get_max_min_gap_and_rate(self):
         max_min_poverty_gap = max(
-            [self.country_results[country].min_gap for country in self.countries]
+            [self.country_results[country].min_gap_index for country in self.countries]
         )
         max_min_poverty_rate = max(
             [self.country_results[country].min_rate for country in self.countries]

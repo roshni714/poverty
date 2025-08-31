@@ -29,7 +29,7 @@ METHODS_HEADLINE = [
     "pmt",
     "binary_gap",
     "continuous_gap",
-    "oracle_gap",
+    # "oracle_gap",
 ]
 
 METHODS_RATE_VS_GAP = ["binary_gap", "continuous_gap", "binary_rate", "continuous_rate"]
@@ -63,7 +63,8 @@ def get_malawi_rate_vs_gap_figure_1(povertyline, year):
         year=year,
         geo_extrapolation=True,
         save_as="exhibits/year={}/figs/paper-figure-1-malawi_rate_vs_gap".format(year),
-        ubi_off=True,
+        ubi_on=False,
+        poverty_gap_on=False,
     )
 
 
@@ -75,6 +76,8 @@ def get_headline_figure_2(povertyline, year):
         year=year,
         geo_extrapolation=True,
         save_as="exhibits/year={}/figs/paper-figure-2-headline".format(year),
+        ubi_on=True,
+        poverty_gap_on=True,
     )
 
 
@@ -86,6 +89,8 @@ def get_rate_vs_gap_headline_figure_3(povertyline, year):
         year=year,
         geo_extrapolation=True,
         save_as="exhibits/year={}/figs/paper-figure-3-rate_gap_comparison".format(year),
+        ubi_on=False,
+        poverty_gap_on=False,
     )
 
 
@@ -176,7 +181,8 @@ def get_country_level_analysis(povertyline, year):
             povertyline=povertyline,
             year=year,
             save_as="exhibits/year={}/figs/appendix-figure-{}".format(year, country),
-            ubi_off=False,
+            ubi_on=True,
+            poverty_gap_on=True,
         )
 
 
