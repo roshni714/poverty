@@ -54,8 +54,9 @@ METHODS = {
     },
 }
 
-COUNTRY_AUX_DATA_CSV = "learn/aux_data_20250813.csv"
-SECONDARY_AUX_DATA_CSV = "learn/wpc_data.csv"
+COUNTRY_AUX_DATA_CSV = "learn/auxiliary_data_20250829.csv"
+WORLD_POVERTY_CLOCK_DATA_CSV = "learn/wpc_data.csv"
+SECONDARY_AUX_DATA_CSV = "learn/secondary_auxiliary_data.csv"
 
 # def prune_results(xs, ys, val=0.0):
 #     mask = np.abs(xs - val) < 1e-3
@@ -69,8 +70,9 @@ SECONDARY_AUX_DATA_CSV = "learn/wpc_data.csv"
 #     ys = ys_nonzero + [min(ys_zero)]
 #     return np.array(xs), np.array(ys)
 
+
 def preprocess_wpc_data(countries=None):
-    df = pd.read_csv("learn/wpc_data.csv")
+    df = pd.read_csv(WORLD_POVERTY_CLOCK_DATA_CSV)
     df.rename(
         columns={
             "Country (color codes: inputs, intermediates, final outputs, error checks)": "country",
@@ -86,23 +88,24 @@ def preprocess_wpc_data(countries=None):
         name = name.replace("-", "_")
         name = "".join(c.lower() for c in name if c.isalnum() or c == "_")
         return name
-    
+
     df.sort_values(by="country", inplace=True)
     df["country"] = df["country"].apply(process_name)
     if countries is not None:
         df = df[df["country"].isin(countries)]
-    columns = ["country", "wpc_poverty_rate", "wpc_share_world_poor"]
+    columns = [
+        "country",
+        "wpc_poverty_rate",
+        "wpc_share_world_poor",
+        "total_population",
+    ]
     df = df[columns]
     df["wpc_poverty_rate"] = df["wpc_poverty_rate"].str.replace("%", "").astype(float)
     df["wpc_share_world_poor"] = (
         df["wpc_share_world_poor"].str.replace("%", "").astype(float)
     )
+    df["total_population"] = df["total_population"].str.replace(",", "").astype(int)
     return df
-
-def compute_national_ceiling():
-    df = preprocess_wpc_data()
-
-
 
 
 class CountryMethodPovertyResults:
@@ -140,7 +143,8 @@ class CountryMethodPovertyResults:
         return df
 
     def _get_conversion_factor(self):
-        df = pd.read_csv(COUNTRY_AUX_DATA_CSV)
+        df = preprocess_country_aux_data()
+
         # second_df = pd.read_csv(SECONDARY_AUX_DATA_CSV)
         # nominal_conversion_factor = second_df["conversion_factor_nominal_USD_{}_to_2023".format(self.year)].values[0]
         print("WARNING: FIX HARDCODED NOMINAL CONVERSION FACTOR")
@@ -150,6 +154,7 @@ class CountryMethodPovertyResults:
             nominal_conversion_factor = 1.26
 
         country_df = df[df["country"] == self.country]
+
         factor = (
             country_df["total_population_survey_year"].values[0]
             * 365
@@ -221,6 +226,19 @@ class CountryMethodPovertyResults:
         )
 
 
+def preprocess_country_aux_data():
+    df = pd.read_csv(COUNTRY_AUX_DATA_CSV)
+
+    def process_name(name):
+        name = name.replace(" ", "_")
+        name = name.replace("-", "_")
+        name = "".join(c.lower() for c in name if c.isalnum() or c == "_")
+        return name
+
+    df["country"] = df["country"].apply(process_name)
+    return df
+
+
 class AggregatePovertyResults:
 
     def __init__(self, countries, method, geo_extrapolation, year, povertyline):
@@ -239,7 +257,7 @@ class AggregatePovertyResults:
         self._get_aggregate_interpolators()
 
     def _get_country_weights_and_pop(self):
-        df = pd.read_csv(COUNTRY_AUX_DATA_CSV)
+        df = preprocess_country_aux_data()
         df = df[df["country"].isin(self.countries)]
         df["weight"] = (
             df["total_population_survey_year"]

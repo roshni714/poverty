@@ -19,7 +19,7 @@ GPU_SBATCH_PREFACE = """#!/bin/bash
 
 
 SBATCH_PREFACE = """#!/bin/bash
-#SBATCH -t 0-03:00:00
+#SBATCH -t 0-3:00:00
 #SBATCH -c 1
 #SBATCH --mem 5GB
 #SBATCH -p normal
@@ -36,18 +36,35 @@ OUTPUT_PATH = (
 
 
 def generate_learn_run_2017_povertyline():
-    countries = ["south_sudan"]
+    countries = [
+        "benin",
+        "burkina_faso",
+        "cote_divoire",
+        "ghana",
+        "guinea_bissau",
+        "kenya",
+        "malawi",
+        "mali",
+        "niger",
+        "nigeria",
+        "senegal",
+        "south_africa",
+        "south_sudan",
+        "tanzania",
+        "togo",
+        "uganda",
+    ]
     # countries = ["kenya", "malawi", "mali", "
     geo_extrapolation = [True]
     configs = [
-        "output_gt_continuous_rate.yaml",
-        "output_gt_binary_rate.yaml",
-        "output_gt_binary_gap.yaml",
-        "output_gt_continuous_gap.yaml",
-        "output_gt_modern_pmt.yaml",
+        # "output_gt_continuous_rate.yaml",
+        # "output_gt_binary_rate.yaml",
+        # "output_gt_binary_gap.yaml",
+        # "output_gt_continuous_gap.yaml",
+        # "output_gt_modern_pmt.yaml",
         "oracle_gap.yaml",
-        "output_gt_pmt.yaml",
-        "ubi.yaml",
+        # "output_gt_pmt.yaml",
+        # "ubi.yaml",
     ]
 
     for country in countries:
@@ -57,7 +74,7 @@ def generate_learn_run_2017_povertyline():
             else:
                 subfolder = "geo_interpolation"
             for config in configs:
-                exp_id = country + "_" + subfolder + "_" + config
+                exp_id = country + "_" + subfolder + "_" + "_2017_" + config
                 script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
                 with open(script_fn, "w") as f:
                     print(
@@ -72,7 +89,24 @@ def generate_learn_run_2017_povertyline():
 
 
 def generate_learn_run_2021_povertyline():
-    countries = ["kenya"]
+    countries = [
+        "benin",
+        "burkina_faso",
+        "cote_divoire",
+        "ghana",
+        "guinea_bissau",
+        "kenya",
+        "malawi",
+        "mali",
+        "niger",
+        "nigeria",
+        "senegal",
+        "south_africa",
+        "south_sudan",
+        "tanzania",
+        "togo",
+        "uganda",
+    ]
     geo_extrapolation = [True]
     configs = [
         # "output_gt_continuous_rate.yaml",
@@ -81,8 +115,8 @@ def generate_learn_run_2021_povertyline():
         # "output_gt_continuous_gap.yaml",
         # "output_gt_modern_pmt.yaml",
         "oracle_gap.yaml",
-        "output_gt_pmt.yaml",
-        "ubi.yaml",
+        # "output_gt_pmt.yaml",
+        # "ubi.yaml",
     ]
 
     for country in countries:
@@ -92,7 +126,7 @@ def generate_learn_run_2021_povertyline():
             else:
                 subfolder = "geo_interpolation"
             for config in configs:
-                exp_id = country + "_" + subfolder + "_" + config
+                exp_id = country + "_" + subfolder + "_" + "_2021_" + config
                 script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
                 with open(script_fn, "w") as f:
                     print(
@@ -108,7 +142,7 @@ def generate_learn_run_2021_povertyline():
 
 def generate_hparam_run():
 
-    countries = ["kenya"]
+    countries = ["malawi"]
     geo_extrapolation = [True]
     configs = [
         "gt_continuous_rate.yaml",
@@ -181,6 +215,15 @@ def generate_hparam_run():
                 if not os.path.exists(f"learn/results/{country}/{subfolder}"):
                     print(f"mkdir learn/results/{country}/{subfolder}", file=f)
                     print("sleep 1", file=f)
+                    for year in [2017, 2021]:
+                        if not os.path.exists(
+                            f"learn/results/{country}/{subfolder}/year={year}"
+                        ):
+                            print(
+                                f"mkdir learn/results/{country}/{subfolder}/year={year}",
+                                file=f,
+                            )
+                            print("sleep 1", file=f)
 
 
 def make_learnsavedir():
@@ -347,6 +390,7 @@ def generate_gt_run():
 # generate_gt_run()
 # generate_hparam_run()
 generate_learn_run_2017_povertyline()
+generate_learn_run_2021_povertyline()
 # generate_learn_run()
 # make_learnsavedir()
 # generate_learn_run()

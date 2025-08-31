@@ -237,7 +237,6 @@ class RateTargetedTransfers(TargetedTransfers):
             n_alpha=n_alpha,
             path=path,
         )
-
         idx = np.argmin(poverty_rates)
         self.assignments = all_opt_assignments[idx]
         return self.assignments
@@ -690,17 +689,14 @@ class OracleGapTargetedTransfers(TargetedTransfers):
     There is not one well-defined optimal policy to minimize the post-transfer poverty gap: As long as
     every dollar goes to households below the poverty line, the reduction in poverty gap will be the optimal.
     This class implements two policies:
-      * lifting as many households as possible to the poverty line, with the restriction that a less-poor
-        household does not receive more than a poorer household: this amounts to iteratively raising households
-        to the poverty line, starting from the poorest, until the specified tolerance is reached.
-      * raising a poverty "floor" until the desired tolerance is reached: a floor is a wealth level below which no
-        household is permitted to be. Any household below that floor receives a transfer of the appropriate size
-        to raise them to the floor. The floor is set to minimally satisfy the specified tolerance.
+      * "lift_to_line" which is the optimal oracle rate-minimizing policy
+      * "consumption_floor" which sets the consumption floor for units. Any household below that floor receives a transfer of the appropriate size
+        to raise them to the floor. The floor is set to minimally satisfy the specified tolerance. This is the weakly-equitable rate-minimizing policy.
     """
 
     def __init__(self, c_bar=3.0, budget=None, scheme="lift_to_line"):
 
-        assert scheme in ("lift_to_line", "floor")
+        assert scheme in ("lift_to_line", "consumption_floor")
 
         super().__init__(c_bar=c_bar, budget=budget)
         self.name = "oracle_gap"
@@ -713,7 +709,7 @@ class OracleGapTargetedTransfers(TargetedTransfers):
                 test_dataset, budget=self.budget, c_bar=self.c_bar
             )
 
-        elif self.scheme == "floor":
+        elif self.scheme == "consumption_floor":
             assignments = run_oracle_poverty_gap_floor_scheme(
                 test_dataset, budget=self.budget, c_bar=self.c_bar
             )

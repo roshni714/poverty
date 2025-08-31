@@ -32,25 +32,16 @@ def run_oracle_poverty_gap_floor_scheme(test_dataset, budget, c_bar):
 
     _, y_test, r_test = test_dataset.get_data()
 
-    gaps = np.maximum(c_bar - y_test, 0)
+    def policy_cost(consumption_floor):
+        return np.sum(np.maximum(consumption_floor - y_test, 0) * r_test)
 
-    sorting_indices = np.argsort(gaps)[::-1]  # sort gaps from largest to smallest
-    budget_remaining = budget
+    consumption_floors = np.linspace(0, c_bar, 500)
+    i=0
 
-    running_transfers = 0.0
-
-    assignments = {i: [(0.0, 1.0)] for i in range(len(y_test))}
-
-    for i in sorting_indices:
-        gap_contribution = gaps[i] * r_test[i]
-
-        if budget_remaining > gap_contribution:
-            budget_remaining -= gap_contribution
-            running_transfers += gap_contribution
-            assignments[i] = [(gaps[i], 1.0)]
-        else:
-            prob = budget_remaining / gap_contribution
-            assignments[i] = [(gaps[i], prob), (0.0, 1 - prob)]
-            break
+    while i < len(consumption_floors) and policy_cost(consumption_floors[i]) <= budget:
+        i += 1
+    
+    consumption_floor = consumption_floors[i-1]
+    assignments = {i: [(np.maximum(consumption_floor - y_test[i], 0), 1.0)] for i in range(len(y_test))}
 
     return assignments

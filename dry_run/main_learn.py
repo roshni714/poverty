@@ -263,7 +263,7 @@ def learn_oracle_gap(
     Learn the oracle gap targeted transfers
     """
     print("Learning oracle gap targeted transfers...")
-    tt = OracleGapTargetedTransfers(c_bar=povertyline, scheme="lift_to_line")
+    tt = OracleGapTargetedTransfers(c_bar=povertyline, scheme="consumption_floor")
     run_evaluation(tt, test_covariate_dataset, test_dataset, budgets, savepath)
 
 
@@ -288,8 +288,6 @@ def main(
     """
     Main function to learn and evaluate targeted transfers.
     """
-    oracle_budgets = np.linspace(0.0, povertyline, 15)
-    budgets = np.linspace(0.05, povertyline, 15)
     with open(config) as stream:
         try:
             config_hparam = yaml.safe_load(stream)
@@ -346,6 +344,11 @@ def main(
     }
 
     NONLEARNING_METHODS = {"oracle_gap": learn_oracle_gap, "ubi": learn_ubi}
+
+    _, y_test, r_test = test_dataset.get_data()
+    pov_gap = np.sum(np.maximum(povertyline - y_test, 0) * r_test)
+    oracle_budgets = np.linspace(0.0, pov_gap, 15)
+    budgets = np.linspace(0.05, povertyline, 15)
 
     for key in config_keys:
         if key in LEARNING_METHODS:
