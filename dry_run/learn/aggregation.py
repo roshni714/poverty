@@ -151,7 +151,7 @@ class CountryMethodPovertyResults:
         if self.year == 2021:
             nominal_conversion_factor = 1.14
         elif self.year == 2017:
-            nominal_conversion_factor = 1.26
+            nominal_conversion_factor = 1.23
 
         country_df = df[df["country"] == self.country]
 
@@ -163,16 +163,15 @@ class CountryMethodPovertyResults:
                 country_df["PPP_conversion_factor_{}".format(self.year)].values[0]
                 / country_df["market_exchange_rate_{}".format(self.year)].values[0]
             )
-            / 1000000000
-        )
+        ) / 1000000000
         return factor
 
     def _get_initial_poverty_gap_index_and_rate(self):
         df = self._load_data("oracle_gap")
         self.initial_gap_index = (
-            df["post_transfer_poverty_gap"].max() / self.povertyline
+            df["initial_poverty_gap"].max() / self.povertyline
         ) * 100
-        self.initial_rate = df["post_transfer_poverty_rate"].max() * 100
+        self.initial_rate = df["initial_poverty_rate"].max() * 100
 
     def get_poverty_gap(self):
         return (
@@ -392,6 +391,9 @@ class AggregatePovertyResults:
 
         self.aggregate_interpolator_gap_to_cost = interp1d(
             actual_gaps, actual_costs, kind="linear"
+        )
+        self.aggregate_interpolator_rate_to_gap = interp1d(
+            actual_rates, actual_gaps, kind="linear"
         )
         self.aggregate_interpolator_rate_domain = (min(actual_rates), max(actual_rates))
         self.aggregate_interpolator_gap_domain = (min(actual_gaps), max(actual_gaps))

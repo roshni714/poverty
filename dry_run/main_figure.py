@@ -21,7 +21,7 @@ METHODS_ALL = [
     "continuous_gap",
     "binary_rate",
     "continuous_rate",
-    "oracle_gap",
+    #    "oracle_gap",
 ]
 METHODS_HEADLINE = [
     "ubi",
@@ -249,12 +249,12 @@ def make_presentation_figures(povertyline, year):
 
 @argh.arg("--year", help="Year to generate figures for", type=int, default=2021)
 @argh.arg(
-    "--nationalPovertyRate", help="National poverty rate target", type=float, default=2
+    "--nationalPovertyRate", help="National poverty rate target", type=float, default=1
 )
 @argh.arg(
-    "--globalPovertyRate", help="Global poverty rate target", type=float, default=2
+    "--globalPovertyRate", help="Global poverty rate target", type=float, default=1
 )
-def main(year=2021, nationalPovertyRate=2, globalPovertyRate=2):
+def main(year=2021, nationalPovertyRate=1, globalPovertyRate=1):
     os.makedirs(f"exhibits/year={year}/figs", exist_ok=True)
     os.makedirs(f"exhibits/year={year}/tables", exist_ok=True)
 

@@ -16,14 +16,16 @@ from learn.aggregation import (
 def get_country_name(country):
     if country == "cote_divoire":
         return "Côte d'Ivoire"
-    if country == "congo_dr":
+    elif country == "congo_dr":
         return "Democratic Republic of the Congo"
-    if country == "south_africa":
+    elif country == "south_africa":
         return "South Africa"
-    if country == "south_sudan":
+    elif country == "south_sudan":
         return "South Sudan"
-    else:
+    elif country in ["guinea_bissau", "burkina_faso"]:
         return "-".join([word.capitalize() for word in country.split("_")])
+    else:
+        return " ".join([word.capitalize() for word in country.split("_")])
 
 
 def get_data_dimension(country):
@@ -79,22 +81,6 @@ def make_plot_for_country(
             color=METHODS["ubi"]["color"],
             label="UBI ${}".format(povertyline),
         )
-    if poverty_gap_on:
-        poverty_gap = results[i].get_poverty_gap()
-        ax[1].plot(
-            np.linspace(0.0, results[i].initial_gap_index),
-            np.ones(50) * poverty_gap,
-            linestyle="--",
-            color=METHODS["oracle_gap"]["color"],
-            label="UBI ${}".format(povertyline),
-        )
-        ax[0].plot(
-            np.linspace(0.0, results[i].initial_rate),
-            np.ones(50) * poverty_gap,
-            linestyle="--",
-            color=METHODS["oracle_gap"]["color"],
-            label="UBI ${}".format(povertyline),
-        )
 
     for i, method in enumerate(method_list):
         dic = methods[method]
@@ -110,16 +96,15 @@ def make_plot_for_country(
             df["policy_cost_per_capita"] * results[0].conversion_factor
         )
 
-        if method != "oracle_gap":
-            ax[0].plot(
-                rates,
-                costs,
-                marker="o",
-                label=dic["name"],
-                color=dic["color"],
-                linestyle=dic["linestyle"],
-                linewidth=3,
-            )
+        ax[0].plot(
+            rates,
+            costs,
+            marker="o",
+            label=dic["name"],
+            color=dic["color"],
+            linestyle=dic["linestyle"],
+            linewidth=3,
+        )
 
         ax[1].plot(
             gaps,
@@ -144,6 +129,23 @@ def make_plot_for_country(
         ax[i].grid(True)
         ax[i].tick_params(axis="x", labelsize=fontsize * 0.75)
         ax[i].tick_params(axis="y", labelsize=fontsize * 0.75)
+
+    if poverty_gap_on:
+        poverty_gap = results[i].get_poverty_gap()
+        ax[1].plot(
+            np.linspace(0.0, results[i].initial_gap_index),
+            np.ones(50) * poverty_gap,
+            linestyle="--",
+            color=METHODS["oracle_gap"]["color"],
+            label="Poverty Gap",
+        )
+        ax[0].plot(
+            np.linspace(0.0, results[i].initial_rate),
+            np.ones(50) * poverty_gap,
+            linestyle="--",
+            color=METHODS["oracle_gap"]["color"],
+            label="Poverty Gap",
+        )
 
     ax[1].legend(fontsize=fontsize * 0.75)  # , #bbox_to_anchor=(1.05, 0.5)
     # fig.tight_layout(rect=[0, 0, 0.85, 1])
@@ -202,23 +204,6 @@ def aggregate_plot(
             color=METHODS["ubi"]["color"],
             label="UBI ${}".format(povertyline),
         )
-    if poverty_gap_on:
-        aggregate_poverty_gap = results[0].get_aggregate_poverty_gap()
-        ax[0].plot(
-            np.linspace(0.0, initial_rate),
-            np.ones(50) * aggregate_poverty_gap,
-            linestyle="--",
-            color=METHODS["oracle_gap"]["color"],
-            label="Aggregate Poverty Gap",
-        )
-
-        ax[1].plot(
-            np.linspace(0.0, initial_gap_index),
-            np.ones(50) * aggregate_poverty_gap,
-            linestyle="--",
-            color=METHODS["oracle_gap"]["color"],
-            label="Aggregate Poverty Gap",
-        )
 
     for i, method in enumerate(method_list):
         gap_domain = results[i].aggregate_interpolator_gap_domain
@@ -258,6 +243,24 @@ def aggregate_plot(
 
     ax[1].legend(fontsize=fontsize * 0.75)  # , #bbox_to_anchor=(1.05, 0.5)
     # fig.tight_layout(rect=[0, 0, 0.85, 1])
+
+    if poverty_gap_on:
+        aggregate_poverty_gap = results[0].get_aggregate_poverty_gap()
+        ax[0].plot(
+            np.linspace(0.0, initial_rate),
+            np.ones(50) * aggregate_poverty_gap,
+            linestyle="--",
+            color=METHODS["oracle_gap"]["color"],
+            label="Aggregate Poverty Gap",
+        )
+
+        ax[1].plot(
+            np.linspace(0.0, initial_gap_index),
+            np.ones(50) * aggregate_poverty_gap,
+            linestyle="--",
+            color=METHODS["oracle_gap"]["color"],
+            label="Aggregate Poverty Gap",
+        )
 
     plt.tight_layout()
     plt.savefig("{}.pdf".format(save_as), dpi=300, bbox_inches="tight")
@@ -493,6 +496,25 @@ def get_table_survey_info(countries, save_as):
     df = preprocess_country_aux_data()
     df = df[df["country"].isin(countries)]
 
+    survey_names = {
+        "Enquête Harmonisée sur le Conditions de Vie des Ménages": "EHCVM",
+        "Socioeconomic Panel Survey: 2009-2010": "Socioeconomic Panel Survey",
+        "Fifth Integrated Household Survey 2019-2020": "Fifth Integrated Household Survey",
+        "Living Standards Survey 2018-19": "Living Standards Survey",
+        "Income and Expenditure Survey 2010-2011": "Income and Expenditure Survey",
+        "High Frequency Survey 2015": "High Frequency Survey",
+        "National Panel Survey 2020-21, Wave 5": "National Panel Survey, Wave 5",
+        "Harmonized Survey on Households Living Standards 2018-2019": "Harmonized Survey on Households Living Standards",
+        "National Panel Survey 2019-2020": "National Panel Survey",
+    }
+
+    def rename_survey(x):
+        if x in survey_names:
+            return survey_names[x]
+        return x
+
+    df["survey_name"] = df["survey_name"].apply(rename_survey)
+
     sample_sizes = []
     covariate_dimensions = []
 
@@ -639,22 +661,13 @@ def plot_bar_chart_oracle_ratio(
         )
         for country in countries
     ]
-    oracle_results = [
-        CountryMethodPovertyResults(
-            country,
-            method="oracle_gap",
-            geo_extrapolation=True,
-            povertyline=povertyline,
-            year=year,
-        )
-        for country in countries
+    oracle_costs = [
+        cont_gap_results[i].get_poverty_gap() for i in range(len(countries))
     ]
 
     res = []
     for i, country in enumerate(countries):
-        oracle_cost = oracle_results[i].rate_to_cost_interpolator(
-            national_poverty_rate_target
-        )
+        oracle_cost = oracle_costs[i]
         targeting_cost = cont_gap_results[i].rate_to_cost_interpolator(
             national_poverty_rate_target
         )
@@ -681,6 +694,118 @@ def plot_bar_chart_oracle_ratio(
     plt.xticks(rotation=90, fontsize=fontsize)
     plt.yticks(fontsize=fontsize)
     plt.savefig("{}.pdf".format(save_as), bbox_inches="tight")
+
+
+def get_global_poverty_gap_estimate(countries, povertyline, year, save_as):
+    agg_results = AggregatePovertyResults(
+        countries,
+        method="oracle_gap",
+        geo_extrapolation=True,
+        povertyline=povertyline,
+        year=year,
+    )
+    in_sample_poverty_gap = agg_results.get_aggregate_poverty_gap()
+    print("In Sample Poverty Gap:{}".format(in_sample_poverty_gap))
+    df = preprocess_country_aux_data()
+    population_df = pd.read_csv("learn/population.csv")
+    df = df.merge(
+        population_df[["country_code", "total_population"]],
+        on="country_code",
+        how="left",
+    )
+
+    out_of_sample_countries = df["country"].unique().tolist()
+
+    dropped_countries = []
+    for country in out_of_sample_countries:
+        if np.isnan(df[df["country"] == country]["wb_poverty_rate_most_recent"].item()):
+            print(country, "poverty rate missing")
+            dropped_countries.append(country)
+        elif np.isnan(
+            df[df["country"] == country]["wb_poverty_gap_index_most_recent"].item()
+        ):
+            print(country, "poverty gap missing")
+            dropped_countries.append(country)
+        elif np.isnan(df[df["country"] == country]["total_population"].item()):
+            print(country, "population missing")
+            dropped_countries.append(country)
+        elif np.isnan(
+            df[df["country"] == country]["PPP_conversion_factor_{}".format(year)].item()
+        ):
+            print(country, "PPP missing")
+            dropped_countries.append(country)
+        elif np.isnan(
+            df[df["country"] == country]["market_exchange_rate_{}".format(year)].item()
+        ):
+            print(country, "market exchange rate missing")
+            dropped_countries.append(country)
+
+    if year == 2021:
+        inflation_adjustment = 1.14
+    elif year == 2017:
+        inflation_adjustment = 1.23
+
+    oracle_gaps = []
+    for i, country in enumerate(out_of_sample_countries):
+        most_recent_year = int(
+            df[df["country"] == country]["wb_poverty_gap_index_most_recent_year"]
+            .values[0]
+            .item()
+        )
+        oracle_gap_index = (
+            df[df["country"] == country]["wb_poverty_gap_index_most_recent"]
+            .values[0]
+            .item()
+        )
+        ppp_exchange_rate = (
+            df[df["country"] == country]["PPP_conversion_factor_{}".format(year)]
+            .values[0]
+            .item()
+        )
+        market_exchange_rate = (
+            df[df["country"] == country]["market_exchange_rate_{}".format(year)]
+            .values[0]
+            .item()
+        )
+        population = df[df["country"] == country]["total_population"].values[0].item()
+        oracle_gap = (
+            oracle_gap_index
+            * povertyline
+            * 365
+            * inflation_adjustment
+            * (ppp_exchange_rate / market_exchange_rate)
+            * population
+            / (10**9)
+        )
+
+        oracle_gaps.append(
+            {
+                "Country": country,
+                "Poverty Gap Index Year": most_recent_year,
+                "Poverty Gap": oracle_gap,
+            }
+        )
+
+    gaps = pd.DataFrame(oracle_gaps)
+    out_of_sample_poverty_gap = gaps["Poverty Gap"].sum()
+
+    gaps = gaps.sort_values(by=["Country"])
+    gaps.to_latex(
+        save_as + ".tex",
+        index=False,
+        float_format="%.2f",
+        escape=False,
+        formatters={"Country": get_country_name},
+    )
+    total_gap = in_sample_poverty_gap + out_of_sample_poverty_gap
+
+    print("Total Poverty Gap", total_gap)
+    return (
+        total_gap,
+        in_sample_poverty_gap,
+        out_of_sample_poverty_gap,
+        dropped_countries,
+    )
 
 
 def get_extrapolation(countries, povertyline, year, globalPovertyRate, save_as=None):
@@ -779,6 +904,17 @@ def get_extrapolation(countries, povertyline, year, globalPovertyRate, save_as=N
     model = LinearRegression(fit_intercept=True)
     model.fit(X, y)
 
+    plt.figure()
+    plt.plot(X, y, "o")
+    plt.plot(X, model.predict(X), "-")
+    plt.xlabel("Initial Poverty Rate")
+    plt.ylabel("Feasible/Oracle Ratio")
+    plt.savefig("exhibits/feasible_oracle_ratio_vs_initial_poverty_rate.png")
+
+    r2 = model.score(X, y)
+    print("Regression R^2:", r2)
+    print("Regression parameters", model.coef_, model.intercept_)
+
     X_test = np.array(X_test).reshape(len(X_test), 1)
     pred_ratio = np.maximum(model.predict(X_test), 1)
     costs = []
@@ -786,7 +922,7 @@ def get_extrapolation(countries, povertyline, year, globalPovertyRate, save_as=N
     if year == 2021:
         inflation_adjustment = 1.14
     elif year == 2017:
-        inflation_adjustment = 1.26
+        inflation_adjustment = 1.23
 
     for i, country in enumerate(out_of_sample_countries):
         most_recent_year = int(
@@ -825,6 +961,7 @@ def get_extrapolation(countries, povertyline, year, globalPovertyRate, save_as=N
                 "Country": country,
                 "Poverty Gap Index Year": most_recent_year,
                 "Poverty Gap Index": oracle_gap_index * 100,
+                "Poverty Gap": oracle_gap,
                 "Predicted Feasible/Oracle Ratio": pred_ratio[i].item(),
                 "Extrapolated Policy Cost": float(cost_for_country),
             }
@@ -937,9 +1074,15 @@ def get_headline_numbers(countries, povertyline, year, national_poverty_rate_tar
                 .item()
             )
         elif method == "oracle_gap":
-            cost[method] = (
-                agg_results[i].aggregate_interpolator_rate_to_cost(0).item()
+            gap_induced = (
+                agg_results[0]
+                .aggregate_interpolator_rate_to_gap(national_poverty_rate_target)
+                .item()
             )  # want oracle to correpond to global poverty gap
+
+            cost[method] = (
+                agg_results[i].aggregate_interpolator_gap_to_cost(gap_induced).item()
+            )
         else:
             cost[method] = (
                 agg_results[i]
@@ -1043,6 +1186,18 @@ def make_macro_file(
         countries, povertyline, year, globalPovertyRate
     )
 
+    # GET GLOBAL POVERTY GAP
+    total_poverty_gap, in_sample_poverty_gap, out_of_sample_poverty_gap, _ = (
+        get_global_poverty_gap_estimate(
+            countries,
+            povertyline,
+            year,
+            save_as="exhibits/year={}/tables/appendix-table-4-global-poverty-gap".format(
+                year
+            ),
+        )
+    )
+
     # GET EXTRAPOLATION
     extrapolated_cost, _, total_cost_out_of_sample_costs, dropped_countries = (
         get_extrapolation(
@@ -1095,27 +1250,27 @@ def make_macro_file(
 
         f.write(
             "\\newcommand{\\headlineUBINationalTarget}"
-            + "{{{}}}\n".format(round(national_cost["ubi"], 1))
+            + "{{{}}}\n".format(round(national_cost["ubi"]))
         )
         f.write(
             "\\newcommand{\\headlinePMTNationalTarget}"
-            + "{{{}}}\n".format(round(national_cost["pmt"], 1))
+            + "{{{}}}\n".format(round(national_cost["pmt"]))
         )
         f.write(
             "\\newcommand{\\headlineGapNationalTarget}"
-            + "{{{}}}\n".format(round(national_cost["continuous_gap"], 1))
+            + "{{{}}}\n".format(round(national_cost["continuous_gap"]))
         )
         f.write(
             "\\newcommand{\\headlineOracleNationalTarget}"
-            + "{{{}}}\n".format(round(national_cost["oracle_gap"], 1))
+            + "{{{}}}\n".format(round(national_cost["oracle_gap"]))
         )
         f.write(
             "\\newcommand{\\headlineBinaryGapNationalTarget}"
-            + "{{{}}}\n".format(round(national_cost["binary_gap"], 1))
+            + "{{{}}}\n".format(round(national_cost["binary_gap"]))
         )
         f.write(
             "\\newcommand{\\headlineUBIVariableNationalTarget}"
-            + "{{{}}}\n".format(round(national_cost["ubi_variable"], 1))
+            + "{{{}}}\n".format(round(national_cost["ubi_variable"]))
         )
 
         f.write(
@@ -1142,9 +1297,7 @@ def make_macro_file(
         f.write(
             "\\newcommand{\\headlineGapOracleRatioNationalTarget}"
             + "{{{}}}\n".format(
-                round(
-                    (national_cost["continuous_gap"] / national_cost["oracle_gap"]), 1
-                )
+                round((national_cost["continuous_gap"] / national_cost["oracle_gap"]))
             )
         )
         f.write(
@@ -1163,27 +1316,27 @@ def make_macro_file(
 
         f.write(
             "\\newcommand{\\headlineUBIGlobalTarget}"
-            + "{{{}}}\n".format(round(global_cost["ubi"], 1))
+            + "{{{}}}\n".format(round(global_cost["ubi"]))
         )
         f.write(
             "\\newcommand{\\headlinePMTGlobalTarget}"
-            + "{{{}}}\n".format(round(global_cost["pmt"], 1))
+            + "{{{}}}\n".format(round(global_cost["pmt"]))
         )
         f.write(
             "\\newcommand{\\headlineGapGlobalTarget}"
-            + "{{{}}}\n".format(round(global_cost["continuous_gap"], 1))
+            + "{{{}}}\n".format(round(global_cost["continuous_gap"]))
         )
         f.write(
             "\\newcommand{\\headlineOracleGlobalTarget}"
-            + "{{{}}}\n".format(round(global_cost["oracle_gap"], 1))
+            + "{{{}}}\n".format(round(global_cost["oracle_gap"]))
         )
         f.write(
             "\\newcommand{\\headlineBinaryGapGlobalTarget}"
-            + "{{{}}}\n".format(round(global_cost["binary_gap"], 1))
+            + "{{{}}}\n".format(round(global_cost["binary_gap"]))
         )
         f.write(
             "\\newcommand{\\headlineUBIVariableGlobalTarget}"
-            + "{{{}}}\n".format(round(global_cost["ubi_variable"], 1))
+            + "{{{}}}\n".format(round(global_cost["ubi_variable"]))
         )
 
         f.write(
@@ -1209,7 +1362,7 @@ def make_macro_file(
         f.write(
             "\\newcommand{\\headlineGapOracleRatioGlobalTarget}"
             + "{{{}}}\n".format(
-                round((global_cost["continuous_gap"] / global_cost["oracle_gap"]), 2)
+                round((global_cost["continuous_gap"] / global_cost["oracle_gap"]))
             )
         )
         f.write(
@@ -1225,10 +1378,14 @@ def make_macro_file(
                 0,
             )
         )
+        f.write(
+            "\\newcommand{\\globalPovertyGap}"
+            + "{{{}}}\n".format(round(total_poverty_gap))
+        )
 
         f.write(
             "\\newcommand{\\extrapolationCost}"
-            + "{{{}}}\n".format(round(extrapolated_cost, 1))
+            + "{{{}}}\n".format(round(extrapolated_cost))
         )
         f.write(
             "\\newcommand{\\extrapolationOECDGDPPercent}"
@@ -1252,7 +1409,7 @@ def make_macro_file(
         )
         f.write(
             "\\newcommand{\\extrapolationOutOfSampleCost}"
-            + "{{{}}}\n".format(round(total_cost_out_of_sample_costs, 0))
+            + "{{{}}}\n".format(round(total_cost_out_of_sample_costs))
         )
         f.write(
             "\\newcommand{\\extrapolationGlobalGDP}"
@@ -1270,13 +1427,13 @@ def make_macro_file(
         f.write(
             "\\newcommand{\\malawiGapOracleRatio}"
             + "{{{}}}\n".format(
-                round(malawi_cost["continuous_gap"] / malawi_cost["oracle_gap"], 1)
+                round(malawi_cost["continuous_gap"] / malawi_cost["oracle_gap"])
             )
         )
         f.write(
             "\\newcommand{\\malawiGapUBIPercent}"
             + "{{{}}}\n".format(
-                round((malawi_cost["continuous_gap"] * 100 / malawi_cost["ubi"])), 1
+                round((malawi_cost["continuous_gap"] * 100 / malawi_cost["ubi"]))
             )
         )
         f.write(
@@ -1291,7 +1448,7 @@ def make_macro_file(
         f.write(
             "\\newcommand{\\malawiGapPMTPercent}"
             + "{{{}}}\n".format(
-                round(malawi_cost["continuous_gap"] * 100 / malawi_cost["pmt"], 1)
+                round(malawi_cost["continuous_gap"] * 100 / malawi_cost["pmt"], 0)
             )
         )
         f.write(
