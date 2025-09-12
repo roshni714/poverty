@@ -89,8 +89,8 @@ def preprocess_wpc_data(countries=None):
         name = "".join(c.lower() for c in name if c.isalnum() or c == "_")
         return name
 
-    df.sort_values(by="country", inplace=True)
     df["country"] = df["country"].apply(process_name)
+    df["country"] = df["country"].replace({"ivory_coast": "cote_divoire"})
     if countries is not None:
         df = df[df["country"].isin(countries)]
     columns = [
@@ -99,6 +99,7 @@ def preprocess_wpc_data(countries=None):
         "wpc_share_world_poor",
         "total_population",
     ]
+    df.sort_values(by="country", inplace=True)
     df = df[columns]
     df["wpc_poverty_rate"] = df["wpc_poverty_rate"].str.replace("%", "").astype(float)
     df["wpc_share_world_poor"] = (

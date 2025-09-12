@@ -9,4 +9,5 @@ from learn.plotting import (
     get_table_wpc,
     get_extrapolation,
     make_macro_file,
+    aggregate_plot_presentation,
 )

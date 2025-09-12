@@ -6,10 +6,10 @@ import os
 GPU_SBATCH_PREFACE = """#!/bin/bash
 #SBATCH -J train-gpu
 #SBATCH -p gpu
-#SBATCH -c 2
-#SBATCH --mem 5GB
+#SBATCH -c 1
+#SBATCH --mem 20GB
 #SBATCH -N 1
-#SBATCH -t 1-             # limit of 1 day runtime
+#SBATCH -t 12:00:00           # limit of 1 day runtime
 #SBATCH -G 1              # limit of 2 GPU's per user
 #SBATCH -o train-gpu-%j.out
 #SBATCH --job-name="{}.sh"
@@ -19,7 +19,7 @@ GPU_SBATCH_PREFACE = """#!/bin/bash
 
 
 SBATCH_PREFACE = """#!/bin/bash
-#SBATCH -t 0-3:00:00
+#SBATCH -t 3:00:00             # limit of 1 day runtime
 #SBATCH -c 1
 #SBATCH --mem 5GB
 #SBATCH -p normal
@@ -31,38 +31,20 @@ SBATCH_PREFACE = """#!/bin/bash
 """
 
 OUTPUT_PATH = (
-    "/home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/dry_run/scripts"
+    "/home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/dry_run/scripts3"
 )
 
 
 def generate_learn_run_2017_povertyline():
-    countries = [
-        "benin",
-        "burkina_faso",
-        "cote_divoire",
-        "ghana",
-        "guinea_bissau",
-        "kenya",
-        "malawi",
-        "mali",
-        "niger",
-        "nigeria",
-        "senegal",
-        "south_africa",
-        "south_sudan",
-        "tanzania",
-        "togo",
-        "uganda",
-    ]
-    # countries = ["kenya", "malawi", "mali", "
+    countries = ["nigeria", "india", "colombia"]
     geo_extrapolation = [True]
     configs = [
-        # "output_gt_continuous_rate.yaml",
+        # "output_gt_continuous_gap.yaml",
         # "output_gt_binary_rate.yaml",
         # "output_gt_binary_gap.yaml",
-        # "output_gt_continuous_gap.yaml",
+        "output_gt_continuous_gap.yaml",
         # "output_gt_modern_pmt.yaml",
-        "oracle_gap.yaml",
+        # "oracle_gap.yaml",
         # "output_gt_pmt.yaml",
         # "ubi.yaml",
     ]
@@ -89,32 +71,15 @@ def generate_learn_run_2017_povertyline():
 
 
 def generate_learn_run_2021_povertyline():
-    countries = [
-        "benin",
-        "burkina_faso",
-        "cote_divoire",
-        "ghana",
-        "guinea_bissau",
-        "kenya",
-        "malawi",
-        "mali",
-        "niger",
-        "nigeria",
-        "senegal",
-        "south_africa",
-        "south_sudan",
-        "tanzania",
-        "togo",
-        "uganda",
-    ]
+    countries = ["ethiopia"]
     geo_extrapolation = [True]
     configs = [
-        # "output_gt_continuous_rate.yaml",
+        "output_gt_continuous_rate.yaml",
         # "output_gt_binary_rate.yaml",
         # "output_gt_binary_gap.yaml",
         # "output_gt_continuous_gap.yaml",
         # "output_gt_modern_pmt.yaml",
-        "oracle_gap.yaml",
+        # "oracle_gap.yaml",
         # "output_gt_pmt.yaml",
         # "ubi.yaml",
     ]
@@ -142,7 +107,7 @@ def generate_learn_run_2021_povertyline():
 
 def generate_hparam_run():
 
-    countries = ["malawi"]
+    countries = ["india", "colombia"]
     geo_extrapolation = [True]
     configs = [
         "gt_continuous_rate.yaml",
@@ -180,7 +145,7 @@ def generate_hparam_run():
                 script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
                 with open(script_fn, "w") as f:
                     print(
-                        SBATCH_PREFACE.format(
+                        GPU_SBATCH_PREFACE.format(
                             exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
                         ),
                         file=f,
@@ -388,9 +353,9 @@ def generate_gt_run():
 
 
 # generate_gt_run()
-# generate_hparam_run()
-generate_learn_run_2017_povertyline()
-generate_learn_run_2021_povertyline()
+generate_hparam_run()
+# generate_learn_run_2017_povertyline()
+# generate_learn_run_2021_povertyline()
 # generate_learn_run()
 # make_learnsavedir()
 # generate_learn_run()

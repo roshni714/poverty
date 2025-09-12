@@ -53,6 +53,11 @@ def get_optimal_density_estimation_parameters(
     else:
         n_knots_range = [4]
 
+    if "kde_fft" in density_estimation_hparam_ranges:
+        kde_fft = density_estimation_hparam_ranges["kde_fft"]
+    else:
+        kde_fft = False
+
     train_df = data_generator(nsamples=ntrain, seed=547396234)
     feature_list = original_cols.copy()
     feature_list.remove(outcome)
@@ -64,6 +69,7 @@ def get_optimal_density_estimation_parameters(
     ordered_features, _ = forward_selection(
         train_dataset, val_dataset, max_features=max(n_features_range)
     )
+    print("Feature selection complete")
 
     results = []
     for trial in range(3):
@@ -84,6 +90,7 @@ def get_optimal_density_estimation_parameters(
             )
 
             new_train_dataset, new_val_dataset = split(train_dataset)
+            print("split dataset")
 
             for degree in degree_range:
                 for n_bins in n_bins_range:
@@ -94,6 +101,7 @@ def get_optimal_density_estimation_parameters(
                             degree=degree,
                             n_bins=n_bins,
                             n_knots=n_knots,
+                            kde_fft=kde_fft,
                             device=device,
                         )
                         nll = get_nll(big_val_dataset, density_estimator)

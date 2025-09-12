@@ -39,6 +39,13 @@ def forward_selection(
             y = np.clip(y, None, truncation_upper_value)
             y, y_mean, y_std = standardize(y)
 
+            if X.shape[0] > 16000:
+                np.random.seed(3758926)
+                sample_indices = np.random.choice(X.shape[0], size=16000, replace=False)
+                X = X[sample_indices]
+                y = y[sample_indices]
+                r = r[sample_indices]
+
             model = Ridge(fit_intercept=True)
             model.fit(X, y, sample_weight=r)
 

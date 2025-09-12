@@ -44,6 +44,7 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
     continuous_gap_config["continuous_gap"] = default_nn_config.copy()
 
     continuous_rate_config = base_config.copy()
+
     continuous_rate_config["continuous_rate"] = {
         "n_alpha": [50, 100, 200],
         "density_estimation": {
@@ -51,6 +52,7 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
             "n_bins": [10, 50, 100, 200],
             "n_knots": [2, 6, 12],
             "degree": [2, 4, 6],
+            "kde_fft": True if country in ["colombia", "india"] else False,
         },
     }
 
@@ -119,9 +121,9 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
         yaml.dump(ubi_config, file, default_flow_style=False)
 
 
-countries = ["south_sudan", "kenya"]
+countries = ["colombia", "india"]
 geo_extrapolation = [True]
 for country in countries:
     for geo in geo_extrapolation:
-        generate_gt_hparam_config(country, geo, "cpu")
+        generate_gt_hparam_config(country, geo, "cuda:0")
     # generate_default_hparam_config(country)
