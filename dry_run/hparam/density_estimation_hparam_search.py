@@ -57,6 +57,11 @@ def get_optimal_density_estimation_parameters(
         kde_fft = density_estimation_hparam_ranges["kde_fft"]
     else:
         kde_fft = False
+    
+    if "winsorize" in density_estimation_hparam_ranges:
+        winsorize = density_estimation_hparam_ranges["winsorize"]
+    else:
+        winsorize = False
 
     train_df = data_generator(nsamples=ntrain, seed=547396234)
     feature_list = original_cols.copy()
@@ -124,4 +129,6 @@ def get_optimal_density_estimation_parameters(
     del optimal_params["trial"]
     for hparam in optimal_params:
         optimal_params[hparam] = int(optimal_params[hparam])
+    optimal_params["kde_fft"] = kde_fft
+    optimal_params["winsorize"] = winsorize
     return optimal_params

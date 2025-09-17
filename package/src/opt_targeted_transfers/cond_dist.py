@@ -306,6 +306,9 @@ class NonparametricConditionalDistribution(ConditionalDistribution):
         """
         inverses = []
         domains = []
+        if len(self.extrema) == 0:
+            import pdb
+            pdb.set_trace()
         for i in range(len(self.extrema) + 1):
             if i == 0:
                 zs = np.linspace(self.outcome_range[0], self.extrema[i], 1000)

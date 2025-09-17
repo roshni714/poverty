@@ -53,6 +53,7 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
             "n_knots": [2, 6, 12],
             "degree": [2, 4, 6],
             "kde_fft": True if country in ["colombia", "india"] else False,
+            "winsorize": True if country in ["colombia", "india"] else False,
         },
     }
 

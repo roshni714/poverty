@@ -102,7 +102,7 @@ def get_quantile_regressor(
             )
 
         optimizer = torch.optim.Adam(q_hat.parameters(), lr=lr)
-        batch_size = int(len(X_train) / 5)
+        batch_size = int(min(16000, len(X_train)) / 5)
         pbar = tqdm.tqdm(list(range(n_epochs)))
         val_losses = []
         models = []

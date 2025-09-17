@@ -63,6 +63,8 @@ def get_optimal_knapsack_parameters(
             n_bins=density_estimation_params["n_bins"],
             n_knots=density_estimation_params["n_knots"],
             degree=density_estimation_params["degree"],
+            kde_fft=density_estimation_params["kde_fft"],
+            winsorize=density_estimation_params["winsorize"],
             device=device,
         )
 

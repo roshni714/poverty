@@ -148,7 +148,7 @@ def get_conditional_improvement_regressor(
 
         optimizer = torch.optim.Adam(predictor.parameters(), lr=lr)
 
-        batch_size = int(len(X_train) / 5)
+        batch_size = int(min(16000, len(X_train)) / 5)
         print(f"Fitting conditional {loss_type} improvement for transfer size {t}")
         pbar = tqdm.tqdm(list(range(n_epochs)))
         val_losses = []

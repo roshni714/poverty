@@ -81,6 +81,7 @@ def learn_continuous_rate(
         n_knots=int(continuous_rate_params["density_estimation"]["n_knots"]),
         n_bins=int(continuous_rate_params["density_estimation"]["n_bins"]),
         degree=int(continuous_rate_params["density_estimation"]["degree"]),
+        kde_fft=continuous_rate_params["density_estimation"]["kde_fft"],
         device=device,
     )
     all_res = []

@@ -93,7 +93,6 @@ class Dataset:
                 if any(col.startswith(var) for var in self.covs)
             ]
             X = self.df[sorted(selected_columns)].values
-
         if self.weight is None:
             r = np.ones(y.shape)
         else:
