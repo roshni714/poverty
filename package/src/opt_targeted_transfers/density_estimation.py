@@ -376,10 +376,10 @@ def lindsey_method_with_covariates(
     y_train = np.clip(y_train, None, truncation_upper_value)
     y_val = np.clip(y_val, None, truncation_upper_value)
 
-    # NEW: winsorize the columns of X_train and X_val at 3% and 97%
+    # NEW: winsorize the columns of X_train and X_val at 1% and 99%
     if winsorize:
-        upper_cap = np.quantile(X_train, 0.97, axis=0)
-        lower_cap = np.quantile(X_train, 0.03, axis=0)
+        upper_cap = np.quantile(X_train, 0.99, axis=0)
+        lower_cap = np.quantile(X_train, 0.01, axis=0)
         X_train = np.clip(X_train, lower_cap, upper_cap)
         X_val = np.clip(X_val, lower_cap, upper_cap)
 
