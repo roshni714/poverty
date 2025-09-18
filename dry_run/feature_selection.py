@@ -26,8 +26,15 @@ def forward_selection(
 
     scores = []
 
+    # if X.shape[0] > 16000:
+    #     np.random.seed(3758926)
+    #     sample_indices = np.random.choice(X.shape[0], size=16000, replace=False)
+    #     X = X[sample_indices]
+    #     y = y[sample_indices]
+    #     r = r[sample_indices]
+
     for i in range(min(max_features, len(feature_list))):
-        best_score = 0
+        best_score = -np.inf
         best_feature = None
         best_model = None
 
@@ -56,6 +63,8 @@ def forward_selection(
                 best_model = model
         ordered_features.append(best_feature)
         scores.append(best_score)
+        if best_feature not in feature_list:
+            import pdb; pdb.set_trace()
         feature_list.remove(best_feature)
         print(best_feature, best_score)
 

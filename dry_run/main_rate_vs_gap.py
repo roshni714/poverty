@@ -184,7 +184,7 @@ def main(
         "continuous_gap": learn_continuous_gap,
         } 
 
-    budget = 1.
+    budget = 1.5
     COVARIATE_DIMENSIONS = np.linspace(1, len(train_dataset.covs), 10, dtype=int)
 
     for key in config_keys:

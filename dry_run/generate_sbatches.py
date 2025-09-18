@@ -135,7 +135,7 @@ def generate_learn_run_2021_povertyline():
 
 def generate_hparam_run():
 
-    countries = ["colombia"]
+    countries = ["india"]
     geo_extrapolation = [True]
     configs = [
         "gt_continuous_rate.yaml",
@@ -381,8 +381,8 @@ def generate_gt_run():
 
 
 # generate_gt_run()
-generate_rate_vs_gap_comparison()
-#generate_hparam_run()
+#generate_rate_vs_gap_comparison()
+generate_hparam_run()
 # generate_learn_run_2017_povertyline()
 # generate_learn_run_2021_povertyline()
 # generate_learn_run()
