@@ -664,7 +664,7 @@ def get_macros_relative_cost(policy_cost):
     )
 
 
-def get_table_survey_info(countries, save_as, slides=False):
+def get_table_survey_info(countries, year, save_as, slides=False):
     df = preprocess_country_aux_data()
     df = df[df["country"].isin(countries)]
 
@@ -713,21 +713,21 @@ def get_table_survey_info(countries, save_as, slides=False):
         "survey_year",
         "sample_size",
         "covariate_dimension",
-        "survey_poverty_rate",
-        "wb_poverty_rate_survey_year",
+        "survey_poverty_rate_povertyline_{}".format(year),
+        "wb_poverty_rate_povertyline_{}_survey_year".format(year),
     ]
     df["survey_year"] = df["survey_year"].astype(int)
     df = df[columns]
-    df["survey_poverty_rate"] *= 100
-    df["wb_poverty_rate_survey_year"] *= 100
+    df["survey_poverty_rate_povertyline_{}".format(year)] *= 100
+    df["wb_poverty_rate_povertyline_{}_survey_year".format(year)] *= 100
     df.sort_values(by=["country"], inplace=True)
     df.rename(
         columns={
             "country": "Country",
             "sample_size": "$n$",
             "covariate_dimension": "$d$",
-            "survey_poverty_rate": "Survey Poverty Rate",
-            "wb_poverty_rate_survey_year": "WB Poverty Rate",
+            "survey_poverty_rate_povertyline_{}".format(year): "Survey Poverty Rate",
+            "wb_poverty_rate_povertyline_{}_survey_year".format(year): "WB Poverty Rate",
             "survey_name": "Survey Name",
             "survey_year": "Survey Year",
         },
@@ -1058,11 +1058,11 @@ def get_extrapolation(countries, povertyline, year, globalPovertyRate, save_as=N
 
     dropped_countries = []
     for country in out_of_sample_countries:
-        if np.isnan(df[df["country"] == country]["wb_poverty_rate_most_recent"].item()):
+        if np.isnan(df[df["country"] == country][f"wb_poverty_rate_povertyline_{year}_most_recent"].item()):
             print(country, "poverty rate missing")
             dropped_countries.append(country)
         elif np.isnan(
-            df[df["country"] == country]["wb_poverty_gap_index_most_recent"].item()
+            df[df["country"] == country][f"wb_poverty_gap_index_povertyline_{year}_most_recent"].item()
         ):
             print(country, "poverty gap missing")
             dropped_countries.append(country)
@@ -1086,7 +1086,7 @@ def get_extrapolation(countries, povertyline, year, globalPovertyRate, save_as=N
     for country in out_of_sample_countries:
         X_test.append(
             [
-                df[df["country"] == country]["wb_poverty_rate_most_recent"].item()
+                df[df["country"] == country][f"wb_poverty_rate_povertyline_{year}_most_recent"].item()
                 * 100,
             ]
         )
@@ -1118,12 +1118,12 @@ def get_extrapolation(countries, povertyline, year, globalPovertyRate, save_as=N
 
     for i, country in enumerate(out_of_sample_countries):
         most_recent_year = int(
-            df[df["country"] == country]["wb_poverty_gap_index_most_recent_year"]
+            df[df["country"] == country][f"wb_poverty_gap_index_povertyline_{year}_most_recent_year"]
             .values[0]
             .item()
         )
         oracle_gap_index = (
-            df[df["country"] == country]["wb_poverty_gap_index_most_recent"]
+            df[df["country"] == country][f"wb_poverty_gap_index_povertyline_{year}_most_recent"]
             .values[0]
             .item()
         )
@@ -1225,7 +1225,7 @@ def get_macros_share_world_poor(countries):
     return total_world_poor, malawi_world_poor
 
 
-def get_macros_survey_info(countries):
+def get_macros_survey_info(countries, year):
     df = preprocess_country_aux_data()
 
     weights = np.array(
@@ -1238,13 +1238,13 @@ def get_macros_survey_info(countries):
 
     pov_rates = np.array(
         [
-            df[df["country"] == country]["survey_poverty_rate"].values[0] * 100
+            df[df["country"] == country][f"survey_poverty_rate_povertyline_{year}"].values[0] * 100
             for country in countries
         ]
     )
     pov_gaps = np.array(
         [
-            df[df["country"] == country]["survey_poverty_gap_index"].values[0] * 100
+            df[df["country"] == country][f"survey_poverty_gap_index_povertyline_{year}"].values[0] * 100
             for country in countries
         ]
     )
@@ -1438,7 +1438,7 @@ def make_macro_file(
         max_pov_rate,
         min_country,
         max_country,
-    ) = get_macros_survey_info(countries)
+    ) = get_macros_survey_info(countries, year)
 
     # GET HEADLINE NUMBERS FOR GLOBAL POVERTY RATE TARGET
     national_poverty_rate_for_global = get_national_poverty_rate_target(

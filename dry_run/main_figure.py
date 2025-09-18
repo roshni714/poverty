@@ -127,12 +127,8 @@ def get_gdp_plot_figure_6(povertyline, year, nationalPovertyRate):
 def get_appendix_table_survey(year):
     get_table_survey_info(
         COUNTRIES,
+        year=year,
         save_as="exhibits/year={}/tables/appendix-table-1-survey_info".format(year),
-    )
-    get_table_survey_info(
-        COUNTRIES,
-        save_as="exhibits/year={}/tables/appendix-table-1-survey_info".format(year),
-        slides=True,
     )
 
 

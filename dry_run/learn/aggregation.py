@@ -54,7 +54,7 @@ METHODS = {
     },
 }
 
-COUNTRY_AUX_DATA_CSV = "learn/auxiliary_data_20250829.csv"
+COUNTRY_AUX_DATA_CSV = "learn/auxiliary_data_20250904.csv"
 WORLD_POVERTY_CLOCK_DATA_CSV = "learn/wpc_data.csv"
 SECONDARY_AUX_DATA_CSV = "learn/secondary_auxiliary_data.csv"
 
