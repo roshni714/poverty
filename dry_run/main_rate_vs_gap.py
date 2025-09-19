@@ -11,12 +11,13 @@ from learn.data_loader import load_datasets
 import os
 
 
-def run_evaluation(tt, test_covariate_dataset, test_dataset, budget, savepath):
-    tt.set_budget(budget)
-    tt.run_opt(test_covariate_dataset)
-    res = tt.evaluate(test_dataset)
-    print(res)
-    write_result(savepath + "_comparison" + ".csv", res)
+def run_evaluation(tt, test_covariate_dataset, test_dataset, budgets, savepath):
+    for budget in budgets:
+        tt.set_budget(budget)
+        tt.run_opt(test_covariate_dataset)
+        res = tt.evaluate(test_dataset)
+        print(res)
+        write_result(savepath + "_comparison" + ".csv", res)
 
 def learn_continuous_rate(
     train_dataset,
@@ -26,7 +27,7 @@ def learn_continuous_rate(
     covariate_dimensions,
     continuous_rate_params,
     povertyline,
-    budget,
+    budgets,
     device,
     savepath,
 ):
@@ -60,11 +61,11 @@ def learn_continuous_rate(
             kde_fft=continuous_rate_params["density_estimation"].get("kde_fft", False),
             device=device,
         )
-
-        tt.set_budget(budget)
-        tt.run_opt(test_covariate_dataset, n_alpha=continuous_rate_params["n_alpha"])
-        res = tt.evaluate(test_dataset)
-        write_result(savepath + "_comparison" + ".csv", res)
+        for budget in budgets:
+            tt.set_budget(budget)
+            tt.run_opt(test_covariate_dataset, n_alpha=continuous_rate_params["n_alpha"])
+            res = tt.evaluate(test_dataset)
+            write_result(savepath + "_comparison" + ".csv", res)
 
 
 
@@ -76,7 +77,7 @@ def learn_continuous_gap(
     covariate_dimensions,
     continuous_gap_params,
     povertyline,
-    budget,
+    budgets,
     device,
     savepath,
 ):
@@ -109,7 +110,7 @@ def learn_continuous_gap(
             device=device,
             **continuous_gap_params["neural_network"],
         )
-        run_evaluation(tt, test_covariate_dataset, test_dataset, budget, savepath)
+        run_evaluation(tt, test_covariate_dataset, test_dataset, budgets, savepath)
 
 
 @argh.arg("--config", default="hparam_results/output_gan_continuous_rate.yaml")
@@ -184,8 +185,8 @@ def main(
         "continuous_gap": learn_continuous_gap,
         } 
 
-    budget = 1.5
-    COVARIATE_DIMENSIONS = np.linspace(1, len(train_dataset.covs), 10, dtype=int)
+    budgets = [0.25, 0.75, 1.25, 1.75]
+    COVARIATE_DIMENSIONS = np.linspace(1, len(train_dataset.covs), 6, dtype=int)
 
     for key in config_keys:
         if key in LEARNING_METHODS:
@@ -198,7 +199,7 @@ def main(
                 COVARIATE_DIMENSIONS,
                 config_hparam[key],
                 povertyline=povertyline,
-                budget=budget,
+                budgets=budgets,
                 device=device,
                 savepath=savepath,
             )

@@ -3,7 +3,7 @@ import numpy as np
 
 from opt_targeted_transfers import Dataset, split
 
-AUX_DATA_CSV = "learn/auxiliary_data_20250829.csv"
+AUX_DATA_CSV = "learn/auxiliary_data_20250907.csv"
 
 
 def get_data_for_geo_extrapolation(data, summary, geo_extrapolation):
