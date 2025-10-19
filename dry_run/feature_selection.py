@@ -64,7 +64,9 @@ def forward_selection(
         ordered_features.append(best_feature)
         scores.append(best_score)
         if best_feature not in feature_list:
-            import pdb; pdb.set_trace()
+            import pdb
+
+            pdb.set_trace()
         feature_list.remove(best_feature)
         print(best_feature, best_score)
 

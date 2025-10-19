@@ -1,7 +1,9 @@
 import os
 from learn import (
     make_plot_for_country,
+    make_plot_for_country_presentation,
     aggregate_plot,
+    aggregate_plot_roshni_presentation,
     aggregate_plot_presentation,
     plot_bar_chart_policy_amt_as_percent_of_gdp,
     get_table_policy_cost_gdp,
@@ -39,11 +41,13 @@ METHODS_RATE_VS_GAP_CONT = ["continuous_gap", "continuous_rate"]
 COUNTRIES = [
     "benin",
     "burkina_faso",
+    "colombia",
     "cote_divoire",
     "ethiopia",
     "ghana",
     "guinea_bissau",
     "kenya",
+    "india",
     "malawi",
     "mali",
     "niger",
@@ -130,6 +134,12 @@ def get_appendix_table_survey(year):
         year=year,
         save_as="exhibits/year={}/tables/appendix-table-1-survey_info".format(year),
     )
+    get_table_survey_info(
+        COUNTRIES,
+        year=year,
+        slides=True,
+        save_as="exhibits/year={}/tables/appendix-table-1-survey_info".format(year),
+    )
 
 
 def get_appendix_table_wpc(year):
@@ -209,6 +219,106 @@ def get_table_extrapolation(povertyline, year, globalPovertyRate):
 
 
 def make_presentation_figures(povertyline, year):
+    make_plot_for_country_presentation(
+        "malawi",
+        [],
+        povertyline=povertyline,
+        year=year,
+        geo_extrapolation=True,
+        save_as="exhibits/year={}/presentation/figure-0-malawi_0".format(year),
+        ubi_on=False,
+    )
+
+    make_plot_for_country_presentation(
+        "malawi",
+        [],
+        povertyline=povertyline,
+        year=year,
+        geo_extrapolation=True,
+        save_as="exhibits/year={}/presentation/figure-0-malawi_1".format(year),
+        ubi_on=True,
+    )
+
+    make_plot_for_country_presentation(
+        "malawi",
+        ["oracle_gap"],
+        povertyline=povertyline,
+        year=year,
+        geo_extrapolation=True,
+        save_as="exhibits/year={}/presentation/figure-0-malawi_2".format(year),
+        ubi_on=True,
+    )
+
+    make_plot_for_country_presentation(
+        "malawi",
+        ["pmt", "continuous_rate", "continuous_gap", "oracle_gap"],
+        povertyline=povertyline,
+        year=year,
+        geo_extrapolation=True,
+        save_as="exhibits/year={}/presentation/figure-0-malawi_3".format(year),
+        ubi_on=True,
+    )
+
+    aggregate_plot_roshni_presentation(
+        COUNTRIES,
+        show_method_list=[],
+        povertyline=povertyline,
+        year=year,
+        geo_extrapolation=True,
+        ubi_on=False,
+        save_as="exhibits/year={}/presentation/figure-1-build-0".format(year),
+        vertical_arrow_rate=False,
+        vertical_arrow_gap=False,
+    )
+
+    aggregate_plot_roshni_presentation(
+        COUNTRIES,
+        show_method_list=["oracle_gap"],
+        povertyline=povertyline,
+        year=year,
+        geo_extrapolation=True,
+        ubi_on=True,
+        save_as="exhibits/year={}/presentation/figure-1-build-1".format(year),
+        vertical_arrow_rate=False,
+        vertical_arrow_gap=False,
+    )
+
+    aggregate_plot_roshni_presentation(
+        COUNTRIES,
+        show_method_list=["pmt", "continuous_rate", "continuous_gap", "oracle_gap"],
+        povertyline=povertyline,
+        year=year,
+        geo_extrapolation=True,
+        ubi_on=True,
+        save_as="exhibits/year={}/presentation/figure-1-build-2".format(year),
+        vertical_arrow_rate=True,
+        vertical_arrow_gap=False,
+    )
+
+    aggregate_plot_roshni_presentation(
+        COUNTRIES,
+        show_method_list=["binary_gap", "continuous_gap"],
+        povertyline=povertyline,
+        year=year,
+        geo_extrapolation=True,
+        ubi_on=False,
+        save_as="exhibits/year={}/presentation/figure-1-build-3".format(year),
+        vertical_arrow_rate=True,
+        vertical_arrow_gap=False,
+    )
+
+    aggregate_plot_roshni_presentation(
+        COUNTRIES,
+        show_method_list=["ubi", "binary_gap", "continuous_gap"],
+        povertyline=povertyline,
+        year=year,
+        geo_extrapolation=True,
+        ubi_on=False,
+        save_as="exhibits/year={}/presentation/figure-1-build-4".format(year),
+        vertical_arrow_rate=True,
+        vertical_arrow_gap=False,
+    )
+
     aggregate_plot_presentation(
         COUNTRIES,
         show_method_list=["continuous_gap", "oracle_gap"],

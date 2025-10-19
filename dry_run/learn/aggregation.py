@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from scipy.interpolate import interp1d
 from sklearn.linear_model import LinearRegression
+import unicodedata
 
 METHODS = {
     "oracle_gap": {
@@ -48,65 +49,108 @@ METHODS = {
     },
     "ubi": {
         "csv": "ubi",
-        "name": "UBI by Country",
+        "name": "UBI (Variable)",
         "color": "purple",
         "linestyle": "-",
     },
 }
 
 COUNTRY_AUX_DATA_CSV = "learn/auxiliary_data_20250907.csv"
-WORLD_POVERTY_CLOCK_DATA_CSV = "learn/wpc_data.csv"
+OLD_WORLD_POVERTY_CLOCK_DATA_CSV = "learn/wpc_data.csv"
+NEW_WORLD_POVERTY_CLOCK_DATA_CSV = (
+    "learn/wdl_pov_clock_oct_2024/wdl_pov_clock_oct_2024.csv"
+)
 SECONDARY_AUX_DATA_CSV = "learn/secondary_auxiliary_data.csv"
-
-# def prune_results(xs, ys, val=0.0):
-#     mask = np.abs(xs - val) < 1e-3
-#     if mask.sum() <= 1:
-#         return xs, ys
-#     xs_nonzero = list(np.array(xs)[~mask])
-#     ys_nonzero = list(np.array(ys)[~mask])
-
-#     ys_zero = ys[mask]
-#     xs = xs_nonzero + [val]
-#     ys = ys_nonzero + [min(ys_zero)]
-#     return np.array(xs), np.array(ys)
 
 
 def preprocess_wpc_data(countries=None):
-    df = pd.read_csv(WORLD_POVERTY_CLOCK_DATA_CSV)
+    df = pd.read_csv(NEW_WORLD_POVERTY_CLOCK_DATA_CSV)
     df.rename(
         columns={
-            "Country (color codes: inputs, intermediates, final outputs, error checks)": "country",
-            "Population": "total_population",
-            "Share of country's population that is in extreme poverty (WPC)": "wpc_poverty_rate",
-            "Share of world's extremely poor population that live in this country (based on WPC)": "wpc_share_world_poor",
+            "hcr_pov": "wpc_poverty_rate",
+            "pgi": "wpc_poverty_gap_index",
+            "ccode": "country_code",
+            "country": "country_name",
         },
         inplace=True,
     )
+    country_df = preprocess_country_aux_data()
+    df = df.merge(
+        country_df[
+            [
+                "country_code",
+                "country",
+                "total_population_2023",
+                "PPP_conversion_factor_2017",
+                "market_exchange_rate_2017",
+            ]
+        ],
+        on="country_code",
+        how="left",
+    )
 
-    def process_name(name):
-        name = name.replace(" ", "_")
-        name = name.replace("-", "_")
-        name = "".join(c.lower() for c in name if c.isalnum() or c == "_")
-        return name
+    # SHARE WORLD POOR ONLY VALID FOR 2023
+    total_world_poor = (
+        df[df["year"] == 2023]["wpc_poverty_rate"] * df["total_population_2023"]
+    ).sum()
+    df["wpc_share_world_poor"] = (
+        df[df["year"] == 2023]["wpc_poverty_rate"] * df["total_population_2023"]
+    ) / total_world_poor
 
-    df["country"] = df["country"].apply(process_name)
-    df["country"] = df["country"].replace({"ivory_coast": "cote_divoire"})
-    if countries is not None:
-        df = df[df["country"].isin(countries)]
     columns = [
         "country",
+        "country_code",
+        "year",
         "wpc_poverty_rate",
         "wpc_share_world_poor",
-        "total_population",
+        "wpc_poverty_gap_index",
+        "total_population_2023",
+        "PPP_conversion_factor_2017",
+        "market_exchange_rate_2017",
     ]
     df.sort_values(by="country", inplace=True)
     df = df[columns]
-    df["wpc_poverty_rate"] = df["wpc_poverty_rate"].str.replace("%", "").astype(float)
-    df["wpc_share_world_poor"] = (
-        df["wpc_share_world_poor"].str.replace("%", "").astype(float)
-    )
-    df["total_population"] = df["total_population"].str.replace(",", "").astype(int)
+    df.dropna(subset=["country"], inplace=True)
+    df = df[df["country"].isin(countries)] if countries is not None else df
     return df
+
+
+# def preprocess_wpc_data(countries=None):
+#     df = pd.read_csv(OLD_WORLD_POVERTY_CLOCK_DATA_CSV)
+#     df.rename(
+#         columns={
+#             "Country (color codes: inputs, intermediates, final outputs, error checks)": "country",
+#             "Population": "total_population",
+#             "Share of country's population that is in extreme poverty (WPC)": "wpc_poverty_rate",
+#             "Share of world's extremely poor population that live in this country (based on WPC)": "wpc_share_world_poor",
+#         },
+#         inplace=True,
+#     )
+
+#     def process_name(name):
+#         name = name.replace(" ", "_")
+#         name = name.replace("-", "_")
+#         name = "".join(c.lower() for c in name if c.isalnum() or c == "_")
+#         return name
+
+#     df["country"] = df["country"].apply(process_name)
+#     df["country"] = df["country"].replace({"ivory_coast": "cote_divoire"})
+#     if countries is not None:
+#         df = df[df["country"].isin(countries)]
+#     columns = [
+#         "country",
+#         "wpc_poverty_rate",
+#         "wpc_share_world_poor",
+#         "total_population",
+#     ]
+#     df.sort_values(by="country", inplace=True)
+#     df = df[columns]
+#     df["wpc_poverty_rate"] = df["wpc_poverty_rate"].str.replace("%", "").astype(float) / 100
+#     df["wpc_share_world_poor"] = (
+#         df["wpc_share_world_poor"].str.replace("%", "").astype(float)
+#     )
+#     df["total_population"] = df["total_population"].str.replace(",", "").astype(int)
+#     return df
 
 
 class CountryMethodPovertyResults:
@@ -155,6 +199,10 @@ class CountryMethodPovertyResults:
             nominal_conversion_factor = 1.23
 
         country_df = df[df["country"] == self.country]
+        if country_df.shape[0] == 0:
+            raise ValueError(
+                "Country {} not found in auxiliary data.".format(self.country)
+            )
 
         factor = (
             country_df["total_population_survey_year"].values[0]
@@ -221,11 +269,16 @@ class CountryMethodPovertyResults:
         )
 
         # rates_pruned, costs_pruned = prune_results(np.array(rates), np.array(cost_gaps))
+
+        # gaps.append(0.)
+        # cost_gaps.append(self.povertyline * country_conversion_factor)
+        # rates.append(0.)
         rate_to_cost_interpolator = interp1d(
             rates,
             cost_gaps,
             kind="linear",
         )
+
         self.rate_to_cost_interpolator = rate_to_cost_interpolator
         self.rate_to_cost_interpolator_domain = (
             min(rates),
@@ -330,13 +383,20 @@ class AggregatePovertyResults:
         max_min_poverty_gap = max(
             [self.country_results[country].min_gap_index for country in self.countries]
         )
-        max_min_poverty_rate = max(
-            [self.country_results[country].min_rate for country in self.countries]
-        )
+
+        rates = [self.country_results[country].min_rate for country in self.countries]
+        # if self.method == "continuous_gap":
+        #    import pdb; pdb.set_trace()
+
+        max_min_poverty_rate = max(rates)
+
         return max_min_poverty_gap, max_min_poverty_rate
 
     def _get_aggregate_interpolators(self):
         _, max_min_rate = self.get_max_min_gap_and_rate()
+        # if self.method == "continuous_gap":
+        #    import pdb; pdb.set_trace()
+
         max_max_rate = max(
             [self.country_results[country].initial_rate for country in self.countries]
         )
@@ -344,7 +404,7 @@ class AggregatePovertyResults:
             [self.country_weights["weight"][country] for country in self.countries]
         )
 
-        wc_rates = np.linspace(max_min_rate, max_max_rate, 200)
+        wc_rates = np.linspace(max_min_rate, max_max_rate, 400)
         agg_gaps = 0.0
         agg_rates = 0.0
         for i, country in enumerate(self.countries):

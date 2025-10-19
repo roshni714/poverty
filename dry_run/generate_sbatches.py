@@ -19,9 +19,9 @@ GPU_SBATCH_PREFACE = """#!/bin/bash
 
 
 SBATCH_PREFACE = """#!/bin/bash
-#SBATCH -t 3:00:00             # limit of 1 day runtime
+#SBATCH -t 8:00:00             # limit of 1 day runtime
 #SBATCH -c 1
-#SBATCH --mem 5GB
+#SBATCH --mem 20GB
 #SBATCH -p normal
 #SBATCH --exclude=yen15
 #SBATCH --ntasks-per-node=1
@@ -31,11 +31,12 @@ SBATCH_PREFACE = """#!/bin/bash
 """
 
 OUTPUT_PATH = (
-    "/home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/dry_run/scripts3"
+    "/home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/dry_run/scripts6"
 )
 
+
 def generate_rate_vs_gap_comparison():
-    countries = ["malawi", "ethiopia"]
+    countries = ["ethiopia", "benin", "tanzania"]
     geo_extrapolation = [True]
     configs = [
         "output_gt_continuous_rate.yaml",
@@ -64,13 +65,13 @@ def generate_rate_vs_gap_comparison():
 
 
 def generate_learn_run_2017_povertyline():
-    countries = ["nigeria", "india", "colombia"]
+    countries = ["tanzania"]
     geo_extrapolation = [True]
     configs = [
-        # "output_gt_continuous_gap.yaml",
+        "output_gt_continuous_gap.yaml",
         # "output_gt_binary_rate.yaml",
         # "output_gt_binary_gap.yaml",
-        "output_gt_continuous_rate.yaml",
+        # "output_gt_continuous_rate.yaml",
         # "output_gt_modern_pmt.yaml",
         # "oracle_gap.yaml",
         # "output_gt_pmt.yaml",
@@ -99,13 +100,13 @@ def generate_learn_run_2017_povertyline():
 
 
 def generate_learn_run_2021_povertyline():
-    countries = ["ethiopia"]
+    countries = ["tanzania"]
     geo_extrapolation = [True]
     configs = [
-        #"output_gt_continuous_rate.yaml",
+        # "output_gt_continuous_rate.yaml",
         # "output_gt_binary_rate.yaml",
         # "output_gt_binary_gap.yaml",
-        # "output_gt_continuous_gap.yaml",
+        "output_gt_continuous_gap.yaml",
         # "output_gt_modern_pmt.yaml",
         # "oracle_gap.yaml",
         # "output_gt_pmt.yaml",
@@ -139,11 +140,11 @@ def generate_hparam_run():
     geo_extrapolation = [True]
     configs = [
         "gt_continuous_rate.yaml",
-        #"gt_binary_rate.yaml",
-        #"gt_binary_gap.yaml",
-        #"gt_continuous_gap.yaml",
-        #"gt_modern_pmt.yaml",
-        #"gt_pmt.yaml",
+        # "gt_binary_rate.yaml",
+        # "gt_binary_gap.yaml",
+        # "gt_continuous_gap.yaml",
+        # "gt_modern_pmt.yaml",
+        # "gt_pmt.yaml",
     ]
 
     # script_fn = os.path.join(OUTPUT_PATH, "a_make_hparamdir.sh")
@@ -381,10 +382,10 @@ def generate_gt_run():
 
 
 # generate_gt_run()
-#generate_rate_vs_gap_comparison()
-generate_hparam_run()
-# generate_learn_run_2017_povertyline()
-# generate_learn_run_2021_povertyline()
+# generate_rate_vs_gap_comparison()
+# generate_hparam_run()
+generate_learn_run_2017_povertyline()
+generate_learn_run_2021_povertyline()
 # generate_learn_run()
 # make_learnsavedir()
 # generate_learn_run()

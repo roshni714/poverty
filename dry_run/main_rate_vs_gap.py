@@ -9,15 +9,29 @@ from opt_targeted_transfers import (
 )
 from learn.data_loader import load_datasets
 import os
+import pandas as pd
 
 
 def run_evaluation(tt, test_covariate_dataset, test_dataset, budgets, savepath):
+    results = []
     for budget in budgets:
         tt.set_budget(budget)
         tt.run_opt(test_covariate_dataset)
         res = tt.evaluate(test_dataset)
-        print(res)
-        write_result(savepath + "_comparison" + ".csv", res)
+        results.append(res)
+    df = pd.DataFrame(results)
+    ys = [results[-1]["initial_poverty_rate"]] + list(df["post_transfer_poverty_rate"])
+    xs = [0.0] + list(df["policy_cost_per_capita"])
+    auc = np.trapz(ys, x=xs)
+    write_result(
+        savepath + "_comparison" + ".csv",
+        {
+            "AUC": auc,
+            "d": results[-1]["d"],
+            "initial_poverty_rate": results[-1]["initial_poverty_rate"],
+        },
+    )
+
 
 def learn_continuous_rate(
     train_dataset,
@@ -59,14 +73,33 @@ def learn_continuous_rate(
             n_bins=int(continuous_rate_params["density_estimation"]["n_bins"]),
             degree=int(continuous_rate_params["density_estimation"]["degree"]),
             kde_fft=continuous_rate_params["density_estimation"].get("kde_fft", False),
+            winsorize=continuous_rate_params["density_estimation"].get(
+                "winsorize", False
+            ),
             device=device,
         )
+        results = []
         for budget in budgets:
             tt.set_budget(budget)
-            tt.run_opt(test_covariate_dataset, n_alpha=continuous_rate_params["n_alpha"])
+            tt.run_opt(
+                test_covariate_dataset, n_alpha=continuous_rate_params["n_alpha"]
+            )
             res = tt.evaluate(test_dataset)
-            write_result(savepath + "_comparison" + ".csv", res)
-
+            results.append(res)
+        df = pd.DataFrame(results)
+        ys = [results[-1]["initial_poverty_rate"]] + list(
+            df["post_transfer_poverty_rate"]
+        )
+        xs = [0.0] + list(df["policy_cost_per_capita"])
+        auc = np.trapz(ys, x=xs)
+        write_result(
+            savepath + "_comparison" + ".csv",
+            {
+                "AUC": auc,
+                "d": results[-1]["d"],
+                "initial_poverty_rate": results[-1]["initial_poverty_rate"],
+            },
+        )
 
 
 def learn_continuous_gap(
@@ -183,9 +216,9 @@ def main(
     LEARNING_METHODS = {
         "continuous_rate": learn_continuous_rate,
         "continuous_gap": learn_continuous_gap,
-        } 
+    }
 
-    budgets = [0.25, 0.75, 1.25, 1.75]
+    budgets = np.linspace(0.05, 2.15, 15)
     COVARIATE_DIMENSIONS = np.linspace(1, len(train_dataset.covs), 6, dtype=int)
 
     for key in config_keys:

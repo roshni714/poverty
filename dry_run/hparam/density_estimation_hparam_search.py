@@ -57,7 +57,7 @@ def get_optimal_density_estimation_parameters(
         kde_fft = density_estimation_hparam_ranges["kde_fft"]
     else:
         kde_fft = False
-    
+
     if "winsorize" in density_estimation_hparam_ranges:
         winsorize = density_estimation_hparam_ranges["winsorize"]
     else:
@@ -107,6 +107,7 @@ def get_optimal_density_estimation_parameters(
                             n_bins=n_bins,
                             n_knots=n_knots,
                             kde_fft=kde_fft,
+                            winsorize=winsorize,
                             device=device,
                         )
                         nll = get_nll(big_val_dataset, density_estimator)

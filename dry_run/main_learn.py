@@ -82,6 +82,7 @@ def learn_continuous_rate(
         n_bins=int(continuous_rate_params["density_estimation"]["n_bins"]),
         degree=int(continuous_rate_params["density_estimation"]["degree"]),
         kde_fft=continuous_rate_params["density_estimation"]["kde_fft"],
+        winsorize=continuous_rate_params["density_estimation"].get("winsorize", False),
         device=device,
     )
     all_res = []
