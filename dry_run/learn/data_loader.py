@@ -61,7 +61,7 @@ def load_datasets(
         conversion_factor = 1.0
     else:
         df = pd.read_csv(AUX_DATA_CSV)
-        conversion_factor = df[df.country == country][
+        conversion_factor = df[df.country_code == country][
             "overall_conversion_factor_ratio_from_2021_to_{}".format(year)
         ].values[0]
 

@@ -13,3 +13,4 @@ from learn.plotting import (
     aggregate_plot_presentation,
     aggregate_plot_roshni_presentation,
 )
+from learn.formatting import METHODS

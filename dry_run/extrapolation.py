@@ -2,14 +2,14 @@ import pandas as pd
 from sklearn.linear_model import LinearRegression
 from scipy.interpolate import interp1d
 import numpy as np
+from learn.formatting import METHODS
 from learn.aggregation import (
-    METHODS,
     AggregatePovertyResults,
     CountryMethodPovertyResults,
     preprocess_country_aux_data,
-    SECONDARY_AUX_DATA_CSV,
     preprocess_wpc_data,
 )
+from learn.aux_data_prep import SECONDARY_AUX_DATA_CSV
 import matplotlib.pyplot as plt
 
 
@@ -147,29 +147,36 @@ class ExtrapolationResults:
         self.model = model
         self.score = model.score(X, y)
 
-        plt.figure()
-        plt.plot(X, y, "o")
-        plt.plot(X, model.predict(X), "-")
-        plt.xlabel("Survey Poverty Rate", fontsize=20)
-        plt.ylabel("Feasible/Oracle Ratio", fontsize=20)
+        plt.figure(figsize=(10, 8))
+        plt.plot(X * 100, y, "o")
+        plt.plot(X * 100, model.predict(X), "-")
+        plt.xticks(fontsize=30 * 0.75)
+        plt.yticks(fontsize=30 * 0.75)
+        plt.xlabel("Survey Poverty Rate (%)", fontsize=30)
+        plt.ylabel("Feasible/Oracle Ratio", fontsize=30)
         plt.savefig("exhibits/feasible_oracle_ratio_vs_initial_poverty_rate.pdf")
         plt.close()
         return model
 
     def get_conversion_factor(self, country):
         df = preprocess_country_aux_data()
+        print(country)
         ppp_exchange_rate = (
-            df[df["country"] == country]["PPP_conversion_factor_{}".format(self.year)]
+            df[df["country_code"] == country][
+                "PPP_conversion_factor_{}".format(self.year)
+            ]
             .values[0]
             .item()
         )
         market_exchange_rate = (
-            df[df["country"] == country]["market_exchange_rate_{}".format(self.year)]
+            df[df["country_code"] == country][
+                "market_exchange_rate_{}".format(self.year)
+            ]
             .values[0]
             .item()
         )
         population = (
-            df[df["country"] == country]["total_population_2023"].values[0].item()
+            df[df["country_code"] == country]["total_population_2023"].values[0].item()
         )
 
         if self.year == 2021:
@@ -198,7 +205,7 @@ class ExtrapolationResults:
             for i, country in enumerate(self.in_sample_countries):
                 X_test.append(
                     [
-                        df[df["country"] == country][
+                        df[df["country_code"] == country][
                             "survey_poverty_rate_povertyline_{}".format(self.year)
                         ].item()
                     ]
@@ -211,14 +218,14 @@ class ExtrapolationResults:
             for i, country in enumerate(self.in_sample_countries):
                 X_test.append(
                     [
-                        df[df["country"] == country][
+                        df[df["country_code"] == country][
                             "wb_poverty_rate_povertyline_{}_most_recent".format(
                                 self.year
                             )
                         ].item()
                     ]
                 )
-                gap_index = df[df["country"] == country][
+                gap_index = df[df["country_code"] == country][
                     "wb_poverty_gap_index_povertyline_{}_most_recent".format(self.year)
                 ].item()
                 conversion_factor = self.get_conversion_factor(country)
@@ -229,18 +236,19 @@ class ExtrapolationResults:
             df = preprocess_wpc_data()
             country_df = preprocess_country_aux_data()
             for i, country in enumerate(self.in_sample_countries):
-                country_year = country_df[country_df["country"] == country][
+                country_year = country_df[country_df["country_code"] == country][
                     "survey_year"
                 ].values[0]
                 X_test.append(
                     [
-                        df[(df["country"] == country) & (df["year"] == country_year)][
-                            "wpc_poverty_rate"
-                        ].item()
+                        df[
+                            (df["country_code"] == country)
+                            & (df["year"] == country_year)
+                        ]["wpc_poverty_rate"].item()
                     ]
                 )
                 gap_index = df[
-                    (df["country"] == country) & (df["year"] == country_year)
+                    (df["country_code"] == country) & (df["year"] == country_year)
                 ]["wpc_poverty_gap_index"].item()
                 conversion_factor = self.get_conversion_factor(country)
                 oracle_costs.append(gap_index * conversion_factor)
@@ -252,12 +260,12 @@ class ExtrapolationResults:
             for i, country in enumerate(self.in_sample_countries):
                 X_test.append(
                     [
-                        df[(df["country"] == country) & (df["year"] == 2023)][
+                        df[(df["country_code"] == country) & (df["year"] == 2023)][
                             "wpc_poverty_rate"
                         ].item()
                     ]
                 )
-                gap_index = df[(df["country"] == country) & (df["year"] == 2023)][
+                gap_index = df[(df["country_code"] == country) & (df["year"] == 2023)][
                     "wpc_poverty_gap_index"
                 ].item()
                 conversion_factor = self.get_conversion_factor(country)
@@ -299,17 +307,17 @@ class ExtrapolationResults:
             df = df[df["year"] == 2023]
 
         poor_countries = []
-        all_countries = df["country"].unique().tolist()
+        all_countries = df["country_code"].unique().tolist()
         excluded = []
         for country in all_countries:
-            if df[df["country"] == country][poverty_rate_key].item() > 0.01:
+            if df[df["country_code"] == country][poverty_rate_key].item() > 0.01:
                 poor_countries.append(country)
             else:
                 excluded.append(country)
                 print(
                     self.outofsample_data_source,
                     country,
-                    df[df["country"] == country][poverty_rate_key].item(),
+                    df[df["country_code"] == country][poverty_rate_key].item(),
                 )
 
         print(
@@ -317,24 +325,26 @@ class ExtrapolationResults:
         )
 
         for country in poor_countries:
-            if np.isnan(df[df["country"] == country][poverty_rate_key].item()):
+            if np.isnan(df[df["country_code"] == country][poverty_rate_key].item()):
                 print(country, "poverty rate missing")
                 dropped_countries.append(country)
-            elif np.isnan(df[df["country"] == country][poverty_gap_key].item()):
+            elif np.isnan(df[df["country_code"] == country][poverty_gap_key].item()):
                 print(country, "poverty gap missing")
                 dropped_countries.append(country)
-            elif np.isnan(df[df["country"] == country]["total_population_2023"].item()):
+            elif np.isnan(
+                df[df["country_code"] == country]["total_population_2023"].item()
+            ):
                 print(country, "population missing")
                 dropped_countries.append(country)
             elif np.isnan(
-                df[df["country"] == country][
+                df[df["country_code"] == country][
                     "PPP_conversion_factor_{}".format(self.year)
                 ].item()
             ):
                 print(country, "PPP missing")
                 dropped_countries.append(country)
             elif np.isnan(
-                df[df["country"] == country][
+                df[df["country_code"] == country][
                     "market_exchange_rate_{}".format(self.year)
                 ].item()
             ):
@@ -358,14 +368,14 @@ class ExtrapolationResults:
             for i, country in enumerate(out_of_sample_countries):
                 X_test.append(
                     [
-                        df[df["country"] == country][
+                        df[df["country_code"] == country][
                             "wb_poverty_rate_povertyline_{}_most_recent".format(
                                 self.year
                             )
                         ].item()
                     ]
                 )
-                gap_index = df[df["country"] == country][
+                gap_index = df[df["country_code"] == country][
                     "wb_poverty_gap_index_povertyline_{}_most_recent".format(self.year)
                 ].item()
                 conversion_factor = self.get_conversion_factor(country)
@@ -377,12 +387,13 @@ class ExtrapolationResults:
                 X_test.append(
                     [
                         wpc_df[
-                            (wpc_df["country"] == country) & (wpc_df["year"] == 2023)
+                            (wpc_df["country_code"] == country)
+                            & (wpc_df["year"] == 2023)
                         ]["wpc_poverty_rate"].item()
                     ]
                 )
                 gap_index = wpc_df[
-                    (wpc_df["country"] == country) & (wpc_df["year"] == 2023)
+                    (wpc_df["country_code"] == country) & (wpc_df["year"] == 2023)
                 ]["wpc_poverty_gap_index"].item()
                 conversion_factor = self.get_conversion_factor(country)
                 oracle_costs.append(gap_index * conversion_factor)

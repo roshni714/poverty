@@ -2,155 +2,9 @@ import pandas as pd
 import numpy as np
 from scipy.interpolate import interp1d
 from sklearn.linear_model import LinearRegression
+from learn.formatting import METHODS
+from learn.aux_data_prep import preprocess_wpc_data, preprocess_country_aux_data
 import unicodedata
-
-METHODS = {
-    "oracle_gap": {
-        "csv": "oracle_gap",
-        "name": "Oracle Gap Minimization",
-        "color": "green",
-        "linestyle": "-",
-    },
-    "continuous_gap": {
-        "csv": "output_gt_continuous_gap",
-        "name": "Gap Minimization (Unrestricted)",
-        "color": "blue",
-        "linestyle": "-",
-    },
-    "binary_gap": {
-        "csv": "output_gt_binary_gap",
-        "name": "Gap Minimization (Binary)",
-        "color": "blue",
-        "linestyle": "--",
-    },
-    "continuous_rate": {
-        "csv": "output_gt_continuous_rate",
-        "name": "Rate Minimization (Unrestricted)",
-        "color": "orange",
-        "linestyle": "-",
-    },
-    "binary_rate": {
-        "csv": "output_gt_binary_rate",
-        "name": "Rate Minimization (Binary)",
-        "color": "orange",
-        "linestyle": "--",
-    },
-    "pmt": {
-        "csv": "output_gt_pmt",
-        "name": "PMT (Lasso)",
-        "color": "red",
-        "linestyle": "-",
-    },
-    "modern_pmt": {
-        "csv": "output_gt_modern_pmt",
-        "name": "PMT (NN)",
-        "color": "red",
-        "linestyle": "--",
-    },
-    "ubi": {
-        "csv": "ubi",
-        "name": "UBI (Variable)",
-        "color": "purple",
-        "linestyle": "-",
-    },
-}
-
-COUNTRY_AUX_DATA_CSV = "learn/auxiliary_data_20250907.csv"
-OLD_WORLD_POVERTY_CLOCK_DATA_CSV = "learn/wpc_data.csv"
-NEW_WORLD_POVERTY_CLOCK_DATA_CSV = (
-    "learn/wdl_pov_clock_oct_2024/wdl_pov_clock_oct_2024.csv"
-)
-SECONDARY_AUX_DATA_CSV = "learn/secondary_auxiliary_data.csv"
-
-
-def preprocess_wpc_data(countries=None):
-    df = pd.read_csv(NEW_WORLD_POVERTY_CLOCK_DATA_CSV)
-    df.rename(
-        columns={
-            "hcr_pov": "wpc_poverty_rate",
-            "pgi": "wpc_poverty_gap_index",
-            "ccode": "country_code",
-            "country": "country_name",
-        },
-        inplace=True,
-    )
-    country_df = preprocess_country_aux_data()
-    df = df.merge(
-        country_df[
-            [
-                "country_code",
-                "country",
-                "total_population_2023",
-                "PPP_conversion_factor_2017",
-                "market_exchange_rate_2017",
-            ]
-        ],
-        on="country_code",
-        how="left",
-    )
-
-    # SHARE WORLD POOR ONLY VALID FOR 2023
-    total_world_poor = (
-        df[df["year"] == 2023]["wpc_poverty_rate"] * df["total_population_2023"]
-    ).sum()
-    df["wpc_share_world_poor"] = (
-        df[df["year"] == 2023]["wpc_poverty_rate"] * df["total_population_2023"]
-    ) / total_world_poor
-
-    columns = [
-        "country",
-        "country_code",
-        "year",
-        "wpc_poverty_rate",
-        "wpc_share_world_poor",
-        "wpc_poverty_gap_index",
-        "total_population_2023",
-        "PPP_conversion_factor_2017",
-        "market_exchange_rate_2017",
-    ]
-    df.sort_values(by="country", inplace=True)
-    df = df[columns]
-    df.dropna(subset=["country"], inplace=True)
-    df = df[df["country"].isin(countries)] if countries is not None else df
-    return df
-
-
-# def preprocess_wpc_data(countries=None):
-#     df = pd.read_csv(OLD_WORLD_POVERTY_CLOCK_DATA_CSV)
-#     df.rename(
-#         columns={
-#             "Country (color codes: inputs, intermediates, final outputs, error checks)": "country",
-#             "Population": "total_population",
-#             "Share of country's population that is in extreme poverty (WPC)": "wpc_poverty_rate",
-#             "Share of world's extremely poor population that live in this country (based on WPC)": "wpc_share_world_poor",
-#         },
-#         inplace=True,
-#     )
-
-#     def process_name(name):
-#         name = name.replace(" ", "_")
-#         name = name.replace("-", "_")
-#         name = "".join(c.lower() for c in name if c.isalnum() or c == "_")
-#         return name
-
-#     df["country"] = df["country"].apply(process_name)
-#     df["country"] = df["country"].replace({"ivory_coast": "cote_divoire"})
-#     if countries is not None:
-#         df = df[df["country"].isin(countries)]
-#     columns = [
-#         "country",
-#         "wpc_poverty_rate",
-#         "wpc_share_world_poor",
-#         "total_population",
-#     ]
-#     df.sort_values(by="country", inplace=True)
-#     df = df[columns]
-#     df["wpc_poverty_rate"] = df["wpc_poverty_rate"].str.replace("%", "").astype(float) / 100
-#     df["wpc_share_world_poor"] = (
-#         df["wpc_share_world_poor"].str.replace("%", "").astype(float)
-#     )
-#     df["total_population"] = df["total_population"].str.replace(",", "").astype(int)
-#     return df
 
 
 class CountryMethodPovertyResults:
@@ -198,7 +52,7 @@ class CountryMethodPovertyResults:
         elif self.year == 2017:
             nominal_conversion_factor = 1.23
 
-        country_df = df[df["country"] == self.country]
+        country_df = df[df["country_code"] == self.country]
         if country_df.shape[0] == 0:
             raise ValueError(
                 "Country {} not found in auxiliary data.".format(self.country)
@@ -226,6 +80,9 @@ class CountryMethodPovertyResults:
         return (
             self.conversion_factor * (self.initial_gap_index / 100) * self.povertyline
         )
+
+    def get_ubi_cost(self):
+        return self.conversion_factor * self.povertyline
 
     def _get_min_poverty_gap_index_and_rate(self):
         df = self._load_data(self.method)
@@ -286,19 +143,6 @@ class CountryMethodPovertyResults:
         )
 
 
-def preprocess_country_aux_data():
-    df = pd.read_csv(COUNTRY_AUX_DATA_CSV)
-
-    def process_name(name):
-        name = name.replace(" ", "_")
-        name = name.replace("-", "_")
-        name = "".join(c.lower() for c in name if c.isalnum() or c == "_")
-        return name
-
-    df["country"] = df["country"].apply(process_name)
-    return df
-
-
 class AggregatePovertyResults:
 
     def __init__(self, countries, method, geo_extrapolation, year, povertyline):
@@ -318,14 +162,14 @@ class AggregatePovertyResults:
 
     def _get_country_weights_and_pop(self):
         df = preprocess_country_aux_data()
-        df = df[df["country"].isin(self.countries)]
+        df = df[df["country_code"].isin(self.countries)]
         df["weight"] = (
             df["total_population_survey_year"]
             / df["total_population_survey_year"].sum()
         )
         self.country_weights = (
-            df[["country", "weight", "total_population_survey_year"]]
-            .set_index("country")
+            df[["country_code", "weight", "total_population_survey_year"]]
+            .set_index("country_code")
             .to_dict()
         )
 

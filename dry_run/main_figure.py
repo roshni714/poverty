@@ -39,31 +39,31 @@ METHODS_RATE_VS_GAP = ["binary_gap", "continuous_gap", "binary_rate", "continuou
 METHODS_RATE_VS_GAP_CONT = ["continuous_gap", "continuous_rate"]
 
 COUNTRIES = [
-    "benin",
-    "burkina_faso",
-    "colombia",
-    "cote_divoire",
-    "ethiopia",
-    "ghana",
-    "guinea_bissau",
-    "kenya",
-    "india",
-    "malawi",
-    "mali",
-    "niger",
-    "nigeria",
-    "senegal",
-    "south_africa",
-    "south_sudan",
-    "tanzania",
-    "togo",
-    "uganda",
+    "BEN",
+    "BFA",
+    "CIV",
+    "COL",
+    "ETH",
+    "GHA",
+    "GNB",
+    "IND",
+    "KEN",
+    "MLI",
+    "MWI",
+    "NER",
+    "NGA",
+    "SEN",
+    "SSD",
+    "TGO",
+    "TZA",
+    "UGA",
+    "ZAF",
 ]
 
 
 def get_malawi_rate_vs_gap_figure_1(povertyline, year):
     make_plot_for_country(
-        "malawi",
+        "MWI",
         METHODS_RATE_VS_GAP,
         povertyline=povertyline,
         year=year,
@@ -220,7 +220,7 @@ def get_table_extrapolation(povertyline, year, globalPovertyRate):
 
 def make_presentation_figures(povertyline, year):
     make_plot_for_country_presentation(
-        "malawi",
+        "MWI",
         [],
         povertyline=povertyline,
         year=year,
@@ -230,7 +230,7 @@ def make_presentation_figures(povertyline, year):
     )
 
     make_plot_for_country_presentation(
-        "malawi",
+        "MWI",
         [],
         povertyline=povertyline,
         year=year,
@@ -240,7 +240,7 @@ def make_presentation_figures(povertyline, year):
     )
 
     make_plot_for_country_presentation(
-        "malawi",
+        "MWI",
         ["oracle_gap"],
         povertyline=povertyline,
         year=year,
@@ -250,8 +250,8 @@ def make_presentation_figures(povertyline, year):
     )
 
     make_plot_for_country_presentation(
-        "malawi",
-        ["pmt", "continuous_rate", "continuous_gap", "oracle_gap"],
+        "MWI",
+        ["continuous_gap", "oracle_gap"],
         povertyline=povertyline,
         year=year,
         geo_extrapolation=True,
@@ -273,7 +273,7 @@ def make_presentation_figures(povertyline, year):
 
     aggregate_plot_roshni_presentation(
         COUNTRIES,
-        show_method_list=["oracle_gap"],
+        show_method_list=[],
         povertyline=povertyline,
         year=year,
         geo_extrapolation=True,
@@ -285,12 +285,24 @@ def make_presentation_figures(povertyline, year):
 
     aggregate_plot_roshni_presentation(
         COUNTRIES,
-        show_method_list=["pmt", "continuous_rate", "continuous_gap", "oracle_gap"],
+        show_method_list=["oracle_gap"],
         povertyline=povertyline,
         year=year,
         geo_extrapolation=True,
         ubi_on=True,
         save_as="exhibits/year={}/presentation/figure-1-build-2".format(year),
+        vertical_arrow_rate=False,
+        vertical_arrow_gap=False,
+    )
+
+    aggregate_plot_roshni_presentation(
+        COUNTRIES,
+        show_method_list=["pmt", "continuous_gap", "oracle_gap"],
+        povertyline=povertyline,
+        year=year,
+        geo_extrapolation=True,
+        ubi_on=True,
+        save_as="exhibits/year={}/presentation/figure-1-build-3".format(year),
         vertical_arrow_rate=True,
         vertical_arrow_gap=False,
     )
@@ -302,7 +314,7 @@ def make_presentation_figures(povertyline, year):
         year=year,
         geo_extrapolation=True,
         ubi_on=False,
-        save_as="exhibits/year={}/presentation/figure-1-build-3".format(year),
+        save_as="exhibits/year={}/presentation/figure-1-build-4".format(year),
         vertical_arrow_rate=True,
         vertical_arrow_gap=False,
     )
@@ -314,7 +326,7 @@ def make_presentation_figures(povertyline, year):
         year=year,
         geo_extrapolation=True,
         ubi_on=False,
-        save_as="exhibits/year={}/presentation/figure-1-build-4".format(year),
+        save_as="exhibits/year={}/presentation/figure-1-build-5".format(year),
         vertical_arrow_rate=True,
         vertical_arrow_gap=False,
     )

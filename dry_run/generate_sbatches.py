@@ -21,7 +21,7 @@ GPU_SBATCH_PREFACE = """#!/bin/bash
 SBATCH_PREFACE = """#!/bin/bash
 #SBATCH -t 8:00:00             # limit of 1 day runtime
 #SBATCH -c 1
-#SBATCH --mem 20GB
+#SBATCH --mem 10GB
 #SBATCH -p normal
 #SBATCH --exclude=yen15
 #SBATCH --ntasks-per-node=1
@@ -31,12 +31,12 @@ SBATCH_PREFACE = """#!/bin/bash
 """
 
 OUTPUT_PATH = (
-    "/home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/dry_run/scripts6"
+    "/home/users/rsahoo/zfs/gsb/intermediate-yens/rsahoo/poverty/dry_run/scripts"
 )
 
 
 def generate_rate_vs_gap_comparison():
-    countries = ["ethiopia", "benin", "tanzania"]
+    countries = ["malawi", "tanzania"]
     geo_extrapolation = [True]
     configs = [
         "output_gt_continuous_rate.yaml",
@@ -382,10 +382,10 @@ def generate_gt_run():
 
 
 # generate_gt_run()
-# generate_rate_vs_gap_comparison()
+generate_rate_vs_gap_comparison()
 # generate_hparam_run()
-generate_learn_run_2017_povertyline()
-generate_learn_run_2021_povertyline()
+# generate_learn_run_2017_povertyline()
+# generate_learn_run_2021_povertyline()
 # generate_learn_run()
 # make_learnsavedir()
 # generate_learn_run()

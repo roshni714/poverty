@@ -2,14 +2,15 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import interp1d
+from sklearn.linear_model import LinearRegression
 from learn.aggregation import (
-    METHODS,
     AggregatePovertyResults,
     CountryMethodPovertyResults,
     preprocess_country_aux_data,
-    SECONDARY_AUX_DATA_CSV,
     preprocess_wpc_data,
 )
+from learn.formatting import METHODS
+from learn.aux_data_prep import SECONDARY_AUX_DATA_CSV
 from extrapolation import get_national_poverty_rate_target, ExtrapolationResults
 
 
@@ -815,7 +816,7 @@ def aggregate_plot_presentation(
 def convert_nominal_2023_to_nominal_survey_year(amt, country):
     df = preprocess_country_aux_data()
     second_df = pd.read_csv("learn/inflation_adjustment.csv")
-    survey_year = int(df[df["country"] == country]["survey_year"].values[0])
+    survey_year = int(df[df["country_code"] == country]["survey_year"].values[0])
     inflation_adjustment = second_df[second_df.survey_year == survey_year][
         "inflation_adjustment_to_2023"
     ].values[0]
@@ -849,8 +850,8 @@ def plot_bar_chart_policy_amt_as_percent_of_gdp(
 
     df = preprocess_country_aux_data()
     gdp = (
-        df[df["country"].isin(countries)][["country", "GDP_survey_year"]]
-        .set_index("country")
+        df[df["country_code"].isin(countries)][["country_code", "GDP_survey_year"]]
+        .set_index("country_code")
         .to_dict()["GDP_survey_year"]
     )
     gdp = {country: gdp[country] for country in countries}
@@ -859,10 +860,10 @@ def plot_bar_chart_policy_amt_as_percent_of_gdp(
     )
 
     govt_revenue_percentage = (
-        df[df["country"].isin(countries)][
-            ["country", "government_revenue_percentage_survey_year"]
+        df[df["country_code"].isin(countries)][
+            ["country_code", "government_revenue_percentage_survey_year"]
         ]
-        .set_index("country")
+        .set_index("country_code")
         .to_dict()["government_revenue_percentage_survey_year"]
     )
     govt_revenue = {
@@ -876,7 +877,13 @@ def plot_bar_chart_policy_amt_as_percent_of_gdp(
         ]
     )
 
-    xlabels = np.array([get_country_name(c) for c in countries])
+    wpc_aux_data = preprocess_wpc_data(countries)
+    xlabels = np.array(
+        [
+            wpc_aux_data[wpc_aux_data["country_code"] == c]["country_name"].values[0]
+            for c in countries
+        ]
+    )
     sort_index = np.argsort(amts_as_percent_of_gdp)[::-1]
 
     fig, axes = plt.subplots(2, 1, figsize=(30, 8 * 2))
@@ -948,11 +955,11 @@ def get_table_policy_cost_gdp(countries, povertyline, year, globalPovertyRate, s
     nationalPovertyRate = get_national_poverty_rate_target(globalPovertyRate)
     for result in results:
         amt = result.rate_to_cost_interpolator(nationalPovertyRate).item()
-        res.append({"country": result.country, "policy_cost": amt})
+        res.append({"country_code": result.country, "policy_cost": amt})
 
     df2 = pd.DataFrame(res)
-    df = df2.merge(df, on="country", how="left")
-    df.sort_values(by=["country"], inplace=True)
+    df = df2.merge(df, on="country_code", how="left")
+    df.sort_values(by=["country_code"], inplace=True)
     df["Policy Cost / GDP"] = df["policy_cost"] / df["GDP_survey_year"]
     df["government_revenue_survey_year"] = (
         df["government_revenue_percentage_survey_year"] * df["GDP_survey_year"] / 100
@@ -1024,7 +1031,7 @@ def get_macros_relative_cost(policy_cost):
 
 def get_table_survey_info(countries, year, save_as, slides=False):
     df = preprocess_country_aux_data()
-    df = df[df["country"].isin(countries)]
+    df = df[df["country_code"].isin(countries)]
 
     survey_names = {
         "Enquête Harmonisée sur le Conditions de Vie des Ménages (EHCVM) 2018-2019": "EHCVM",
@@ -1059,16 +1066,23 @@ def get_table_survey_info(countries, year, save_as, slides=False):
 
     new_df = pd.DataFrame(
         {
-            "country": countries,
+            "country_code": countries,
             "sample_size": sample_sizes,
             "covariate_dimension": covariate_dimensions,
         }
     )
 
-    df = df.merge(new_df, on="country", how="left")
+    df = df.merge(new_df, on="country_code", how="left")
+
+    wpc_aux_data = preprocess_wpc_data(countries)
+    df = df.merge(
+        wpc_aux_data[["country_code", "country_name"]].drop_duplicates(),
+        on="country_code",
+        how="left",
+    )
 
     columns = [
-        "country",
+        "country_name",
         "survey_name",
         "survey_year",
         "sample_size",
@@ -1080,10 +1094,10 @@ def get_table_survey_info(countries, year, save_as, slides=False):
     df = df[columns]
     df["survey_poverty_rate_povertyline_{}".format(year)] *= 100
     df["wb_poverty_rate_povertyline_{}_survey_year".format(year)] *= 100
-    df.sort_values(by=["country"], inplace=True)
+    df.sort_values(by=["country_name"], inplace=True)
     df.rename(
         columns={
-            "country": "Country",
+            "country_name": "Country",
             "sample_size": "$n$",
             "covariate_dimension": "$d$",
             "survey_poverty_rate_povertyline_{}".format(year): "Survey Poverty Rate",
@@ -1101,7 +1115,6 @@ def get_table_survey_info(countries, year, save_as, slides=False):
             index=False,
             float_format="%.2f",
             escape=False,
-            formatters={"Country": get_country_name},
         )
     if slides:
         df.drop(columns=["WB Poverty Rate", "Survey Poverty Rate"], inplace=True)
@@ -1110,7 +1123,6 @@ def get_table_survey_info(countries, year, save_as, slides=False):
             index=False,
             float_format="%.2f",
             escape=False,
-            formatters={"Country": get_country_name},
         )
     return df
 
@@ -1118,12 +1130,12 @@ def get_table_survey_info(countries, year, save_as, slides=False):
 def get_table_wpc(countries, save_as):
     df = preprocess_wpc_data(countries)
     df = df[df["year"] == 2023]
-    df = df[["country", "wpc_poverty_rate", "wpc_share_world_poor"]]
+    df = df[["country_name", "wpc_poverty_rate", "wpc_share_world_poor"]]
     df["wpc_poverty_rate"] *= 100
     df["wpc_share_world_poor"] *= 100
     df.rename(
         columns={
-            "country": "Country",
+            "country_name": "Country",
             "wpc_poverty_rate": "Poverty Rate",
             "wpc_share_world_poor": "Share of World's Poor",
         },
@@ -1151,26 +1163,26 @@ def plot_bar_chart_ubi_ratio(
         )
         for country in countries
     ]
-    ubi_results = [
-        CountryMethodPovertyResults(
-            country,
-            method="ubi",
-            geo_extrapolation=True,
-            povertyline=povertyline,
-            year=year,
-        )
-        for country in countries
-    ]
+    # ubi_results = [
+    #     CountryMethodPovertyResults(
+    #         country,
+    #         method="ubi",
+    #         geo_extrapolation=True,
+    #         povertyline=povertyline,
+    #         year=year,
+    #     )
+    #     for country in countries
+    # ]
 
     res = []
     for i, country in enumerate(countries):
-        ubi_cost = ubi_results[i].rate_to_cost_interpolator(nationalPovertyRate)
+        ubi_cost = cont_gap_results[i].get_ubi_cost()
         targeting_cost = cont_gap_results[i].rate_to_cost_interpolator(
             nationalPovertyRate
         )
         res.append(
             {
-                "country": country,
+                "country_code": country,
                 "ratio_of_ubi_and_targeting": ubi_cost / targeting_cost,
             }
         )
@@ -1179,8 +1191,15 @@ def plot_bar_chart_ubi_ratio(
     df.sort_values(by=["ratio_of_ubi_and_targeting"], ascending=False, inplace=True)
     fontsize = 30
     plt.figure(figsize=(30, 8))
+
+    wpc_aux_data = preprocess_wpc_data(countries)
     plt.bar(
-        [get_country_name(country) for country in df["country"]],
+        [
+            wpc_aux_data[wpc_aux_data["country_code"] == country_code][
+                "country_name"
+            ].values[0]
+            for country_code in df["country_code"]
+        ],
         df["ratio_of_ubi_and_targeting"],
         zorder=3,
     )
@@ -1192,6 +1211,26 @@ def plot_bar_chart_ubi_ratio(
     plt.xticks(rotation=90, fontsize=fontsize)
     plt.yticks(fontsize=fontsize)
     plt.savefig("{}.pdf".format(save_as), bbox_inches="tight")
+    plt.close()
+
+    plt.figure(figsize=(10, 8))
+    initial_rates = np.array(
+        [cont_gap_results[i].initial_rate for i in range(len(countries))]
+    ).reshape(-1, 1)
+    ubi_ratios = np.array(
+        [res[i]["ratio_of_ubi_and_targeting"] for i in range(len(countries))]
+    ).reshape(-1, 1)
+    plt.scatter(
+        initial_rates.flatten(), ubi_ratios.flatten(), marker="o", s=100, zorder=3
+    )
+    xs = np.linspace(0, max(initial_rates), 100).reshape(-1, 1)
+    plt.xlabel("Poverty Rate (Survey)", fontsize=fontsize)
+    plt.ylabel("Cost Ratio", fontsize=fontsize)
+    plt.xticks(fontsize=fontsize * 0.75)
+    plt.yticks(fontsize=fontsize * 0.75)
+    plt.axhline(y=1, color="grey", linestyle="--", linewidth=2, label="Cost Ratio = 1")
+    plt.legend(fontsize=fontsize * 0.75)
+    plt.savefig("{}_scatter.pdf".format(save_as), bbox_inches="tight")
 
 
 def plot_bar_chart_oracle_ratio(
@@ -1219,7 +1258,7 @@ def plot_bar_chart_oracle_ratio(
         )
         res.append(
             {
-                "country": country,
+                "country_code": country,
                 "ratio_of_oracle_and_targeting": targeting_cost / oracle_cost,
             }
         )
@@ -1228,8 +1267,14 @@ def plot_bar_chart_oracle_ratio(
     df.sort_values(by=["ratio_of_oracle_and_targeting"], ascending=False, inplace=True)
     fontsize = 30
     plt.figure(figsize=(30, 8))
+    wpc_aux_data = preprocess_wpc_data(countries)
     plt.bar(
-        [get_country_name(country) for country in df["country"]],
+        [
+            wpc_aux_data[wpc_aux_data["country_code"] == country][
+                "country_name"
+            ].values[0]
+            for country in df["country_code"]
+        ],
         df["ratio_of_oracle_and_targeting"],
         zorder=3,
     )
@@ -1381,7 +1426,7 @@ def get_macros_share_world_poor(countries):
     wpc_data = wpc_data[wpc_data["year"] == 2023]
     total_world_poor = wpc_data["wpc_share_world_poor"].sum() * 100
     malawi_world_poor = (
-        wpc_data[(wpc_data["country"] == "malawi")]["wpc_share_world_poor"].values[0]
+        wpc_data[(wpc_data["country_code"] == "MWI")]["wpc_share_world_poor"].values[0]
         * 100
     )
     return total_world_poor, malawi_world_poor
@@ -1392,7 +1437,7 @@ def get_macros_survey_info(countries, year):
 
     weights = np.array(
         [
-            df[df["country"] == country]["total_population_survey_year"].values[0]
+            df[df["country_code"] == country]["total_population_survey_year"].values[0]
             for country in countries
         ]
     )
@@ -1400,7 +1445,7 @@ def get_macros_survey_info(countries, year):
 
     pov_rates = np.array(
         [
-            df[df["country"] == country][
+            df[df["country_code"] == country][
                 f"survey_poverty_rate_povertyline_{year}"
             ].values[0]
             * 100
@@ -1409,7 +1454,7 @@ def get_macros_survey_info(countries, year):
     )
     pov_gaps = np.array(
         [
-            df[df["country"] == country][
+            df[df["country_code"] == country][
                 f"survey_poverty_gap_index_povertyline_{year}"
             ].values[0]
             * 100
@@ -1535,17 +1580,17 @@ def get_percentages(countries, costs):
 
     df = preprocess_country_aux_data()
     gdp = (
-        df[df["country"].isin(countries)][["country", "GDP_survey_year"]]
-        .set_index("country")
+        df[df["country_code"].isin(countries)][["country_code", "GDP_survey_year"]]
+        .set_index("country_code")
         .to_dict()["GDP_survey_year"]
     )
     gdp = {country: gdp[country] for country in countries}
 
     govt_revenue_percentage = (
-        df[df["country"].isin(countries)][
-            ["country", "government_revenue_percentage_survey_year"]
+        df[df["country_code"].isin(countries)][
+            ["country_code", "government_revenue_percentage_survey_year"]
         ]
-        .set_index("country")
+        .set_index("country_code")
         .to_dict()["government_revenue_percentage_survey_year"]
     )
     govt_revenue = {
@@ -1554,8 +1599,8 @@ def get_percentages(countries, costs):
     }
 
     oda = (
-        df[df["country"].isin(countries)][["country", "ODA_most_recent"]]
-        .set_index("country")
+        df[df["country_code"].isin(countries)][["country_code", "ODA_most_recent"]]
+        .set_index("country_code")
         .to_dict()["ODA_most_recent"]
     )
     oda = {country: oda[country] for country in countries}
@@ -1663,10 +1708,10 @@ def make_macro_file(
 
     # GET MALAWI HEADLINE NUMBERS
     malawi_cost, agg_results = get_headline_numbers(
-        ["malawi"], povertyline, year, nationalPovertyRate
+        ["MWI"], povertyline, year, nationalPovertyRate
     )
     conversion_factor_malawi = (
-        agg_results[0].country_results["malawi"]._get_conversion_factor()
+        agg_results[0].country_results["MWI"]._get_conversion_factor()
     )
 
     malawi_variable_amt = malawi_cost["ubi_variable"] / conversion_factor_malawi
@@ -1702,7 +1747,7 @@ def make_macro_file(
 
     dropped_countries_string = make_string_country_list(dropped_countries)
 
-    malawi_n, malawi_d = get_data_dimension("malawi")
+    malawi_n, malawi_d = get_data_dimension("MWI")
     data_dimension = [get_data_dimension(country)[1] for country in countries]
     min_d = min(data_dimension)
     max_d = max(data_dimension)

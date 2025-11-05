@@ -38,6 +38,8 @@ def forward_selection(
         best_feature = None
         best_model = None
 
+        l = []
+
         for feature in feature_list:
             features = ordered_features + [feature]
             train_dataset.covs = features
@@ -56,6 +58,7 @@ def forward_selection(
             y_val = (y_val - y_mean) / y_std
 
             score = model.score(X_val, y_val, sample_weight=r_val)
+            l.append((feature, score))
 
             if score > best_score:
                 best_score = score
