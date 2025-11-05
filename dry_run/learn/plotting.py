@@ -14,23 +14,6 @@ from learn.aux_data_prep import SECONDARY_AUX_DATA_CSV
 from extrapolation import get_national_poverty_rate_target, ExtrapolationResults
 
 
-def get_country_name(country):
-    if country == "cote_divoire":
-        return "Côte d'Ivoire"
-    elif country == "congo_dr":
-        return "Democratic Republic of the Congo"
-    elif country == "south_africa":
-        return "South Africa"
-    elif country == "south_sudan":
-        return "South Sudan"
-    elif country == "taiwan_china":
-        return "Taiwan"
-    elif country in ["guinea_bissau", "burkina_faso"]:
-        return "-".join([word.capitalize() for word in country.split("_")])
-    else:
-        return " ".join([word.capitalize() for word in country.split("_")])
-
-
 def get_data_dimension(country):
     train_data = pd.read_parquet("data/{}/train.parquet".format(country))
     n_train = len(train_data)
@@ -877,13 +860,7 @@ def plot_bar_chart_policy_amt_as_percent_of_gdp(
         ]
     )
 
-    wpc_aux_data = preprocess_wpc_data(countries)
-    xlabels = np.array(
-        [
-            wpc_aux_data[wpc_aux_data["country_code"] == c]["country_name"].values[0]
-            for c in countries
-        ]
-    )
+    xlabels = np.array([get_country_name(c) for c in countries])
     sort_index = np.argsort(amts_as_percent_of_gdp)[::-1]
 
     fig, axes = plt.subplots(2, 1, figsize=(30, 8 * 2))
@@ -973,7 +950,7 @@ def get_table_policy_cost_gdp(countries, povertyline, year, globalPovertyRate, s
             "policy_cost": "Policy Cost",
             "GDP_survey_year": "GDP",
             "survey_year": "Reference Year",
-            "country": "Country",
+            "country_code": "Country",
             "government_revenue_survey_year": "Gov't Revenue",
         },
         inplace=True,
@@ -1067,19 +1044,13 @@ def get_table_survey_info(countries, year, save_as, slides=False):
     new_df = pd.DataFrame(
         {
             "country_code": countries,
+            "country_name": [get_country_name(c) for c in countries],
             "sample_size": sample_sizes,
             "covariate_dimension": covariate_dimensions,
         }
     )
 
     df = df.merge(new_df, on="country_code", how="left")
-
-    wpc_aux_data = preprocess_wpc_data(countries)
-    df = df.merge(
-        wpc_aux_data[["country_code", "country_name"]].drop_duplicates(),
-        on="country_code",
-        how="left",
-    )
 
     columns = [
         "country_name",
@@ -1130,12 +1101,12 @@ def get_table_survey_info(countries, year, save_as, slides=False):
 def get_table_wpc(countries, save_as):
     df = preprocess_wpc_data(countries)
     df = df[df["year"] == 2023]
-    df = df[["country_name", "wpc_poverty_rate", "wpc_share_world_poor"]]
+    df = df[["country_code", "wpc_poverty_rate", "wpc_share_world_poor"]]
     df["wpc_poverty_rate"] *= 100
     df["wpc_share_world_poor"] *= 100
     df.rename(
         columns={
-            "country_name": "Country",
+            "country_code": "Country",
             "wpc_poverty_rate": "Poverty Rate",
             "wpc_share_world_poor": "Share of World's Poor",
         },
@@ -1192,14 +1163,8 @@ def plot_bar_chart_ubi_ratio(
     fontsize = 30
     plt.figure(figsize=(30, 8))
 
-    wpc_aux_data = preprocess_wpc_data(countries)
     plt.bar(
-        [
-            wpc_aux_data[wpc_aux_data["country_code"] == country_code][
-                "country_name"
-            ].values[0]
-            for country_code in df["country_code"]
-        ],
+        [get_country_name(c) for c in df["country_code"]],
         df["ratio_of_ubi_and_targeting"],
         zorder=3,
     )
@@ -1267,14 +1232,8 @@ def plot_bar_chart_oracle_ratio(
     df.sort_values(by=["ratio_of_oracle_and_targeting"], ascending=False, inplace=True)
     fontsize = 30
     plt.figure(figsize=(30, 8))
-    wpc_aux_data = preprocess_wpc_data(countries)
     plt.bar(
-        [
-            wpc_aux_data[wpc_aux_data["country_code"] == country][
-                "country_name"
-            ].values[0]
-            for country in df["country_code"]
-        ],
+        [get_country_name(c) for c in df["country_code"]],
         df["ratio_of_oracle_and_targeting"],
         zorder=3,
     )
@@ -1408,7 +1367,15 @@ def get_global_poverty_gap_estimate(countries, povertyline, year, save_as):
     )
 
 
+def get_country_name(code):
+    print(code)
+    wpc_aux_data = preprocess_wpc_data([code])
+    name = wpc_aux_data["country_name"].values[0]
+    return name
+
+
 def make_string_country_list(l):
+
     if len(l) == 0:
         return ""
     elif len(l) == 1:
