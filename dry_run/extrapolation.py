@@ -13,23 +13,6 @@ from learn.aux_data_prep import SECONDARY_AUX_DATA_CSV
 import matplotlib.pyplot as plt
 
 
-def get_country_name(country):
-    if country == "cote_divoire":
-        return "Côte d'Ivoire"
-    elif country == "congo_dr":
-        return "Democratic Republic of the Congo"
-    elif country == "south_africa":
-        return "South Africa"
-    elif country == "south_sudan":
-        return "South Sudan"
-    elif country == "taiwan_china":
-        return "Taiwan"
-    elif country in ["guinea_bissau", "burkina_faso"]:
-        return "-".join([word.capitalize() for word in country.split("_")])
-    else:
-        return " ".join([word.capitalize() for word in country.split("_")])
-
-
 def get_national_poverty_rate_target(global_poverty_rate_target):
     df = preprocess_wpc_data()
     df = df[df["year"] == 2023]
@@ -160,7 +143,6 @@ class ExtrapolationResults:
 
     def get_conversion_factor(self, country):
         df = preprocess_country_aux_data()
-        print(country)
         ppp_exchange_rate = (
             df[df["country_code"] == country][
                 "PPP_conversion_factor_{}".format(self.year)
@@ -314,15 +296,6 @@ class ExtrapolationResults:
                 poor_countries.append(country)
             else:
                 excluded.append(country)
-                print(
-                    self.outofsample_data_source,
-                    country,
-                    df[df["country_code"] == country][poverty_rate_key].item(),
-                )
-
-        print(
-            self.outofsample_data_source, "excluded countries", excluded, len(excluded)
-        )
 
         for country in poor_countries:
             if np.isnan(df[df["country_code"] == country][poverty_rate_key].item()):

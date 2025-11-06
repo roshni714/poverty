@@ -12,18 +12,12 @@ from learn.aggregation import (
 from learn.formatting import METHODS
 from learn.aux_data_prep import SECONDARY_AUX_DATA_CSV
 from extrapolation import get_national_poverty_rate_target, ExtrapolationResults
-
-
-def get_data_dimension(country):
-    train_data = pd.read_parquet("data/{}/train.parquet".format(country))
-    n_train = len(train_data)
-    test_data = pd.read_parquet("data/{}/test.parquet".format(country))
-    n_test = len(test_data)
-    n = n_train + n_test
-    d = len(train_data.columns)
-    # remove hh_wgt, household_size_adjusted_hh_wgt, and consumption_per_capita_per_day
-    d -= 3
-    return n, d
+from learn.post_processing_utils import (
+    convert_nominal_2023_to_nominal_survey_year,
+    get_data_dimension,
+    get_country_name,
+    make_string_country_list,
+)
 
 
 def make_plot_for_country_presentation(
@@ -76,7 +70,6 @@ def make_plot_for_country_presentation(
             label="UBI ${}".format(povertyline),
             linewidth=3,
         )
-        print(country, "UBI Cost: ", povertyline * oracle_results.conversion_factor)
     ax[0].set_ylim(-0.1, povertyline * oracle_results.conversion_factor * 1.05)
     ax[1].set_ylim(-0.1, povertyline * oracle_results.conversion_factor * 1.05)
 
@@ -104,7 +97,6 @@ def make_plot_for_country_presentation(
         )
 
         f = interp1d(rates, costs)
-        print(country, method, f(1.0))
 
         if method != "oracle_gap":
             ax[0].plot(
@@ -244,9 +236,6 @@ def make_plot_for_country(
                 linestyle=dic["linestyle"],
                 linewidth=3,
             )
-        if method == "ubi" and country == "colombia":
-            print("rates", rates)
-            print("costs", costs)
 
         ax[1].plot(
             gaps,
@@ -545,7 +534,6 @@ def aggregate_plot_roshni_presentation(
                 alpha=alpha,
                 linewidth=3,
             )
-            print("roshni agg", method, rate_interpolator(1.0))
             ax[1].plot(
                 np.linspace(gap_domain[0], gap_domain[1], 200),
                 gap_interpolator(np.linspace(gap_domain[0], gap_domain[1], 200)),
@@ -794,17 +782,6 @@ def aggregate_plot_presentation(
     plt.tight_layout()
     plt.savefig("{}.pdf".format(save_as), dpi=300, bbox_inches="tight")
     plt.close()
-
-
-def convert_nominal_2023_to_nominal_survey_year(amt, country):
-    df = preprocess_country_aux_data()
-    second_df = pd.read_csv("learn/inflation_adjustment.csv")
-    survey_year = int(df[df["country_code"] == country]["survey_year"].values[0])
-    inflation_adjustment = second_df[second_df.survey_year == survey_year][
-        "inflation_adjustment_to_2023"
-    ].values[0]
-    amt = amt * (1 / inflation_adjustment)
-    return amt
 
 
 def plot_bar_chart_policy_amt_as_percent_of_gdp(
@@ -1246,155 +1223,18 @@ def plot_bar_chart_oracle_ratio(
     plt.savefig("{}.pdf".format(save_as), bbox_inches="tight")
 
 
-def get_global_poverty_gap_estimate(countries, povertyline, year, save_as):
-    agg_results = AggregatePovertyResults(
-        countries,
-        method="oracle_gap",
-        geo_extrapolation=True,
-        povertyline=povertyline,
-        year=year,
-    )
-    in_sample_poverty_gap = agg_results.get_aggregate_poverty_gap()
-    print("In Sample Poverty Gap:{}".format(in_sample_poverty_gap))
-    df = preprocess_country_aux_data()
-    population_df = pd.read_csv("learn/population.csv")
-    df = df.merge(
-        population_df[["country_code", "total_population"]],
-        on="country_code",
-        how="left",
-    )
-
-    out_of_sample_countries = df["country"].unique().tolist()
-
-    dropped_countries = [countries.copy(deep=True)]
-    for country in out_of_sample_countries:
-        if np.isnan(df[df["country"] == country]["wb_poverty_rate_most_recent"].item()):
-            print(country, "poverty rate missing")
-            dropped_countries.append(country)
-        elif np.isnan(
-            df[df["country"] == country]["wb_poverty_gap_index_most_recent"].item()
-        ):
-            print(country, "poverty gap missing")
-            dropped_countries.append(country)
-        elif np.isnan(df[df["country"] == country]["total_population"].item()):
-            print(country, "population missing")
-            dropped_countries.append(country)
-        elif np.isnan(
-            df[df["country"] == country]["PPP_conversion_factor_{}".format(year)].item()
-        ):
-            print(country, "PPP missing")
-            dropped_countries.append(country)
-        elif np.isnan(
-            df[df["country"] == country]["market_exchange_rate_{}".format(year)].item()
-        ):
-            print(country, "market exchange rate missing")
-            dropped_countries.append(country)
-
-    if year == 2021:
-        inflation_adjustment = 1.14
-    elif year == 2017:
-        inflation_adjustment = 1.23
-
-    for country in dropped_countries:
-        out_of_sample_countries.remove(country)
-
-    oracle_gaps = []
-    for i, country in enumerate(out_of_sample_countries):
-        most_recent_year = int(
-            df[df["country"] == country]["wb_poverty_gap_index_most_recent_year"]
-            .values[0]
-            .item()
-        )
-        oracle_gap_index = (
-            df[df["country"] == country]["wb_poverty_gap_index_most_recent"]
-            .values[0]
-            .item()
-        )
-        ppp_exchange_rate = (
-            df[df["country"] == country]["PPP_conversion_factor_{}".format(year)]
-            .values[0]
-            .item()
-        )
-        market_exchange_rate = (
-            df[df["country"] == country]["market_exchange_rate_{}".format(year)]
-            .values[0]
-            .item()
-        )
-        population = df[df["country"] == country]["total_population"].values[0].item()
-        oracle_gap = (
-            oracle_gap_index
-            * povertyline
-            * 365
-            * inflation_adjustment
-            * (ppp_exchange_rate / market_exchange_rate)
-            * population
-            / (10**9)
-        )
-
-        oracle_gaps.append(
-            {
-                "Country": country,
-                "Poverty Gap Index Year": most_recent_year,
-                "Poverty Gap": oracle_gap,
-            }
-        )
-
-    gaps = pd.DataFrame(oracle_gaps)
-    out_of_sample_poverty_gap = gaps["Poverty Gap"].sum()
-
-    gaps = gaps.sort_values(by=["Country"])
-    gaps.to_latex(
-        save_as + ".tex",
-        index=False,
-        float_format="%.2f",
-        escape=False,
-        formatters={"Country": get_country_name},
-    )
-    total_gap = in_sample_poverty_gap + out_of_sample_poverty_gap
-    print(
-        "In-Sample Gap",
-        in_sample_poverty_gap,
-        "Out-of-Sample Gap",
-        out_of_sample_poverty_gap,
-    )
-
-    print("Total Poverty Gap", total_gap)
-    return (
-        total_gap,
-        in_sample_poverty_gap,
-        out_of_sample_poverty_gap,
-        dropped_countries,
-    )
-
-
-def get_country_name(code):
-    print(code)
-    wpc_aux_data = preprocess_wpc_data([code])
-    name = wpc_aux_data["country_name"].values[0]
-    return name
-
-
-def make_string_country_list(l):
-
-    if len(l) == 0:
-        return ""
-    elif len(l) == 1:
-        return get_country_name(l[0])
-    else:
-        return (
-            ", ".join([get_country_name(c) for c in l[:-1]])
-            + ", and "
-            + get_country_name(l[-1])
-        )
-
-
 def get_macros_share_world_poor(countries):
     wpc_data = preprocess_wpc_data(countries)
     wpc_data = wpc_data[wpc_data["year"] == 2023]
     total_world_poor = wpc_data["wpc_share_world_poor"].sum() * 100
-    malawi_world_poor = (
-        wpc_data[(wpc_data["country_code"] == "MWI")]["wpc_share_world_poor"].values[0]
-        * 100
+    malawi_world_poor = round(
+        (
+            wpc_data[(wpc_data["country_code"] == "MWI")][
+                "wpc_share_world_poor"
+            ].values[0]
+            * 100
+        ),
+        2,
     )
     return total_world_poor, malawi_world_poor
 
