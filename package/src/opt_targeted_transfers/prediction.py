@@ -5,6 +5,7 @@ import torch
 import tqdm
 import copy
 
+
 def get_pmt_lasso_regressor(train_dataset, validation_dataset, alpha=0.1):
     """
     Fit a Lasso regression model to the training data and return a function that predicts consumption.
@@ -21,7 +22,7 @@ def get_pmt_lasso_regressor(train_dataset, validation_dataset, alpha=0.1):
     X, X_mean, X_std = standardize(X)
     y, y_mean, y_std = standardize(y)
 
-    if alpha == 0.:
+    if alpha == 0.0:
         # If alpha is 0, use Linear Regression instead of Lasso
         model = LinearRegression(fit_intercept=True)
     else:
@@ -64,6 +65,7 @@ def get_pmt_linear_regressor(train_dataset, validation_dataset):
 
     return estimator
 
+
 def get_mse_loss(predictor, validation_dataset):
     X, y, r = validation_dataset.get_data()
     res = predictor(X)
@@ -71,7 +73,17 @@ def get_mse_loss(predictor, validation_dataset):
     weighted_mse_loss = np.sum(mse_loss * r) / np.sum(r)
     return weighted_mse_loss
 
-def get_pmt_nn_regressor(train_dataset, validation_dataset, n_layers, n_hidden_units, lr, n_epochs=300, seed=123843, device="cpu"):
+
+def get_pmt_nn_regressor(
+    train_dataset,
+    validation_dataset,
+    n_layers,
+    n_hidden_units,
+    lr,
+    n_epochs=300,
+    seed=123843,
+    device="cpu",
+):
     torch.manual_seed(seed)
     np.random.seed(seed)
 
@@ -107,9 +119,11 @@ def get_pmt_nn_regressor(train_dataset, validation_dataset, n_layers, n_hidden_u
         for epoch in pbar:
             if epoch % 10 == 0:
                 predictor.eval()
-                
+
                 val_loss = torch.sum(
-                    mse_loss(predictor, X_val, y_val) * torch.tensor(r_val).to(device)/ torch.tensor(r_val).sum().to(device)
+                    mse_loss(predictor, X_val, y_val)
+                    * torch.tensor(r_val).to(device)
+                    / torch.tensor(r_val).sum().to(device)
                 )
                 val_losses.append(val_loss.detach().item())
                 models.append(copy.deepcopy(predictor.cpu()))
@@ -145,4 +159,5 @@ def get_pmt_nn_regressor(train_dataset, validation_dataset, n_layers, n_hidden_u
                 .numpy()
             )
             return pred_consumption
+
     return consumption_predictor

@@ -1,7 +1,6 @@
 import pandas as pd
 import os
 import yaml
-from constants import C_BAR
 
 
 def generate_gt_hparam_config(country, geo_extrapolation, device):
@@ -18,9 +17,12 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
             "geo_extrapolation": geo_extrapolation,
             "outcome": "consumption_per_capita_per_day",
             "weight": "headcount_adjusted_hh_wgt",
+            "povertyline": 2.15,
+            "year": 2017,
             "gt": {
                 "trainpath": "data/{}/train.parquet".format(country),
                 "summarypath": "data/{}/summary.parquet".format(country),
+                "auxpath": "data/auxiliary_data/auxiliary_data_20251121.csv",
             },
         },
     }
@@ -52,8 +54,6 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
             "n_bins": [10, 50, 100, 200],
             "n_knots": [2, 6, 12],
             "degree": [2, 4, 6],
-            "kde_fft": True if country in ["colombia", "india"] else False,
-            "winsorize": True if country in ["colombia", "india"] else False,
         },
     }
 
@@ -63,7 +63,7 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
 
     pmt_config = base_config.copy()
     pmt_config["pmt"] = {
-        "transfer_value": C_BAR,
+        "transfer_value": 2.15,
         "lasso": {"alpha": [0, 0.01, 0.1, 1.0]},
     }
 
@@ -122,7 +122,7 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
         yaml.dump(ubi_config, file, default_flow_style=False)
 
 
-countries = ["tanzania"]
+countries = ["MWI"]
 geo_extrapolation = [True]
 for country in countries:
     for geo in geo_extrapolation:

@@ -3,9 +3,6 @@ import numpy as np
 
 from opt_targeted_transfers import Dataset, split
 
-AUX_DATA_CSV = "learn/auxiliary_data_20250907.csv"
-
-
 def get_data_for_geo_extrapolation(data, summary, geo_extrapolation):
     """
     Preprocess the testing data for geo-extrapolation.
@@ -42,7 +39,7 @@ def get_data_for_geo_extrapolation(data, summary, geo_extrapolation):
 
 
 def load_datasets(
-    trainpath, testpath, summarypath, geo_extrapolation, country, outcome, weight, year
+    trainpath, testpath, summarypath, auxpath,geo_extrapolation, country, outcome, weight, year
 ):
     """
     Load datasets.
@@ -52,7 +49,7 @@ def load_datasets(
         testpath (str): Path to the test data file.
         outcome (str): Outcome variable.
         weight (str): Weight variable.
-
+        auxpath (str): Path to the auxiliary data file.
     Returns:
         train_dataset (Dataset): Training dataset.
         test_dataset (Dataset): Test dataset.
@@ -60,7 +57,7 @@ def load_datasets(
     if year == 2021:
         conversion_factor = 1.0
     else:
-        df = pd.read_csv(AUX_DATA_CSV)
+        df = pd.read_csv(auxpath)
         conversion_factor = df[df.country_code == country][
             "overall_conversion_factor_ratio_from_2021_to_{}".format(year)
         ].values[0]

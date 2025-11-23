@@ -1,10 +1,8 @@
 import pandas as pd
 import numpy as np
 from scipy.interpolate import interp1d
-from sklearn.linear_model import LinearRegression
 from learn.formatting import METHODS
-from learn.aux_data_prep import preprocess_wpc_data, preprocess_country_aux_data
-import unicodedata
+from learn.aux_data_prep import preprocess_country_aux_data
 
 
 class CountryMethodPovertyResults:

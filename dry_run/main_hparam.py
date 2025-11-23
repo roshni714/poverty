@@ -15,7 +15,6 @@ from hparam.nn_hparam_search import (
     get_optimal_nn_pmt_parameters,
     get_optimal_lasso_parameters,
 )
-from constants import C_BAR
 
 
 @argh.arg("--config", default="hparam/configs/hparam_config.yml")
@@ -55,6 +54,9 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
             get_gt_train_data_generator(
                 trainpath,
                 summarypath=summarypath,
+                auxpath=gt_config_params["auxpath"],
+                outcome=data_config_params["outcome"],
+                year=data_config_params["year"],
                 geo_extrapolation=geo_extrapolation,
                 val_split=0.33,
             )
@@ -210,7 +212,7 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         )
         print(opt_nn_hparams)
         opt_hparams["modern_pmt"]["neural_network"] = opt_nn_hparams
-        opt_hparams["modern_pmt"]["transfer_value"] = C_BAR
+        opt_hparams["modern_pmt"]["transfer_value"] = data_config_params["povertyline"]
 
     if "pmt" in config_hparams:
         opt_hparams["pmt"] = {}
@@ -228,7 +230,7 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         )
         print(opt_lasso_hparams)
         opt_hparams["pmt"]["lasso"] = opt_lasso_hparams
-        opt_hparams["pmt"]["transfer_value"] = C_BAR
+        opt_hparams["pmt"]["transfer_value"] = data_config_params["povertyline"]
 
     with open(f"{savedir}/output_{name}.yaml", "w") as file:
         yaml.dump(opt_hparams, file, default_flow_style=False)

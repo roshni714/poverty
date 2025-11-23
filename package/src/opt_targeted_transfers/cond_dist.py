@@ -308,6 +308,7 @@ class NonparametricConditionalDistribution(ConditionalDistribution):
         domains = []
         if len(self.extrema) == 0:
             import pdb
+
             pdb.set_trace()
         for i in range(len(self.extrema) + 1):
             if i == 0:

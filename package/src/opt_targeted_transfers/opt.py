@@ -12,7 +12,10 @@ from opt_targeted_transfers.evaluate import (
     expected_value_transfers,
     policy_cost,
 )
-from opt_targeted_transfers.prediction import get_pmt_nn_regressor, get_pmt_lasso_regressor
+from opt_targeted_transfers.prediction import (
+    get_pmt_nn_regressor,
+    get_pmt_lasso_regressor,
+)
 from opt_targeted_transfers.conditional_improvement import (
     get_conditional_improvement_regressor,
     get_avg_estimated_benefit,
@@ -156,8 +159,6 @@ class RateTargetedTransfers(TargetedTransfers):
         n_bins=100,
         n_knots=4,
         degree=4,
-        kde_fft=False,
-        winsorize=False,
         truncation_upper_value=10,
         n_epochs=300,
         device="cpu",
@@ -188,8 +189,6 @@ class RateTargetedTransfers(TargetedTransfers):
             n_bins=n_bins,
             n_knots=n_knots,
             degree=degree,
-            kde_fft=kde_fft,
-            winsorize=winsorize,
             truncation_upper_value=truncation_upper_value,
             n_epochs=n_epochs,
             device=device,
@@ -335,7 +334,9 @@ class BinaryTargetedTransfers(TargetedTransfers):
             highest_estimated_benefits = -float("inf")
             best_t = None
 
-            candidates_given_budget = self.candidate_t_values[self.candidate_t_values >= budget]
+            candidates_given_budget = self.candidate_t_values[
+                self.candidate_t_values >= budget
+            ]
             for t in candidates_given_budget:
                 threshold = self._get_threshold_to_receive_transfers(
                     validation_dataset,
@@ -358,7 +359,6 @@ class BinaryTargetedTransfers(TargetedTransfers):
                     # if this transfer size has the highest estimated benefits, then this is the best so far.
                     highest_estimated_benefits = total_estimated_benefits
                     best_t = t
-                
 
             assert best_t is not None
             self.budget_to_t_map[budget] = best_t
@@ -407,6 +407,9 @@ class BinaryTargetedTransfers(TargetedTransfers):
         pop_weight_receive_transfers = budget / t
         weights_ranked_by_benefit = r_test[household_idx_ranked_by_benefit]
         cumsum_weights = np.cumsum(weights_ranked_by_benefit)
+        cumsum_weights /= cumsum_weights[
+            -1
+        ]  # should have no effect if cumsum_weights[-1] ==1.0, but should handle a numerical issue in the case cumsum_weights[-1] is slightly greater than 1.
         indicator_receive_transfers = cumsum_weights <= pop_weight_receive_transfers
         idx_receive_transfers = household_idx_ranked_by_benefit[
             indicator_receive_transfers
@@ -578,8 +581,9 @@ class GapTargetedTransfers(TargetedTransfers):
 
         quantiles = np.linspace(0.0, 1.0, self.n_regressors)
         self.quantile_regressors = dict()
+        self.quantiles = quantiles
 
-        for quantile in quantiles:
+        for quantile in quantiles[1:]:
             print("Fitting quantile regressor for quantile {}".format(quantile))
             quantile_regressor = get_quantile_regressor(
                 train_dataset=train_dataset,
@@ -594,10 +598,14 @@ class GapTargetedTransfers(TargetedTransfers):
             )
             self.quantile_regressors[quantile] = quantile_regressor
 
+        def get_zero_quantile_regressor(X):
+            return np.zeros((X.shape[0],))
+
+        self.quantile_regressors[0.0] = get_zero_quantile_regressor
+
     def _interpolate_conditional_quantile(self, X, quantile):
         """
-        Evaluates the expected wealth of each household at the given quantile, given its
-        predictors.
+        Evaluates the conditional quantile
         """
 
         quantile_regressors = self.quantile_regressors
@@ -666,26 +674,60 @@ class GapTargetedTransfers(TargetedTransfers):
     def run_opt(self, test_covariate_dataset):
         if self.quantile_regressors is None:
             raise ValueError("Missing quantile regressors - run fit first.")
-        # For each quantile regressor, compute the corresponding assignments and policy cost
-        costs = []
-        all_assignments = []
+
         X_test, r_test = test_covariate_dataset.get_data()
-        lambda_values = reversed(np.linspace(0.0, 1.0, 200))
-        for lambda_ in lambda_values:
-            assignments = self._get_assignments_for_lambda(X_test, lambda_)
-            cost = policy_cost(test_covariate_dataset, assignments)
-            costs.append(cost)
-            all_assignments.append(assignments)
-        idx = bisect_left(costs, self.budget)
-        if idx == 0:
-            self.assignments = all_assignments[0]
-            return all_assignments[0]
-        if idx > 1 and idx < len(costs):
-            self.assignments = all_assignments[idx - 1]
-            return all_assignments[idx - 1]
-        if idx == len(costs):
-            self.assignments = all_assignments[-1]
-            return all_assignments[-1]
+        r_test = r_test / r_test.sum()  # normalize weights to sum to
+
+        low = 0
+        high = 1.0
+        low_assignments = self._get_assignments_for_lambda(X_test, low)
+        low_cost = policy_cost(test_covariate_dataset, low_assignments)
+        if self.budget >= low_cost:
+            # This only happens if budget > poverty line, in which case can just give everyone the same transfer.
+            return {i: [(self.budget, 1.0)] for i in range(len(test_covariate_dataset))}
+        lambda_value = (high + low) / 2
+        assignments = self._get_assignments_for_lambda(X_test, lambda_value)
+        lamb_cost = policy_cost(test_covariate_dataset, assignments)
+
+        while np.abs(lamb_cost - self.budget) > 1e-3:
+            if lamb_cost > self.budget:
+                low = lambda_value
+            else:
+                high = lambda_value
+            next_lambda_value = (high + low) / 2
+            assignments = self._get_assignments_for_lambda(X_test, next_lambda_value)
+            next_lamb_cost = policy_cost(test_covariate_dataset, assignments)
+            lambda_value = next_lambda_value
+            lamb_cost = next_lamb_cost
+        self.assignments = assignments
+        return assignments
+
+        # # For each quantile regressor, compute the corresponding assignments and policy cost
+        # costs = []
+        # all_assignments = []
+        # X_test, r_test = test_covariate_dataset.get_data()
+        # r_test = r_test / r_test.sum()  # normalize weights to sum to 1
+        # lambda_values = reversed(np.linspace(0.0, 1.0, 200))
+        # for lambda_ in lambda_values:
+        #     assignments = self._get_assignments_for_lambda(X_test, lambda_)
+        #     cost = policy_cost(test_covariate_dataset, assignments)
+        #     costs.append(cost)
+        #     all_assignments.append(assignments)
+        # idx = bisect_left(costs, self.budget)
+
+        # if idx == 0:
+        #     self.assignments = all_assignments[0]
+        #     return all_assignments[0]
+        # if idx >= 1 and idx < len(costs):
+        #     if np.abs(costs[idx] - self.budget) < 1e-5:
+        #         self.assignments = all_assignments[idx]
+        #         return all_assignments[idx]
+        #     elif costs[idx] > self.budget:
+        #         self.assignments = all_assignments[idx - 1]
+        #         return all_assignments[idx - 1]
+        # if idx == len(costs):
+        #     self.assignments = all_assignments[-1]
+        #     return all_assignments[-1]
 
 
 class OracleGapTargetedTransfers(TargetedTransfers):
@@ -736,7 +778,8 @@ class OracleRateTargetedTransfers(TargetedTransfers):
         )
         self.assignments = assignments
         return assignments
-    
+
+
 class UBITargetedTransfers(TargetedTransfers):
     def __init__(self, c_bar, budget=None):
         """
@@ -746,13 +789,15 @@ class UBITargetedTransfers(TargetedTransfers):
 
         super().__init__(c_bar=c_bar, budget=budget)
         self.name = "ubi"
-    
+
     def run_opt(self, test_covariate_dataset):
         """
         Assign the transfer value to all households
         """
         assert self.budget is not None
-        assignments = {i: [(self.budget, 1.0)] for i in range(len(test_covariate_dataset))}
+        assignments = {
+            i: [(self.budget, 1.0)] for i in range(len(test_covariate_dataset))
+        }
         self.assignments = assignments
         return assignments
 
@@ -782,7 +827,6 @@ class ModernPMTTargetedTransfers(BinaryTargetedTransfers):
         n_epochs=300,
         seed=123456,
         device="cpu",
-
     ):
         """
         :param n_layers: The number of hidden layers in the neural network. Defaults to 1.
@@ -796,7 +840,14 @@ class ModernPMTTargetedTransfers(BinaryTargetedTransfers):
         """
 
         self.consumption_predictor = get_pmt_nn_regressor(
-            train_dataset, validation_dataset, n_layers=n_layers, n_hidden_units=n_hidden_units, lr=lr, n_epochs=n_epochs, seed=seed, device=device
+            train_dataset,
+            validation_dataset,
+            n_layers=n_layers,
+            n_hidden_units=n_hidden_units,
+            lr=lr,
+            n_epochs=n_epochs,
+            seed=seed,
+            device=device,
         )
 
     def run_opt(self, test_covariate_dataset):
@@ -817,6 +868,7 @@ class ModernPMTTargetedTransfers(BinaryTargetedTransfers):
         self.assignments = assignments
         return assignments
 
+
 class PMTTargetedTransfers(BinaryTargetedTransfers):
     """
     PMT style targeting
@@ -832,18 +884,14 @@ class PMTTargetedTransfers(BinaryTargetedTransfers):
         self.name = "pmt"
         self.transfer_value = transfer_value
 
-    def fit(
-        self,
-        train_dataset,
-        validation_dataset,
-        alpha=0.1
-    ):
+    def fit(self, train_dataset, validation_dataset, alpha=0.1):
         """
         Fitting linear regression
         """
 
         self.consumption_predictor = get_pmt_lasso_regressor(
-            train_dataset, validation_dataset, alpha=alpha)
+            train_dataset, validation_dataset, alpha=alpha
+        )
 
     def run_opt(self, test_covariate_dataset):
 

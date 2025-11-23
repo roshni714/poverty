@@ -18,7 +18,6 @@ def policy_cost(test_covariate_dataset, assignments):
     for i in range(len(assignments)):
         for j in range(len(assignments[i])):
             cost += r_test[i] * assignments[i][j][1] * assignments[i][j][0]
-
     return cost
 
 
