@@ -119,9 +119,17 @@ class ExtrapolationResults:
             )
             for country in self.in_sample_countries
         ]
-
+        wpc_df = preprocess_wpc_data()
+        aux_data = preprocess_country_aux_data()
         for i, country in enumerate(self.in_sample_countries):
-            X.append([cont_gap_results[i].initial_rate / 100])
+            # X.append(wpc_df[
+            #    (wpc_df["country_code"] == country) & (wpc_df["year"] == aux_data[aux_data["country_code"] == country]["survey_year"].values[0])
+            # ]["wpc_poverty_rate"].item())
+            X.append(
+                aux_data[aux_data["country_code"] == country][
+                    "survey_poverty_rate_povertyline_{}".format(self.year)
+                ].item()
+            )
         y = self.get_true_feasible_oracle_costs()
         X = np.array(X).reshape(len(X), 1)
         y = np.array(y).reshape(len(X), 1)
@@ -129,17 +137,52 @@ class ExtrapolationResults:
         model.fit(X, y)
         self.model = model
         self.score = model.score(X, y)
+        return X, y, model
 
-        plt.figure(figsize=(10, 8))
-        plt.plot(X * 100, y, "o")
-        plt.plot(X * 100, model.predict(X), "-")
-        plt.xticks(fontsize=30 * 0.75)
-        plt.yticks(fontsize=30 * 0.75)
-        plt.xlabel("Survey Poverty Rate (%)", fontsize=30)
-        plt.ylabel("Feasible/Oracle Ratio", fontsize=30)
-        plt.savefig("exhibits/feasible_oracle_ratio_vs_initial_poverty_rate.pdf")
+    def plot_figure(self, save_as):
+        X, y, model = self.fit_regression_model()
+        fig, ax = plt.subplots(1, 2, figsize=(20, 8))
+        fontsize = 20
+        ax[0].scatter(X * 100, y, color="orange", alpha=0.5, s=100)
+        ax[0].plot(X * 100, model.predict(X), "-", color="black")
+        ax[0].set_xlabel("Survey Poverty Rate (%)", fontsize=fontsize)
+        ax[0].set_ylabel("Feasible/Oracle Ratio", fontsize=fontsize)
+        wpc_data = preprocess_wpc_data()
+        wpc_data = wpc_data[wpc_data["year"] == 2023]
+        nationalPovertyRate = (
+            get_national_poverty_rate_target(self.globalPovertyRate) / 100
+        )
+        in_sample_wpc = wpc_data[
+            wpc_data["country_code"].isin(self.in_sample_countries)
+        ]
+        out_of_sample_wpc = wpc_data[
+            ~wpc_data["country_code"].isin(self.in_sample_countries)
+        ]
+        out_of_sample_wpc = out_of_sample_wpc[
+            out_of_sample_wpc["wpc_poverty_rate"] > nationalPovertyRate
+        ]
+        ax[1].scatter(
+            out_of_sample_wpc["wpc_poverty_rate"] * 100,
+            out_of_sample_wpc["wpc_poverty_gap_index"] * 100,
+            label="Out of Sample Countries",
+            s=100,
+            alpha=0.5,
+        )
+        ax[1].scatter(
+            in_sample_wpc["wpc_poverty_rate"] * 100,
+            in_sample_wpc["wpc_poverty_gap_index"] * 100,
+            label="In Sample Countries",
+            s=100,
+            alpha=0.5,
+        )
+        ax[1].set_xlabel("WPC (2023) Poverty Rate (%)", fontsize=fontsize)
+        ax[1].set_ylabel("WPC (2023) Poverty Gap Index (%)", fontsize=fontsize)
+        for i in range(2):
+            ax[i].set_xticklabels(ax[i].get_xticks(), fontsize=fontsize * 0.75)
+            ax[i].set_yticklabels(ax[i].get_yticks(), fontsize=fontsize * 0.75)
+            ax[i].legend(fontsize=fontsize)
+        plt.savefig("{}.pdf".format(save_as), bbox_inches="tight")
         plt.close()
-        return model
 
     def get_conversion_factor(self, country):
         df = preprocess_country_aux_data()

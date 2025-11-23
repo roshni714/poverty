@@ -58,16 +58,16 @@ def make_plot_for_country_presentation(
             np.linspace(0.0, oracle_results.initial_gap_index),
             np.ones(50) * povertyline * oracle_results.conversion_factor,
             linestyle="--",
-            color=METHODS["ubi"]["color"],
-            label="UBI ${}".format(povertyline),
+            color=METHODS["ubi_standard"]["color"],
+            label=METHODS["ubi_standard"]["name"] + " (${})".format(povertyline),
             linewidth=3,
         )
         ax[0].plot(
             np.linspace(0.0, oracle_results.initial_rate),
             np.ones(50) * povertyline * oracle_results.conversion_factor,
             linestyle="--",
-            color=METHODS["ubi"]["color"],
-            label="UBI ${}".format(povertyline),
+            color=METHODS["ubi_standard"]["color"],
+            label=METHODS["ubi_standard"]["name"] + " (${})".format(povertyline),
             linewidth=3,
         )
     ax[0].set_ylim(-0.1, povertyline * oracle_results.conversion_factor * 1.05)
@@ -197,16 +197,16 @@ def make_plot_for_country(
             np.linspace(0.0, oracle_results.initial_gap_index),
             np.ones(50) * povertyline * oracle_results.conversion_factor,
             linestyle="--",
-            color=METHODS["ubi"]["color"],
-            label="UBI ${}".format(povertyline),
+            color=METHODS["ubi_standard"]["color"],
+            label=METHODS["ubi_standard"]["name"] + " (${})".format(povertyline),
             linewidth=3,
         )
         ax[0].plot(
             np.linspace(0.0, oracle_results.initial_rate),
             np.ones(50) * povertyline * oracle_results.conversion_factor,
             linestyle="--",
-            color=METHODS["ubi"]["color"],
-            label="UBI ${}".format(povertyline),
+            color=METHODS["ubi_standard"]["color"],
+            label=METHODS["ubi_standard"]["name"] + " (${})".format(povertyline),
             linewidth=3,
         )
     ax[0].set_ylim(-0.1, povertyline * oracle_results.conversion_factor * 1.05)
@@ -307,16 +307,16 @@ def aggregate_plot(
             np.linspace(0.0, initial_rate),
             np.ones(50) * ubi_cost,
             linestyle="--",
-            color=METHODS["ubi"]["color"],
-            label="UBI ${}".format(povertyline),
+            color=METHODS["ubi_standard"]["color"],
+            label=METHODS["ubi_standard"]["name"] + " (${})".format(povertyline),
             linewidth=3,
         )
         ax[1].plot(
             np.linspace(0.0, initial_gap_index),
             np.ones(50) * ubi_cost,
             linestyle="--",
-            color=METHODS["ubi"]["color"],
-            label="UBI ${}".format(povertyline),
+            color=METHODS["ubi_standard"]["color"],
+            label=METHODS["ubi_standard"]["name"] + " (${})".format(povertyline),
             linewidth=3,
         )
 
@@ -386,13 +386,13 @@ def aggregate_plot_roshni_presentation(
     alpha_val = 0.1
 
     method_list = [
-        "ubi",
+        # "ubi",
         # "modern_pmt",
-        "pmt",
-        "binary_gap",
+        # "pmt",
+        # "binary_gap",
         "continuous_rate",
         "continuous_gap",
-        "oracle_gap",
+        # "oracle_gap",
     ]
 
     arrow_min_x = 1.0
@@ -443,8 +443,8 @@ def aggregate_plot_roshni_presentation(
         np.linspace(0.0, initial_rate),
         np.ones(50) * ubi_cost,
         linestyle="--",
-        color=METHODS["ubi"]["color"],
-        label="UBI ${}".format(povertyline),
+        color=METHODS["ubi_standard"]["color"],
+        label=METHODS["ubi_standard"]["name"] + " (${})".format(povertyline),
         linewidth=3,
         alpha=alpha,
         zorder=2,
@@ -453,8 +453,8 @@ def aggregate_plot_roshni_presentation(
         np.linspace(0.0, initial_gap_index),
         np.ones(50) * ubi_cost,
         linestyle="--",
-        color=METHODS["ubi"]["color"],
-        label="UBI ${}".format(povertyline),
+        color=METHODS["ubi_standard"]["color"],
+        label=METHODS["ubi_standard"]["name"] + " (${})".format(povertyline),
         linewidth=3,
         alpha=alpha,
         zorder=2,
@@ -661,8 +661,8 @@ def aggregate_plot_presentation(
         np.linspace(0.0, initial_rate),
         np.ones(50) * ubi_cost,
         linestyle="--",
-        color=METHODS["ubi"]["color"],
-        label="UBI ${}".format(povertyline),
+        color=METHODS["ubi_standard"]["color"],
+        label=METHODS["ubi_standard"]["name"] + " (${})".format(povertyline),
         linewidth=3,
         alpha=alpha,
         zorder=2,
@@ -671,8 +671,8 @@ def aggregate_plot_presentation(
         np.linspace(0.0, initial_gap_index),
         np.ones(50) * ubi_cost,
         linestyle="--",
-        color=METHODS["ubi"]["color"],
-        label="UBI ${}".format(povertyline),
+        color=METHODS["ubi_standard"]["color"],
+        label=METHODS["ubi_standard"]["name"] + " (${})".format(povertyline),
         linewidth=3,
         alpha=alpha,
         zorder=2,
@@ -1458,6 +1458,21 @@ def get_extrapolation(
         dropped_countries,
         regression_r2,
     )
+
+
+def plot_scatter_poverty_countries(
+    countries, povertyline, year, globalPovertyRate, save_as
+):
+
+    extrapolation = ExtrapolationResults(
+        countries,
+        insample_data_source="wpc",
+        outofsample_data_source="wpc",
+        povertyline=povertyline,
+        year=year,
+        globalPovertyRate=globalPovertyRate,
+    )
+    extrapolation.plot_figure(save_as=save_as)
 
 
 def make_macro_file(

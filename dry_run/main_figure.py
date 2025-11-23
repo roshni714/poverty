@@ -13,6 +13,7 @@ from learn import (
     get_extrapolation,
     get_table_survey_info,
     make_macro_file,
+    plot_scatter_poverty_countries,
 )
 import argh
 
@@ -125,6 +126,16 @@ def get_gdp_plot_figure_6(povertyline, year, nationalPovertyRate):
         year=year,
         nationalPovertyRate=nationalPovertyRate,
         save_as="exhibits/year={}/figs/paper-figure-6-policy_cost_gdp".format(year),
+    )
+
+
+def get_scatter_figure_7(povertyline, year, globalPovertyRate):
+    plot_scatter_poverty_countries(
+        COUNTRIES,
+        globalPovertyRate=globalPovertyRate,
+        povertyline=povertyline,
+        year=year,
+        save_as="exhibits/year={}/figs/paper-figure-7-scatter".format(year),
     )
 
 
@@ -251,7 +262,7 @@ def make_presentation_figures(povertyline, year):
 
     make_plot_for_country_presentation(
         "MWI",
-        ["continuous_gap", "oracle_gap"],
+        ["pmt", "continuous_gap", "oracle_gap"],
         povertyline=povertyline,
         year=year,
         geo_extrapolation=True,
@@ -309,12 +320,24 @@ def make_presentation_figures(povertyline, year):
 
     aggregate_plot_roshni_presentation(
         COUNTRIES,
+        show_method_list=["pmt", "oracle_gap"],
+        povertyline=povertyline,
+        year=year,
+        geo_extrapolation=True,
+        ubi_on=True,
+        save_as="exhibits/year={}/presentation/figure-1-build-4".format(year),
+        vertical_arrow_rate=True,
+        vertical_arrow_gap=False,
+    )
+
+    aggregate_plot_roshni_presentation(
+        COUNTRIES,
         show_method_list=["binary_gap", "continuous_gap"],
         povertyline=povertyline,
         year=year,
         geo_extrapolation=True,
         ubi_on=False,
-        save_as="exhibits/year={}/presentation/figure-1-build-4".format(year),
+        save_as="exhibits/year={}/presentation/figure-1-build-5".format(year),
         vertical_arrow_rate=True,
         vertical_arrow_gap=False,
     )
@@ -326,7 +349,19 @@ def make_presentation_figures(povertyline, year):
         year=year,
         geo_extrapolation=True,
         ubi_on=False,
-        save_as="exhibits/year={}/presentation/figure-1-build-5".format(year),
+        save_as="exhibits/year={}/presentation/figure-1-build-6".format(year),
+        vertical_arrow_rate=True,
+        vertical_arrow_gap=False,
+    )
+
+    aggregate_plot_roshni_presentation(
+        COUNTRIES,
+        show_method_list=["continuous_gap", "oracle_gap"],
+        povertyline=povertyline,
+        year=year,
+        geo_extrapolation=True,
+        ubi_on=True,
+        save_as="exhibits/year={}/presentation/figure-1-build-7".format(year),
         vertical_arrow_rate=True,
         vertical_arrow_gap=False,
     )
@@ -479,6 +514,7 @@ def main(year=2021, nationalPovertyRate=1, globalPovertyRate=1):
     get_ubi_ratio_figure_5(povertyline, year, nationalPovertyRate=nationalPovertyRate)
     get_gdp_plot_figure_6(povertyline, year, nationalPovertyRate=nationalPovertyRate)
     get_headline_figure_3_dollar(year)
+    get_scatter_figure_7(povertyline, year, globalPovertyRate)
     get_table_extrapolation(povertyline, year, globalPovertyRate=globalPovertyRate)
     # get_appendix_table_out_of_sample_rmse()
     get_appendix_table_survey(year)

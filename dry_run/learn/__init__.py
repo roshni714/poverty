@@ -12,5 +12,6 @@ from learn.plotting import (
     make_macro_file,
     aggregate_plot_presentation,
     aggregate_plot_roshni_presentation,
+    plot_scatter_poverty_countries,
 )
 from learn.formatting import METHODS

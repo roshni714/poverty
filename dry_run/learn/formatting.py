@@ -43,8 +43,13 @@ METHODS = {
     },
     "ubi": {
         "csv": "ubi",
-        "name": "UBI (Variable)",
+        "name": "USI (Country-Specific)",
         "color": "purple",
         "linestyle": "-",
+    },
+    "ubi_standard": {
+        "name": "UBI",
+        "color": "purple",
+        "linestyle": "--",
     },
 }
