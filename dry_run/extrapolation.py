@@ -4,17 +4,13 @@ from scipy.interpolate import interp1d
 import numpy as np
 from learn.formatting import METHODS
 from learn.aggregation import (
-    AggregatePovertyResults,
     CountryMethodPovertyResults,
-    preprocess_country_aux_data,
-    preprocess_wpc_data,
 )
-from learn.aux_data_prep import SECONDARY_AUX_DATA_CSV
 import matplotlib.pyplot as plt
 
 
-def get_national_poverty_rate_target(global_poverty_rate_target):
-    df = preprocess_wpc_data()
+def get_national_poverty_rate_target(metadata):
+    df = metadata.preprocess_wpc_data()
     df = df[df["year"] == 2023]
 
     def global_poverty_rate(national_ceiling):
@@ -29,7 +25,7 @@ def get_national_poverty_rate_target(global_poverty_rate_target):
     ceilings = np.linspace(0, df["wpc_poverty_rate"].max(), 100)
     global_poverty_rates = [global_poverty_rate(c) for c in ceilings]
     national_poverty_rate_target = interp1d(global_poverty_rates, ceilings)(
-        global_poverty_rate_target
+        metadata.globalPovertyRate
     )
     return national_poverty_rate_target * 100
 
@@ -38,17 +34,16 @@ class ExtrapolationResults:
     def __init__(
         self,
         countries,
-        povertyline,
-        year,
-        globalPovertyRate,
+        metadata,
         insample_data_source="survey",
         outofsample_data_source="wb",
     ):
         self.in_sample_countries = countries
-        self.povertyline = povertyline
-        self.year = year
-        self.globalPovertyRate = globalPovertyRate
-        main_national_target = get_national_poverty_rate_target(globalPovertyRate)
+        self.povertyline = metadata.povertyline
+        self.year = metadata.year
+        self.globalPovertyRate = metadata.globalPovertyRate
+        self.metadata = metadata
+        main_national_target = get_national_poverty_rate_target(metadata)
         self.nationalPovertyRate = main_national_target
         self.insample_data_source = insample_data_source
         self.outofsample_data_source = outofsample_data_source
@@ -56,23 +51,13 @@ class ExtrapolationResults:
     def get_true_feasible_oracle_costs(self):
         cont_gap_results = [
             CountryMethodPovertyResults(
-                country,
-                "continuous_gap",
-                geo_extrapolation=True,
-                povertyline=self.povertyline,
-                year=self.year,
+                country, "continuous_gap", metadata=self.metadata
             )
             for country in self.in_sample_countries
         ]
 
         oracle_results = [
-            CountryMethodPovertyResults(
-                country,
-                "oracle_gap",
-                geo_extrapolation=True,
-                povertyline=self.povertyline,
-                year=self.year,
-            )
+            CountryMethodPovertyResults(country, "oracle_gap", metadata=self.metadata)
             for country in self.in_sample_countries
         ]
 
@@ -81,12 +66,10 @@ class ExtrapolationResults:
         oracle_costs = []
 
         for i, _ in enumerate(self.in_sample_countries):
-            # oracle_cost = cont_gap_results[i].get_poverty_gap()
+            oracle_cost = cont_gap_results[i].get_poverty_gap()
             in_sample_cost = cont_gap_results[i].rate_to_cost_interpolator(
                 self.nationalPovertyRate
             )
-            gap = cont_gap_results[i].rate_to_gap_interpolator(self.nationalPovertyRate)
-            oracle_cost = oracle_results[i].gap_to_cost_interpolator(gap)
             in_sample_country_ratios.append(
                 in_sample_cost / oracle_cost
             )  # ratio to achieve 1% poverty reduction
@@ -111,25 +94,20 @@ class ExtrapolationResults:
 
         cont_gap_results = [
             CountryMethodPovertyResults(
-                country,
-                "continuous_gap",
-                geo_extrapolation=True,
-                povertyline=self.povertyline,
-                year=self.year,
+                country, "continuous_gap", metadata=self.metadata
             )
             for country in self.in_sample_countries
         ]
-        wpc_df = preprocess_wpc_data()
-        aux_data = preprocess_country_aux_data()
+        aux_data = self.metadata.preprocess_country_aux_data()
         for i, country in enumerate(self.in_sample_countries):
             # X.append(wpc_df[
             #    (wpc_df["country_code"] == country) & (wpc_df["year"] == aux_data[aux_data["country_code"] == country]["survey_year"].values[0])
             # ]["wpc_poverty_rate"].item())
-            X.append(
-                aux_data[aux_data["country_code"] == country][
-                    "survey_poverty_rate_povertyline_{}".format(self.year)
-                ].item()
-            )
+            pov_rate = aux_data[aux_data["country_code"] == country][
+                "survey_poverty_rate_povertyline_{}".format(self.year)
+            ].item()
+            X.append(pov_rate)
+            print(country, pov_rate)
         y = self.get_true_feasible_oracle_costs()
         X = np.array(X).reshape(len(X), 1)
         y = np.array(y).reshape(len(X), 1)
@@ -147,11 +125,9 @@ class ExtrapolationResults:
         ax[0].plot(X * 100, model.predict(X), "-", color="black")
         ax[0].set_xlabel("Survey Poverty Rate (%)", fontsize=fontsize)
         ax[0].set_ylabel("Feasible/Oracle Ratio", fontsize=fontsize)
-        wpc_data = preprocess_wpc_data()
+        wpc_data = self.metadata.preprocess_wpc_data()
         wpc_data = wpc_data[wpc_data["year"] == 2023]
-        nationalPovertyRate = (
-            get_national_poverty_rate_target(self.globalPovertyRate) / 100
-        )
+        nationalPovertyRate = get_national_poverty_rate_target(self.metadata) / 100
         in_sample_wpc = wpc_data[
             wpc_data["country_code"].isin(self.in_sample_countries)
         ]
@@ -185,7 +161,7 @@ class ExtrapolationResults:
         plt.close()
 
     def get_conversion_factor(self, country):
-        df = preprocess_country_aux_data()
+        df = self.metadata.preprocess_country_aux_data()
         ppp_exchange_rate = (
             df[df["country_code"] == country][
                 "PPP_conversion_factor_{}".format(self.year)
@@ -226,7 +202,7 @@ class ExtrapolationResults:
 
         elif self.insample_data_source == "survey" and use_reg == True:
             X_test = []
-            df = preprocess_country_aux_data()
+            df = self.metadata.preprocess_country_aux_data()
             for i, country in enumerate(self.in_sample_countries):
                 X_test.append(
                     [
@@ -239,7 +215,7 @@ class ExtrapolationResults:
         elif self.insample_data_source == "wb" and survey_year == False:
             X_test = []
             oracle_costs = []
-            df = preprocess_country_aux_data()
+            df = self.metadata.preprocess_country_aux_data()
             for i, country in enumerate(self.in_sample_countries):
                 X_test.append(
                     [
@@ -258,8 +234,8 @@ class ExtrapolationResults:
         elif self.insample_data_source == "wpc" and survey_year == True:
             X_test = []
             oracle_costs = []
-            df = preprocess_wpc_data()
-            country_df = preprocess_country_aux_data()
+            df = self.metadata.preprocess_wpc_data()
+            country_df = self.metadata.preprocess_country_aux_data()
             for i, country in enumerate(self.in_sample_countries):
                 country_year = country_df[country_df["country_code"] == country][
                     "survey_year"
@@ -280,8 +256,8 @@ class ExtrapolationResults:
         elif self.insample_data_source == "wpc" and survey_year == False:
             X_test = []
             oracle_costs = []
-            df = preprocess_wpc_data()
-            country_df = preprocess_country_aux_data()
+            df = self.metadata.preprocess_wpc_data()
+            country_df = self.metadata.preprocess_country_aux_data()
             for i, country in enumerate(self.in_sample_countries):
                 X_test.append(
                     [
@@ -323,10 +299,10 @@ class ExtrapolationResults:
             poverty_gap_key = "wb_poverty_gap_index_povertyline_{}_most_recent".format(
                 self.year
             )
-            df = preprocess_country_aux_data()
+            df = self.metadata.preprocess_country_aux_data()
 
         elif self.outofsample_data_source == "wpc":
-            df = preprocess_wpc_data()
+            df = self.metadata.preprocess_wpc_data()
             poverty_rate_key = "wpc_poverty_rate"
             poverty_gap_key = "wpc_poverty_gap_index"
             df = df[df["year"] == 2023]
@@ -377,7 +353,7 @@ class ExtrapolationResults:
     def get_out_of_sample_costs(self):
         X_test = []
         oracle_costs = []
-        df = preprocess_country_aux_data()
+        df = self.metadata.preprocess_country_aux_data()
         out_of_sample_countries = self.get_out_of_sample_countries()
 
         if self.outofsample_data_source == "wb":
@@ -398,7 +374,7 @@ class ExtrapolationResults:
                 oracle_costs.append(gap_index * conversion_factor)
 
         elif self.outofsample_data_source == "wpc":
-            wpc_df = preprocess_wpc_data()
+            wpc_df = self.metadata.preprocess_wpc_data()
             for i, country in enumerate(out_of_sample_countries):
                 X_test.append(
                     [
@@ -419,7 +395,6 @@ class ExtrapolationResults:
         out_of_sample_cost_df = pd.DataFrame(
             {
                 "Country": out_of_sample_countries,
-                # "Predicted Feasible/Oracle Ratio": pred_ratios.flatten(),
                 "Policy Cost": pred.flatten(),
                 "Oracle Cost": oracle_costs,
             }
@@ -431,27 +406,27 @@ class ExtrapolationResults:
         return out_of_sample_cost_df
 
 
-COUNTRIES = [
-    "benin",
-    "burkina_faso",
-    "colombia",
-    "cote_divoire",
-    "ethiopia",
-    "ghana",
-    "guinea_bissau",
-    "kenya",
-    "india",
-    "malawi",
-    "mali",
-    "niger",
-    "nigeria",
-    "senegal",
-    "south_africa",
-    "south_sudan",
-    "tanzania",
-    "togo",
-    "uganda",
-]
+# COUNTRIES = [
+#     "benin",
+#     "burkina_faso",
+#     "colombia",
+#     "cote_divoire",
+#     "ethiopia",
+#     "ghana",
+#     "guinea_bissau",
+#     "kenya",
+#     "india",
+#     "malawi",
+#     "mali",
+#     "niger",
+#     "nigeria",
+#     "senegal",
+#     "south_africa",
+#     "south_sudan",
+#     "tanzania",
+#     "togo",
+#     "uganda",
+# ]
 
 # def do_insample_extrapolation(insample_data_source="survey",
 #                      use_reg=False,

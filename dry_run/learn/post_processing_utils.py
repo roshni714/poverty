@@ -1,5 +1,4 @@
 import pandas as pd
-from learn.aux_data_prep import preprocess_country_aux_data, preprocess_wpc_data
 
 
 def get_data_dimension(country):
@@ -22,7 +21,7 @@ def get_data_dimension(country):
     return n, d
 
 
-def convert_nominal_2023_to_nominal_survey_year(amt, country):
+def convert_nominal_2023_to_nominal_survey_year(amt, country, metadata):
     """
     Convert an amount in 2023 nominal terms to nominal terms for the survey year of the given country.
     Args:
@@ -31,17 +30,18 @@ def convert_nominal_2023_to_nominal_survey_year(amt, country):
     Returns:
         float: Amount in nominal terms for the survey year.
     """
-    df = preprocess_country_aux_data()
-    second_df = pd.read_csv("learn/inflation_adjustment.csv")
+    df = metadata.preprocess_country_aux_data()
+    second_df = metadata.preprocess_secondary_aux_data()
     survey_year = int(df[df["country_code"] == country]["survey_year"].values[0])
-    inflation_adjustment = second_df[second_df.survey_year == survey_year][
-        "inflation_adjustment_to_2023"
-    ].values[0]
+    inflation_adjustment = second_df[
+        second_df["indicator"]
+        == "conversion_factor_nominal_USD_{}_to_2023".format(survey_year)
+    ]["value"].values[0]
     amt = amt * (1 / inflation_adjustment)
     return amt
 
 
-def get_country_name(code):
+def get_country_name(code, metadata):
     """
     Get the country name given its country code.
     Args:
@@ -49,12 +49,12 @@ def get_country_name(code):
     Returns:
         str: Country name.
     """
-    wpc_aux_data = preprocess_wpc_data([code])
+    wpc_aux_data = metadata.preprocess_wpc_data([code])
     name = wpc_aux_data["country_name"].values[0]
     return name
 
 
-def make_string_country_list(l):
+def make_string_country_list(l, metadata):
     """
     Convert a list of country codes into a human-readable string of country names.
     Args:
@@ -65,10 +65,10 @@ def make_string_country_list(l):
     if len(l) == 0:
         return ""
     elif len(l) == 1:
-        return get_country_name(l[0])
+        return get_country_name(l[0], metadata)
     else:
         return (
-            ", ".join([get_country_name(c) for c in l[:-1]])
+            ", ".join([get_country_name(c, metadata) for c in l[:-1]])
             + ", and "
-            + get_country_name(l[-1])
+            + get_country_name(l[-1], metadata)
         )

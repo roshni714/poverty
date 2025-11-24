@@ -88,6 +88,7 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
 
             opt_n_alpha = get_optimal_knapsack_parameters(
                 rate["n_alpha"],
+                povertyline=data_config_params["povertyline"],
                 data_generator=train_data_generator,
                 device=device,
                 original_cols=original_cols,
@@ -105,6 +106,7 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         binary_rate = config_hparams["binary_rate"]
         opt_nn_hparams = get_optimal_nn_improvement_parameters(
             loss_type="binary_rate",
+            povertyline=data_config_params["povertyline"],
             nn_hparam_ranges=binary_rate["neural_network"],
             data_generator=train_data_generator,
             device=device,
@@ -121,6 +123,7 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         opt_n_regressors = get_optimal_n_regressors(
             binary_rate["n_regressors"],
             loss_type="binary_rate",
+            povertyline=data_config_params["povertyline"],
             data_generator=train_data_generator,
             device=device,
             original_cols=original_cols,
@@ -153,6 +156,7 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         opt_n_regressors = get_optimal_n_regressors(
             continuous_gap["n_regressors"],
             loss_type="continuous_gap",
+            povertyline=data_config_params["povertyline"],
             data_generator=train_data_generator,
             device=device,
             original_cols=original_cols,
@@ -169,6 +173,7 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         binary_gap = config_hparams["binary_gap"]
         opt_nn_hparams = get_optimal_nn_improvement_parameters(
             loss_type="binary_gap",
+            povertyline=data_config_params["povertyline"],
             nn_hparam_ranges=binary_gap["neural_network"],
             data_generator=train_data_generator,
             device=device,
@@ -184,6 +189,7 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         opt_n_regressors = get_optimal_n_regressors(
             binary_gap["n_regressors"],
             loss_type="binary_gap",
+            povertyline=data_config_params["povertyline"],
             data_generator=train_data_generator,
             device=device,
             original_cols=original_cols,

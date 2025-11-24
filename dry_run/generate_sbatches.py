@@ -136,7 +136,7 @@ def generate_learn_run_2021_povertyline():
 
 def generate_hparam_run():
 
-    countries = ["MWI"]
+    countries = ["BEN", "BFA", "BGD"]
     geo_extrapolation = [True]
     configs = [
         "gt_continuous_rate.yaml",
@@ -147,21 +147,21 @@ def generate_hparam_run():
         "gt_pmt.yaml",
     ]
 
-    script_fn = os.path.join(OUTPUT_PATH, "a_make_hparamdir.sh")
-    with open(script_fn, "w") as f:
-        print(
-            SBATCH_PREFACE.format(
-                "a_make_hparamdir",
-                OUTPUT_PATH,
-                "a_make_hparamdir",
-                OUTPUT_PATH,
-                "a_make_hparamdir",
-            ),
-            file=f,
-        )
-        for country in countries:
-            print(f"mkdir hparam/results/{country}", file=f)
-            print("sleep 1", file=f)
+    # script_fn = os.path.join(OUTPUT_PATH, "a_make_hparamdir.sh")
+    # with open(script_fn, "w") as f:
+    #     print(
+    #         SBATCH_PREFACE.format(
+    #             "a_make_hparamdir",
+    #             OUTPUT_PATH,
+    #             "a_make_hparamdir",
+    #             OUTPUT_PATH,
+    #             "a_make_hparamdir",
+    #         ),
+    #         file=f,
+    #     )
+    #     for country in countries:
+    #         print(f"mkdir hparam/results/{country}", file=f)
+    #         print("sleep 1", file=f)
 
     for country in countries:
         for geo in geo_extrapolation:
@@ -382,7 +382,7 @@ def generate_gt_run():
 
 
 # generate_gt_run()
-#generate_rate_vs_gap_comparison()
+# generate_rate_vs_gap_comparison()
 generate_hparam_run()
 # generate_learn_run_2017_povertyline()
 # generate_learn_run_2021_povertyline()

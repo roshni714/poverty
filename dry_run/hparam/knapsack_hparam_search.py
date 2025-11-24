@@ -2,11 +2,12 @@ from opt_targeted_transfers import RateTargetedTransfers
 from opt_targeted_transfers import Dataset, split
 from feature_selection import forward_selection
 import pandas as pd
-from constants import C_BAR, BUDGETS
+import numpy as np
 
 
 def get_optimal_knapsack_parameters(
     n_alpha_range,
+    povertyline,
     data_generator,
     val_df,
     device,
@@ -46,7 +47,7 @@ def get_optimal_knapsack_parameters(
             train_df, outcome=outcome, weight=weight, covs=feature_list
         )
 
-        tt = RateTargetedTransfers(c_bar=C_BAR)
+        tt = RateTargetedTransfers(c_bar=povertyline)
         new_train_dataset, new_val_dataset = split(train_dataset)
 
         features, _ = forward_selection(
@@ -63,8 +64,6 @@ def get_optimal_knapsack_parameters(
             n_bins=density_estimation_params["n_bins"],
             n_knots=density_estimation_params["n_knots"],
             degree=density_estimation_params["degree"],
-            kde_fft=density_estimation_params["kde_fft"],
-            winsorize=density_estimation_params["winsorize"],
             device=device,
         )
 
@@ -73,12 +72,14 @@ def get_optimal_knapsack_parameters(
         )
         test_dataset = Dataset(val_df, outcome=outcome, weight=weight, covs=features)
 
+        budgets = np.linspace(0.05, povertyline, 15)
+
         for n_alpha in n_alpha_range:
             res = tt.compute_auc(
                 test_dataset=test_dataset,
                 test_covariate_dataset=test_covariate_dataset,
                 metrics=["post_transfer_poverty_rate"],
-                budgets=BUDGETS,
+                budgets=budgets,
                 n_alpha=n_alpha,
             )
             results.append(

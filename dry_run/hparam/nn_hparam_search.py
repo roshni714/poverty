@@ -11,7 +11,6 @@ from opt_targeted_transfers import (
 )
 import pandas as pd
 import numpy as np
-from constants import C_BAR
 
 
 def get_optimal_lasso_parameters(
@@ -182,6 +181,7 @@ def get_optimal_nn_pmt_parameters(
 def get_optimal_nn_improvement_parameters(
     loss_type,
     nn_hparam_ranges,
+    povertyline,
     data_generator,
     val_df,
     device,
@@ -247,7 +247,7 @@ def get_optimal_nn_improvement_parameters(
                             train_dataset=new_train_dataset,
                             validation_dataset=new_val_dataset,
                             t=transfer_size,
-                            c_bar=C_BAR,
+                            c_bar=povertyline,
                             n_layers=n_layers,
                             n_hidden_units=n_hidden_units,
                             lr=lr,
@@ -258,7 +258,7 @@ def get_optimal_nn_improvement_parameters(
                             loss_type=loss_type,
                             predictor=model,
                             t=transfer_size,
-                            c_bar=C_BAR,
+                            c_bar=povertyline,
                         ).item()
                         results.append(
                             {

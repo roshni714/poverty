@@ -15,3 +15,4 @@ from learn.plotting import (
     plot_scatter_poverty_countries,
 )
 from learn.formatting import METHODS
+from learn.aux_data_prep import Metadata

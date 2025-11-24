@@ -53,16 +53,6 @@ def get_optimal_density_estimation_parameters(
     else:
         n_knots_range = [4]
 
-    if "kde_fft" in density_estimation_hparam_ranges:
-        kde_fft = density_estimation_hparam_ranges["kde_fft"]
-    else:
-        kde_fft = False
-
-    if "winsorize" in density_estimation_hparam_ranges:
-        winsorize = density_estimation_hparam_ranges["winsorize"]
-    else:
-        winsorize = False
-
     train_df = data_generator(nsamples=ntrain, seed=547396234)
     feature_list = original_cols.copy()
     feature_list.remove(outcome)
@@ -106,8 +96,6 @@ def get_optimal_density_estimation_parameters(
                             degree=degree,
                             n_bins=n_bins,
                             n_knots=n_knots,
-                            kde_fft=kde_fft,
-                            winsorize=winsorize,
                             device=device,
                         )
                         nll = get_nll(big_val_dataset, density_estimator)
@@ -130,6 +118,4 @@ def get_optimal_density_estimation_parameters(
     del optimal_params["trial"]
     for hparam in optimal_params:
         optimal_params[hparam] = int(optimal_params[hparam])
-    optimal_params["kde_fft"] = kde_fft
-    optimal_params["winsorize"] = winsorize
     return optimal_params

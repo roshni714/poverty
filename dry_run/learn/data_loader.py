@@ -3,6 +3,7 @@ import numpy as np
 
 from opt_targeted_transfers import Dataset, split
 
+
 def get_data_for_geo_extrapolation(data, summary, geo_extrapolation):
     """
     Preprocess the testing data for geo-extrapolation.
@@ -39,7 +40,15 @@ def get_data_for_geo_extrapolation(data, summary, geo_extrapolation):
 
 
 def load_datasets(
-    trainpath, testpath, summarypath, auxpath,geo_extrapolation, country, outcome, weight, year
+    trainpath,
+    testpath,
+    summarypath,
+    auxpath,
+    geo_extrapolation,
+    country,
+    outcome,
+    weight,
+    year,
 ):
     """
     Load datasets.

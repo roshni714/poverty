@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 from scipy.interpolate import interp1d
 from learn.formatting import METHODS
-from learn.aux_data_prep import preprocess_country_aux_data
 
 
 class CountryMethodPovertyResults:
@@ -20,12 +19,13 @@ class CountryMethodPovertyResults:
     :param year: The year of the international poverty line (2017 or 2021).
     """
 
-    def __init__(self, country, method, geo_extrapolation, povertyline, year):
+    def __init__(self, country, method, metadata):
         self.country = country
         self.method = method
-        self.geo_extrapolation = geo_extrapolation
-        self.year = year
-        self.povertyline = povertyline
+        self.geo_extrapolation = metadata.geo_extrapolation
+        self.year = metadata.year
+        self.povertyline = metadata.povertyline
+        self.metadata = metadata
         self.conversion_factor = self._get_conversion_factor()
         self._get_min_poverty_gap_index_and_rate()
         self._get_initial_poverty_gap_index_and_rate()
@@ -60,7 +60,7 @@ class CountryMethodPovertyResults:
         :return: Conversion factor.
         :rtype: float
         """
-        df = preprocess_country_aux_data()
+        df = self.metadata.preprocess_country_aux_data()
 
         # nominal conversion factor from year (of international poverty line) to 2023
         if self.year == 2021:
@@ -190,15 +190,18 @@ class AggregatePovertyResults:
     :type povertyline: float
     """
 
-    def __init__(self, countries, method, geo_extrapolation, year, povertyline):
+    def __init__(self, countries, method, metadata):
         self.countries = countries
         self.method = method
-        self.geo_extrapolation = geo_extrapolation
-        self.year = year
-        self.povertyline = povertyline
+        self.geo_extrapolation = metadata.geo_extrapolation
+        self.year = metadata.year
+        self.povertyline = metadata.povertyline
+        self.metadata = metadata
         self.country_results = {
             country: CountryMethodPovertyResults(
-                country, method, geo_extrapolation, povertyline, year
+                country,
+                method,
+                metadata,
             )
             for country in countries
         }
@@ -209,7 +212,7 @@ class AggregatePovertyResults:
         """
         Set population weights for each country based on survey year population.
         """
-        df = preprocess_country_aux_data()
+        df = self.metadata.preprocess_country_aux_data()
         df = df[df["country_code"].isin(self.countries)]
         df["weight"] = (
             df["total_population_survey_year"]

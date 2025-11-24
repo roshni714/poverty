@@ -684,7 +684,10 @@ class GapTargetedTransfers(TargetedTransfers):
         low_cost = policy_cost(test_covariate_dataset, low_assignments)
         if self.budget >= low_cost:
             # This only happens if budget > poverty line, in which case can just give everyone the same transfer.
-            return {i: [(self.budget, 1.0)] for i in range(len(test_covariate_dataset))}
+            assignments = {i: [(self.budget, 1.0)] for i in range(len(test_covariate_dataset))}
+            self.assignments = assignments
+            return assignments
+        
         lambda_value = (high + low) / 2
         assignments = self._get_assignments_for_lambda(X_test, lambda_value)
         lamb_cost = policy_cost(test_covariate_dataset, assignments)

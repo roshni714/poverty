@@ -175,7 +175,13 @@ def get_training_data_for_geo_extrapolation(
 
 
 def get_gt_train_data_generator(
-    trainpath, summarypath, outcome, auxpath, year, geo_extrapolation=False, val_split=0.33
+    trainpath,
+    summarypath,
+    outcome,
+    auxpath,
+    year,
+    geo_extrapolation=False,
+    val_split=0.33,
 ):
     """
     Load the ground truth training dataset and return a data generator function.
@@ -199,7 +205,6 @@ def get_gt_train_data_generator(
     if "hh_wgt" in raw_data.columns:
         raw_data = raw_data.drop(columns=["hh_wgt"])
 
-
     if year == 2021:
         conversion_factor = 1.0
     else:
@@ -208,9 +213,9 @@ def get_gt_train_data_generator(
         conversion_factor = df[df.country_code == country][
             "overall_conversion_factor_ratio_from_2021_to_{}".format(year)
         ].values[0]
-    
+
     raw_data[outcome] = raw_data[outcome] * conversion_factor
-    
+
     data = get_training_data_for_geo_extrapolation(raw_data, summary, geo_extrapolation)
 
     original_cols = data.columns.tolist()
