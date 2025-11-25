@@ -6,18 +6,19 @@ import tqdm
 import copy
 
 
-def get_pmt_lasso_regressor(train_dataset, validation_dataset, alpha=0.1):
+def get_pmt_lasso_regressor(train_dataset, validation_dataset, alpha=0.1, winsorize=97):
     """
     Fit a Lasso regression model to the training data and return a function that predicts consumption.
     """
-    from sklearn.linear_model import Lasso
-
     X_train, y_train, r_train = train_dataset.get_data()
     X_val, y_val, r_val = validation_dataset.get_data()
 
     X = np.concatenate([X_train, X_val], axis=0)
     y = np.concatenate([y_train, y_val], axis=0)
     r = np.concatenate([r_train, r_val], axis=0)
+
+    upper_cap = np.percentile(y, winsorize)
+    y = np.clip(y, None, upper_cap)
 
     X, X_mean, X_std = standardize(X)
     y, y_mean, y_std = standardize(y)
@@ -80,6 +81,7 @@ def get_pmt_nn_regressor(
     n_layers,
     n_hidden_units,
     lr,
+    winsorize=97,
     n_epochs=300,
     seed=123843,
     device="cpu",
@@ -89,6 +91,9 @@ def get_pmt_nn_regressor(
 
     X_train, y_train, r_train = train_dataset.get_data()
     X_val, y_val, r_val = validation_dataset.get_data()
+    upper_cap = np.percentile(y_train, winsorize)
+    y_train = np.clip(y_train, None, upper_cap)
+    y_val = np.clip(y_val, None, upper_cap)
     X_train, X_mean, X_std = standardize(X_train)
     y_train, y_mean, y_std = standardize(y_train)
     X_val = (X_val - X_mean) / X_std
