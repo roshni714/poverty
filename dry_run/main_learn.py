@@ -81,8 +81,6 @@ def learn_continuous_rate(
         n_knots=int(continuous_rate_params["density_estimation"]["n_knots"]),
         n_bins=int(continuous_rate_params["density_estimation"]["n_bins"]),
         degree=int(continuous_rate_params["density_estimation"]["degree"]),
-        kde_fft=continuous_rate_params["density_estimation"]["kde_fft"],
-        winsorize=continuous_rate_params["density_estimation"].get("winsorize", False),
         device=device,
     )
     all_res = []
@@ -272,6 +270,7 @@ def learn_oracle_gap(
 @argh.arg("--config", default="hparam_results/output_gan_continuous_rate.yaml")
 @argh.arg("--povertyline", default=3.0)
 @argh.arg("--year", default=2021)
+@argh.arg("--nfeatures", default=None)
 @argh.arg("--country", default="malawi")
 @argh.arg("--trainpath", default=None)
 @argh.arg("--testpath", default=None)
@@ -282,6 +281,7 @@ def main(
     config="hparam_results/output_gan_continuous_rate.yaml",
     povertyline=3.0,
     year=2021,
+    nfeatures=None,
     auxpath="data/auxiliary_data/auxiliary_data_20251121.csv",
     country="malawi",
     trainpath=None,
@@ -336,8 +336,24 @@ def main(
         )
     )
 
+    if nfeatures is not None:
+        features, _ = forward_selection(
+        train_dataset,
+        validation_dataset,
+        max_features=nfeatures,
+    )
+        train_dataset.covs = features
+        validation_dataset.covs = features
+        test_covariate_dataset.covs = features
+        test_dataset.covs = features
+
     name = config.split("/")[-1].split(".yaml")[0]
-    savepath = savedir + "/" + "year=" + str(year) + "/" + name
+
+    if nfeatures is not None:
+        savepath = savedir + "/" + "year=" + str(year) + "_d=" + str(nfeatures) + "/" + name
+    else:
+        savepath = savedir + "/" + "year=" + str(year) + "/" + name 
+
 
     LEARNING_METHODS = {
         "continuous_rate": learn_continuous_rate,
