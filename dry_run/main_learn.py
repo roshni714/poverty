@@ -274,7 +274,7 @@ def learn_oracle_gap(
 @argh.arg("--country", default="malawi")
 @argh.arg("--trainpath", default=None)
 @argh.arg("--testpath", default=None)
-@argh.arg("--auxpath", default="data/auxiliary_data/auxiliary_data_20251121.csv")
+@argh.arg("--auxpath", default="data/auxiliary_data/auxiliary_data_11262025.csv")
 @argh.arg("--summarypath", default="data/summary_2019.parquet")
 @argh.arg("--device", default="cpu")
 def main(
@@ -338,10 +338,10 @@ def main(
 
     if nfeatures is not None:
         features, _ = forward_selection(
-        train_dataset,
-        validation_dataset,
-        max_features=nfeatures,
-    )
+            train_dataset,
+            validation_dataset,
+            max_features=nfeatures,
+        )
         train_dataset.covs = features
         validation_dataset.covs = features
         test_covariate_dataset.covs = features
@@ -350,10 +350,11 @@ def main(
     name = config.split("/")[-1].split(".yaml")[0]
 
     if nfeatures is not None:
-        savepath = savedir + "/" + "year=" + str(year) + "_d=" + str(nfeatures) + "/" + name
+        savepath = (
+            savedir + "/" + "year=" + str(year) + "_d=" + str(nfeatures) + "/" + name
+        )
     else:
-        savepath = savedir + "/" + "year=" + str(year) + "/" + name 
-
+        savepath = savedir + "/" + "year=" + str(year) + "/" + name
 
     LEARNING_METHODS = {
         "continuous_rate": learn_continuous_rate,

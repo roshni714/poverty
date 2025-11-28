@@ -43,16 +43,17 @@ METHODS_RATE_VS_GAP_CONT = ["continuous_gap", "continuous_rate"]
 COUNTRIES = [
     "BEN",
     "BFA",
-    "COL",
+    "BGD",
+    "CIV",
     "ETH",
     "GHA",
     "GNB",
-    "IND",
     "KEN",
+    "MDG",
     "MLI",
     "MWI",
     "NER",
-    "NGA",
+    "RWA",
     "SEN",
     "TGO",
     "TZA",
@@ -461,13 +462,13 @@ def make_presentation_figures(metadata):
     "--auxpath",
     help="Path to auxiliary data",
     type=str,
-    default="data/auxiliary_data/auxiliary_data_20251121.csv",
+    default="data/auxiliary_data/auxiliary_data_11262025.csv",
 )
 @argh.arg(
     "--secondaryauxpath",
     help="Path to secondary auxiliary data",
     type=str,
-    default="data/auxiliary_data/secondary_auxiliary_data_20251121.csv",
+    default="data/auxiliary_data/secondary_auxiliary_data_11262025.csv",
 )
 @argh.arg(
     "--wpcpath",

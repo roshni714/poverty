@@ -75,8 +75,8 @@ def get_quantile_regressor(
     upper_cap = np.percentile(y_train, winsorize_outcome)
 
     # Note: Assumes outcome is non-negative.
-    y_train = np.clip(y_train, 0.0, upper_cap)
-    y_val = np.clip(y_val, 0.0, upper_cap)
+    y_train = np.clip(y_train, None, upper_cap)
+    y_val = np.clip(y_val, None, upper_cap)
     X_train, X_mean, X_std = standardize(X_train)
     y_train, y_mean, y_std = standardize(y_train)
     X_val = (X_val - X_mean) / X_std
@@ -151,6 +151,6 @@ def get_quantile_regressor(
                 .detach()
                 .numpy()
             )
-            return np.maximum(quantile, 0.0)
+            return np.maximum(quantile, 0)
 
     return quantile_regressor

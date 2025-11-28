@@ -22,7 +22,7 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
             "gt": {
                 "trainpath": "data/{}/train.parquet".format(country),
                 "summarypath": "data/{}/summary.parquet".format(country),
-                "auxpath": "data/auxiliary_data/auxiliary_data_20251121.csv",
+                "auxpath": "data/auxiliary_data/auxiliary_data_11262025.csv",
             },
         },
     }
@@ -121,8 +121,30 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
     with open(f"hparam/results/{country}/{subfolder}/ubi.yaml", "w") as file:
         yaml.dump(ubi_config, file, default_flow_style=False)
 
-countries = ["IND"]
-#countries = ["ETH", "GNB", "KEN", "MDG", "MWI", "MLI", "NER", "NGA", "RWA", "SEN", "TZA", "ZAF", "TGO", "UGA"]
+
+# countries = ["IND"]
+countries = [
+    "BEN",
+    "BFA",
+    "BGD",
+    "CIV",
+    "COL",
+    "GHA",
+    "ETH",
+    "GNB",
+    "KEN",
+    "MDG",
+    "MWI",
+    "MLI",
+    "NER",
+    "NGA",
+    "RWA",
+    "SEN",
+    "TZA",
+    "ZAF",
+    "TGO",
+    "UGA",
+]
 geo_extrapolation = [True]
 for country in countries:
     for geo in geo_extrapolation:

@@ -324,7 +324,7 @@ class BinaryTargetedTransfers(TargetedTransfers):
         t_to_estimated_benefits = dict()
         for t in self.candidate_t_values:
             regressor = self.t_to_household_estimator_map[t]
-            X_val, _, _ = validation_dataset.get_data()
+            X_val, _, r_val = validation_dataset.get_data()
             estimated_benefits = regressor(X_val)
             ordered_households = np.argsort(estimated_benefits)[::-1]
             t_to_ordered_households[t] = ordered_households
@@ -334,25 +334,18 @@ class BinaryTargetedTransfers(TargetedTransfers):
             highest_estimated_benefits = -float("inf")
             best_t = None
 
-            candidates_given_budget = self.candidate_t_values[
-                self.candidate_t_values >= budget
-            ]
+            candidates_given_budget = reversed(
+                self.candidate_t_values[self.candidate_t_values >= budget]
+            )
+            print("Evaluating budget {}".format(budget))
             for t in candidates_given_budget:
-                threshold = self._get_threshold_to_receive_transfers(
-                    validation_dataset,
-                    t_to_estimated_benefits[t],
-                    t_to_ordered_households[t],
-                    t,
-                    budget,
-                )
-                idx_to_receive_transfers = (
-                    self._get_indices_to_receive_transfers_threshold(
-                        validation_dataset, t, threshold
-                    )
+                idx_to_receive_transfers = self._get_indices_to_receive_transfers_exact(
+                    r_val, t_to_ordered_households[t], t, budget
                 )
                 total_estimated_benefits = self._get_avg_estimated_benefit(
                     validation_dataset, t, idx_to_receive_transfers
                 )
+                print(t, len(idx_to_receive_transfers), total_estimated_benefits)
 
                 assert total_estimated_benefits >= 0
                 if total_estimated_benefits > highest_estimated_benefits:
@@ -363,53 +356,15 @@ class BinaryTargetedTransfers(TargetedTransfers):
             assert best_t is not None
             self.budget_to_t_map[budget] = best_t
 
-    def _get_threshold_to_receive_transfers(
-        self,
-        validation_dataset,
-        estimated_benefits,
-        household_idx_ranked_by_benefit,
-        t,
-        budget,
-    ):
-        _, _, r_val = validation_dataset.get_data()
-
-        pop_weight_receive_transfers = budget / t
-        weights_ranked_by_benefit = r_val[household_idx_ranked_by_benefit]
-        cumsum_weights = np.cumsum(weights_ranked_by_benefit)
-        indicator_receive_transfers = cumsum_weights < pop_weight_receive_transfers
-        idx_receive_transfers = household_idx_ranked_by_benefit[
-            indicator_receive_transfers
-        ]
-        if len(idx_receive_transfers) == 0:
-            threshold = np.inf
-        else:
-            threshold = estimated_benefits[idx_receive_transfers[-1]]
-        return threshold
-
-    def _get_indices_to_receive_transfers_threshold(
-        self, validation_dataset, t, threshold
-    ):
-        if self.t_to_household_estimator_map is None:
-            raise ValueError("Need to run fit before a policy can be computed")
-
-        X_val, _, _ = validation_dataset.get_data()
-
-        regressor = self.t_to_household_estimator_map[t]
-        estimated_benefits = regressor(X_val)
-        idx_receive_transfers = np.where(estimated_benefits > threshold)[0]
-        return idx_receive_transfers
-
     def _get_indices_to_receive_transfers_exact(
-        self, test_covariate_dataset, household_idx_ranked_by_benefit, t, budget
+        self, r, household_idx_ranked_by_benefit, t, budget
     ):
-        _, r_test = test_covariate_dataset.get_data()
-
         pop_weight_receive_transfers = budget / t
-        weights_ranked_by_benefit = r_test[household_idx_ranked_by_benefit]
+        weights_ranked_by_benefit = r[household_idx_ranked_by_benefit]
         cumsum_weights = np.cumsum(weights_ranked_by_benefit)
-        cumsum_weights /= cumsum_weights[
-            -1
-        ]  # should have no effect if cumsum_weights[-1] ==1.0, but should handle a numerical issue in the case cumsum_weights[-1] is slightly greater than 1.
+        # cumsum_weights /= cumsum_weights[
+        #     -1
+        # ]  # should have no effect if cumsum_weights[-1] ==1.0, but should handle a numerical issue in the case cumsum_weights[-1] is slightly greater than 1.
         indicator_receive_transfers = cumsum_weights <= pop_weight_receive_transfers
         idx_receive_transfers = household_idx_ranked_by_benefit[
             indicator_receive_transfers
@@ -428,14 +383,14 @@ class BinaryTargetedTransfers(TargetedTransfers):
                 f"budget {self.budget} was not included provided to get_opt_transfer_sizes_given_budget_grid"
             )
 
-        X_test, _ = test_covariate_dataset.get_data()
+        X_test, r_test = test_covariate_dataset.get_data()
 
         best_t = self.budget_to_t_map[self.budget]
         regressor = self.t_to_household_estimator_map[best_t]
         estimated_benefits = regressor(X_test)
         ordered_households = np.argsort(estimated_benefits)[::-1]
         indices_to_receive_transfers = self._get_indices_to_receive_transfers_exact(
-            test_covariate_dataset, ordered_households, best_t, self.budget
+            r_test, ordered_households, best_t, self.budget
         )
 
         assignments = {i: [(0.0, 1.0)] for i in range(len(test_covariate_dataset))}

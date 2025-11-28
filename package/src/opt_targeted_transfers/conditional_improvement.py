@@ -126,9 +126,6 @@ def get_conditional_improvement_regressor(
     assert np.min(benefits_train) >= 0
     assert np.min(benefits_val) >= 0
 
-    benefits_train, benefits_mean, benefits_std = standardize(benefits_train)
-    benefits_val = (benefits_val - benefits_mean) / benefits_std
-
     if X_train.shape[1] == 0:
         # TODO fill in
         pass
@@ -162,8 +159,6 @@ def get_conditional_improvement_regressor(
                     * torch.Tensor(r_val).to(device)
                 )
                 val_losses.append(val_loss.detach().item())
-                # ideally do torch.save to save checkpoints. Google it. Avoid saving so many models
-                # in memory. And more correct.
                 models.append(copy.deepcopy(predictor.cpu()))
             predictor = predictor.to(device)
             predictor.train()
@@ -187,15 +182,11 @@ def get_conditional_improvement_regressor(
 
     def estimator(X_test):
         if X_test.shape[1] == 0:
-            predicted_benefits = benefits_mean * np.ones((X_test.shape[0], 1))
+            pass
         else:
             X_test = (X_test - X_mean) / X_std
             predicted_benefits = (
-                (
-                    final_predictor(torch.Tensor(X_test)).reshape(X_test.shape[0], 1)
-                    * benefits_std
-                    + benefits_mean
-                )
+                (final_predictor(torch.Tensor(X_test)).reshape(X_test.shape[0], 1))
                 .detach()
                 .numpy()
                 .flatten()

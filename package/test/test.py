@@ -39,11 +39,11 @@ class TestOptTargetedTransfers(unittest.TestCase):
             df, outcome="outcome", covs=["feature1", "feature2"], weight="weight"
         )
         return dataset
-    
+
     def _make_1d_data_heterogeneity(self, n=20000, seed=0):
         np.random.seed(seed)
         X = np.random.uniform(10, 15, (n, 1))
-        y = 2 * X[:, 0] + np.random.normal(0, X[:, 0]/10, n)
+        y = 2 * X[:, 0] + np.random.normal(0, X[:, 0] / 10, n)
         r = np.ones(n)
 
         df = pd.DataFrame(
@@ -53,13 +53,12 @@ class TestOptTargetedTransfers(unittest.TestCase):
 
         dataset = Dataset(df, outcome="outcome", covs=["feature"], weight="weight")
         return dataset
-    
 
     def _make_2d_data_heterogeneity(self, n=20000, seed=0):
         np.random.seed(seed)
         X1 = np.random.uniform(10, 15, (n, 1))
         X2 = np.random.uniform(10, 15, (n, 1))
-        y = 2 * X1[:, 0] + 3 * X2[:, 0] + np.random.normal(0, X2[:, 0]/10, n)
+        y = 2 * X1[:, 0] + 3 * X2[:, 0] + np.random.normal(0, X2[:, 0] / 10, n)
         r = np.ones(n)
 
         df = pd.DataFrame(
@@ -95,7 +94,9 @@ class TestOptTargetedTransfers(unittest.TestCase):
             )
             X_test = np.linspace(1, 5, 20).reshape(-1, 1)
             quantile_regressor_output = quantile_regressor(X_test)
-            true_res = 2 * np.linspace(1, 5, 20) + norm.ppf(quantiles[i], loc=0, scale=0.1)
+            true_res = 2 * np.linspace(1, 5, 20) + norm.ppf(
+                quantiles[i], loc=0, scale=0.1
+            )
             np.testing.assert_allclose(quantile_regressor_output, true_res, rtol=1e-1)
 
     def test_get_quantile_regressor_2d_data(self):
@@ -123,9 +124,12 @@ class TestOptTargetedTransfers(unittest.TestCase):
             X2_test = np.linspace(1, 5, 5)
             X_test = np.array([[x1, x2] for x1 in X1_test for x2 in X2_test])
             quantile_regressor_output = quantile_regressor(X_test)
-            true_res = 2 * X_test[:, 0] + 3 * X_test[:, 1] + norm.ppf(quantiles[i], loc=0, scale=0.1)
+            true_res = (
+                2 * X_test[:, 0]
+                + 3 * X_test[:, 1]
+                + norm.ppf(quantiles[i], loc=0, scale=0.1)
+            )
             np.testing.assert_allclose(quantile_regressor_output, true_res, rtol=1e-1)
-
 
     def test_get_quantile_regressor_2d_data_heterogeneity(self):
         # Add your test implementation here
@@ -152,7 +156,11 @@ class TestOptTargetedTransfers(unittest.TestCase):
             X2_test = np.linspace(10, 15, 5)
             X_test = np.array([[x1, x2] for x1 in X1_test for x2 in X2_test])
             quantile_regressor_output = quantile_regressor(X_test)
-            true_res = 2 * X_test[:, 0] + 3 * X_test[:, 1] + norm.ppf(quantiles[i], loc=0, scale= X_test[:, 1]/10)
+            true_res = (
+                2 * X_test[:, 0]
+                + 3 * X_test[:, 1]
+                + norm.ppf(quantiles[i], loc=0, scale=X_test[:, 1] / 10)
+            )
             np.testing.assert_allclose(quantile_regressor_output, true_res, rtol=1e-1)
 
     def test_gap_targeting(self):
@@ -178,8 +186,12 @@ class TestOptTargetedTransfers(unittest.TestCase):
         for budget in budgets:
             gtt.set_budget(budget)
             assignments = gtt.run_opt(test_covariate_dataset)
-            metrics = post_transfer_metrics(test_dataset=test_dataset, assignments=assignments, c_bar=c_bar)
-            np.testing.assert_allclose(metrics['policy_cost_per_capita'], budget, rtol=1e-2)
+            metrics = post_transfer_metrics(
+                test_dataset=test_dataset, assignments=assignments, c_bar=c_bar
+            )
+            np.testing.assert_allclose(
+                metrics["policy_cost_per_capita"], budget, rtol=1e-2
+            )
 
     def test_quantile_regressor_heterogeneity(self):
 
@@ -204,7 +216,9 @@ class TestOptTargetedTransfers(unittest.TestCase):
             )
             X_test = np.linspace(10, 15, 20).reshape(-1, 1)
             quantile_regressor_output = quantile_regressor(X_test)
-            true_res = 2 * np.linspace(10, 15, 20) + norm.ppf(quantiles[i], loc=0, scale= np.linspace(10, 15, 20)/10)
+            true_res = 2 * np.linspace(10, 15, 20) + norm.ppf(
+                quantiles[i], loc=0, scale=np.linspace(10, 15, 20) / 10
+            )
             np.testing.assert_allclose(quantile_regressor_output, true_res, rtol=1e-1)
 
     def test_double_gap_targeting(self):
@@ -250,9 +264,7 @@ class TestOptTargetedTransfers(unittest.TestCase):
                 self.assertAlmostEqual(
                     assignments[i][j][0] * 2.0, double_assignments[i][j][0], delta=1e-2
                 )
-        
 
 
 if __name__ == "__main__":
     unittest.main()
-
