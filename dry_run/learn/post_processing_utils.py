@@ -37,7 +37,7 @@ def convert_nominal_2023_to_nominal_survey_year(amt, country, metadata):
         second_df["indicator"]
         == "conversion_factor_nominal_USD_{}_to_2023".format(survey_year)
     ]["value"].values[0]
-    amt = amt * (1 / inflation_adjustment)
+    amt = amt * (inflation_adjustment)
     return amt
 
 

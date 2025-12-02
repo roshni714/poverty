@@ -10,6 +10,15 @@ import matplotlib.pyplot as plt
 
 
 def get_national_poverty_rate_target(metadata):
+    """
+    Give a global poverty rate target, compute the corresponding national poverty rate target
+    using WPC 2023 data.
+
+    Args:
+        metadata: Metadata object containing globalPovertyRate attribute.
+    Returns:
+        national_poverty_rate_target: float, national poverty rate target corresponding to the global poverty rate
+    """
     df = metadata.preprocess_wpc_data()
     df = df[df["year"] == 2023]
 
@@ -49,6 +58,16 @@ class ExtrapolationResults:
         self.outofsample_data_source = outofsample_data_source
 
     def get_true_feasible_oracle_costs(self):
+        """
+        For each in-sample country, compute the ratio between the feasible policy cost
+        using the continuous gap method and the oracle policy cost using the oracle gap method.
+
+        Note that we compare to the cost of the oracle policy that achieves the same poverty reduction as
+        the feasible policy, not the cost of the oracle policy that achieves full poverty elimination.
+
+        Returns:
+            in_sample_country_ratios: list of float, ratio of feasible to oracle costs for each in-sample country
+        """
         cont_gap_results = [
             CountryMethodPovertyResults(
                 country, "continuous_gap", metadata=self.metadata
@@ -63,6 +82,7 @@ class ExtrapolationResults:
 
         in_sample_country_ratios = []
         in_sample_costs = []
+        oracle_costs_full_poverty_elimination = []
         oracle_costs = []
 
         for i, _ in enumerate(self.in_sample_countries):
@@ -70,19 +90,30 @@ class ExtrapolationResults:
             in_sample_cost = cont_gap_results[i].rate_to_cost_interpolator(
                 self.nationalPovertyRate
             )
-            in_sample_country_ratios.append(
-                in_sample_cost / oracle_cost
-            )  # ratio to achieve 1% poverty reduction
-            actual_oracle_cost = oracle_results[i].get_poverty_gap()
+            
+            # Determine the post-transfer poverty gap that is achieved by a feasible policy that 
+            # attains a 1% poverty rate.
+            needed_gap = cont_gap_results[i].rate_to_gap_interpolator(self.nationalPovertyRate)
+
+            # Determine the cost of the oracle policy that attains this same poverty gap.
+            oracle_cost_to_achieve_gap = oracle_results[i].gap_to_cost_interpolator(needed_gap)
+
+
             in_sample_costs.append(in_sample_cost)
-            oracle_costs.append(
-                actual_oracle_cost
-            )  # to achieve full poverty elimination
+            oracle_costs.append(oracle_cost_to_achieve_gap)
+            oracle_costs_full_poverty_elimination.append(
+                oracle_cost
+            )
+
+            in_sample_country_ratios.append(
+                in_sample_cost / oracle_cost_to_achieve_gap
+            )
         survey_df = pd.DataFrame(
             {
                 "Country": self.in_sample_countries,
                 "Policy Cost": np.array(in_sample_costs),
-                "Oracle Cost": np.array(oracle_costs),
+                "Oracle Cost ({}%)".format(self.nationalPovertyRate): np.array(oracle_cost),
+                "Oracle Cost": np.array(oracle_costs_full_poverty_elimination),
             }
         )
         self.survey_in_sample_df = survey_df
@@ -92,12 +123,7 @@ class ExtrapolationResults:
         X = []
         y = []
 
-        cont_gap_results = [
-            CountryMethodPovertyResults(
-                country, "continuous_gap", metadata=self.metadata
-            )
-            for country in self.in_sample_countries
-        ]
+
         aux_data = self.metadata.preprocess_country_aux_data()
         for i, country in enumerate(self.in_sample_countries):
             # X.append(wpc_df[
@@ -179,11 +205,10 @@ class ExtrapolationResults:
         population = (
             df[df["country_code"] == country]["total_population_2023"].values[0].item()
         )
+        
+        secondary_df = self.metadata.preprocess_secondary_aux_data()
 
-        if self.year == 2021:
-            inflation_adjustment = 1.14
-        elif self.year == 2017:
-            inflation_adjustment = 1.23
+        inflation_adjustment = 1/secondary_df[secondary_df["indicator"] == "conversion_factor_nominal_USD_{}_to_2023".format(self.year)]["value"].values[0].item()
 
         return (
             self.povertyline

@@ -63,10 +63,9 @@ class CountryMethodPovertyResults:
         df = self.metadata.preprocess_country_aux_data()
 
         # nominal conversion factor from year (of international poverty line) to 2023
-        if self.year == 2021:
-            nominal_conversion_factor = 1.14
-        elif self.year == 2017:
-            nominal_conversion_factor = 1.23
+        secondary_df = self.metadata.preprocess_secondary_aux_data()
+        inflation_adjustment = 1/secondary_df[secondary_df["indicator"] == "conversion_factor_nominal_USD_{}_to_2023".format(self.year)]["value"].values[0].item()
+
 
         country_df = df[df["country_code"] == self.country]
         if country_df.shape[0] == 0:
@@ -77,7 +76,7 @@ class CountryMethodPovertyResults:
         factor = (
             country_df["total_population_survey_year"].values[0]  # population
             * 365  # days per year
-            * nominal_conversion_factor  # from year to 2023 nominal
+            * inflation_adjustment  # from year to 2023 nominal
             * (
                 country_df["PPP_conversion_factor_{}".format(self.year)].values[0]
                 / country_df["market_exchange_rate_{}".format(self.year)].values[0]

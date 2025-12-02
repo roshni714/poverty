@@ -889,11 +889,12 @@ def get_table_policy_cost_gdp(countries, metadata, save_as):
             "policy_cost": "Policy Cost",
             "GDP_survey_year": "GDP",
             "survey_year": "Reference Year",
-            "country_code": "Country",
+            "country_code": "Country Code",
             "government_revenue_survey_year": "Gov't Revenue",
         },
         inplace=True,
     )
+    df["Country"] = df["Country Code"].apply(lambda x: get_country_name(x, metadata))
     df = df.sort_values(by=["Country"])
     new_df = df[
         [
@@ -912,7 +913,6 @@ def get_table_policy_cost_gdp(countries, metadata, save_as):
         index=False,
         float_format="%.2f",
         escape=False,
-        formatters={"Country": lambda x: get_country_name(x, metadata)},
     )
 
 
@@ -1071,18 +1071,19 @@ def get_table_wpc(countries, metadata, save_as):
     df["wpc_share_world_poor"] *= 100
     df.rename(
         columns={
-            "country_code": "Country",
+            "country_code": "Country Code",
             "wpc_poverty_rate": "Poverty Rate",
             "wpc_share_world_poor": "Share of World's Poor",
         },
         inplace=True,
     )
+    df["Country"] = df["Country Code"].apply(lambda x: get_country_name(x, metadata))
+    df = df.sort_values(by=["Country"])
     df.to_latex(
         save_as + ".tex",
         index=False,
         float_format="%.2f",
         escape=False,
-        formatters={"Country": lambda x: get_country_name(x, metadata)},
     )
 
 

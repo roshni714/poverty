@@ -228,7 +228,7 @@ def get_optimal_nn_improvement_parameters(
     train_df = data_generator(nsamples=ntrain, seed=0)
     gaps = np.maximum(povertyline - train_df[outcome].values, 0)
     gaps = gaps[gaps > 0]
-    transfer_sizes = np.percentile(gaps, [25, 50, 75])
+    transfer_sizes = np.percentile(gaps, [50, 75, 95])
     print("Transfer sizes to consider:", transfer_sizes)
 
     for trial in range(3):

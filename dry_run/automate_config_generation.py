@@ -122,29 +122,28 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
         yaml.dump(ubi_config, file, default_flow_style=False)
 
 
-# countries = ["IND"]
-countries = [
-    "BEN",
-    "BFA",
-    "BGD",
-    "CIV",
-    "COL",
-    "GHA",
-    "ETH",
-    "GNB",
-    "KEN",
-    "MDG",
-    "MWI",
-    "MLI",
-    "NER",
-    "NGA",
-    "RWA",
-    "SEN",
-    "TZA",
-    "ZAF",
-    "TGO",
-    "UGA",
-]
+# countries = [
+#     "BEN",
+#     "BFA",
+#     "BGD",
+#     "CIV",
+#     "GHA",
+#     "ETH",
+#     "GNB",
+#     "KEN",
+#     "MDG",
+#     "MWI",
+#     "MLI",
+#     "NER",
+#     "NGA",
+#     "RWA",
+#     "SEN",
+#     "TZA",
+#     "ZAF",
+#     "TGO",
+#     "UGA",
+# ]
+countries = ["YEM"]
 geo_extrapolation = [True]
 for country in countries:
     for geo in geo_extrapolation:

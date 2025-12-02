@@ -337,7 +337,6 @@ class BinaryTargetedTransfers(TargetedTransfers):
             candidates_given_budget = reversed(
                 self.candidate_t_values[self.candidate_t_values >= budget]
             )
-            print("Evaluating budget {}".format(budget))
             for t in candidates_given_budget:
                 idx_to_receive_transfers = self._get_indices_to_receive_transfers_exact(
                     r_val, t_to_ordered_households[t], t, budget
@@ -345,7 +344,6 @@ class BinaryTargetedTransfers(TargetedTransfers):
                 total_estimated_benefits = self._get_avg_estimated_benefit(
                     validation_dataset, t, idx_to_receive_transfers
                 )
-                print(t, len(idx_to_receive_transfers), total_estimated_benefits)
 
                 assert total_estimated_benefits >= 0
                 if total_estimated_benefits > highest_estimated_benefits:
@@ -814,12 +812,12 @@ class ModernPMTTargetedTransfers(BinaryTargetedTransfers):
 
         assert self.budget is not None
 
-        X_test, _ = test_covariate_dataset.get_data()
+        X_test, r_test = test_covariate_dataset.get_data()
 
         estimated_benefits = self.consumption_predictor(X_test)
         ordered_households = np.argsort(estimated_benefits)
         indices_to_receive_transfers = self._get_indices_to_receive_transfers_exact(
-            test_covariate_dataset, ordered_households, self.transfer_value, self.budget
+            r_test, ordered_households, self.transfer_value, self.budget
         )
 
         assignments = {i: [(0.0, 1.0)] for i in range(len(test_covariate_dataset))}
@@ -857,12 +855,12 @@ class PMTTargetedTransfers(BinaryTargetedTransfers):
 
         assert self.budget is not None
 
-        X_test, _ = test_covariate_dataset.get_data()
+        X_test, r_test = test_covariate_dataset.get_data()
 
         estimated_benefits = self.consumption_predictor(X_test)
         ordered_households = np.argsort(estimated_benefits)
         indices_to_receive_transfers = self._get_indices_to_receive_transfers_exact(
-            test_covariate_dataset, ordered_households, self.transfer_value, self.budget
+            r_test, ordered_households, self.transfer_value, self.budget
         )
 
         assignments = {i: [(0.0, 1.0)] for i in range(len(test_covariate_dataset))}

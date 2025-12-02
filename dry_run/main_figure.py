@@ -41,25 +41,28 @@ METHODS_RATE_VS_GAP = ["binary_gap", "continuous_gap", "binary_rate", "continuou
 METHODS_RATE_VS_GAP_CONT = ["continuous_gap", "continuous_rate"]
 
 COUNTRIES = [
-    "BEN",
-    "BFA",
-    "BGD",
-    "CIV",
-    "ETH",
-    "GHA",
-    "GNB",
-    "KEN",
-    "MDG",
-    "MLI",
-    "MWI",
-    "NER",
-    "RWA",
-    "SEN",
-    "TGO",
-    "TZA",
-    "UGA",
-    "ZAF",
-]
+        "BGD",
+        "BEN",
+        "BFA",
+        "COL",
+        "CIV",
+        "ETH",
+        "GNB",
+        "GHA",
+        "KEN",
+        "NGA",
+        "MDG",
+        "MWI",
+        "MLI",
+        "NER",
+        "RWA",
+        "SEN",
+        "TZA",
+        "ZAF",
+        "TGO",
+        "UGA",
+        "YEM"
+    ]
 
 
 def get_malawi_rate_vs_gap_figure_1(metadata):
