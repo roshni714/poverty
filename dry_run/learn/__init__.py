@@ -1,6 +1,5 @@
 from learn.plotting import (
     make_plot_for_country,
-    make_plot_for_country_presentation,
     aggregate_plot,
     plot_bar_chart_policy_amt_as_percent_of_gdp,
     get_table_policy_cost_gdp,
@@ -10,9 +9,13 @@ from learn.plotting import (
     get_table_wpc,
     get_extrapolation,
     make_macro_file,
+    plot_scatter_poverty_countries,
+    get_rate_vs_gap_restricted_feature_set,
+)
+from learn.presentation_figures import (
+    make_plot_for_country_presentation,
     aggregate_plot_presentation,
     aggregate_plot_roshni_presentation,
-    plot_scatter_poverty_countries,
 )
 from learn.formatting import METHODS
 from learn.aux_data_prep import Metadata

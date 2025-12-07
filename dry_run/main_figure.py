@@ -14,6 +14,7 @@ from learn import (
     get_table_survey_info,
     make_macro_file,
     plot_scatter_poverty_countries,
+    get_rate_vs_gap_restricted_feature_set,
     Metadata,
 )
 import argh
@@ -41,36 +42,37 @@ METHODS_RATE_VS_GAP = ["binary_gap", "continuous_gap", "binary_rate", "continuou
 METHODS_RATE_VS_GAP_CONT = ["continuous_gap", "continuous_rate"]
 
 COUNTRIES = [
-        "BGD",
-        "BEN",
-        "BFA",
-        "COL",
-        "CIV",
-        "ETH",
-        "GNB",
-        "GHA",
-        "KEN",
-        "NGA",
-        "MDG",
-        "MWI",
-        "MLI",
-        "NER",
-        "RWA",
-        "SEN",
-        "TZA",
-        "ZAF",
-        "TGO",
-        "UGA",
-        "YEM"
-    ]
+    "BGD",
+    "BEN",
+    "BFA",
+    "CIV",
+    "COL",
+    "ETH",
+    "GHA",
+    "GNB",
+    "IND",
+    "KEN",
+    "MDG",
+    "MLI",
+    "MWI",
+    "NER",
+    "NGA",
+    "RWA",
+    "SEN",
+    "TGO",
+    "TZA",
+    "ZAF",
+    "UGA",
+    "YEM",
+]
 
 
-def get_malawi_rate_vs_gap_figure_1(metadata):
+def get_togo_rate_vs_gap_figure_1(metadata):
     make_plot_for_country(
-        "MWI",
+        "TGO",
         METHODS_RATE_VS_GAP,
         metadata,
-        save_as="exhibits/year={}/figs/paper-figure-1-malawi_rate_vs_gap".format(
+        save_as="exhibits/year={}/figs/paper-figure-1-togo_rate_vs_gap".format(
             metadata.year
         ),
         ubi_on=False,
@@ -216,6 +218,8 @@ def get_headline_figure_3_dollar(metadata):
         auxpath=metadata.auxpath,
         secondaryauxpath=metadata.secondaryauxpath,
         wpcpath=metadata.wpcpath,
+        restricted_feature_set=False,
+        refugeepath=metadata.refugeepath,
     )
     aggregate_plot(
         COUNTRIES,
@@ -228,10 +232,20 @@ def get_headline_figure_3_dollar(metadata):
 
 
 def get_table_extrapolation(metadata):
-    total_cost, _, _, _, _, _ = get_extrapolation(
+    total_cost, _, _, _, _, _, _, _ = get_extrapolation(
         COUNTRIES,
         metadata=metadata,
         save_as="exhibits/year={}/tables/appendix-table-4-extrapolation".format(
+            metadata.year
+        ),
+    )
+
+
+def get_rate_vs_gap_dimension_figure_8(metadata):
+    get_rate_vs_gap_restricted_feature_set(
+        COUNTRIES,
+        metadata=metadata,
+        save_as="exhibits/year={}/figs/paper-figure-8-rate_vs_gap_dimension".format(
             metadata.year
         ),
     )
@@ -465,19 +479,25 @@ def make_presentation_figures(metadata):
     "--auxpath",
     help="Path to auxiliary data",
     type=str,
-    default="data/auxiliary_data/auxiliary_data_11262025.csv",
+    default="data/auxiliary_data/auxiliary_data_20251206.csv",
 )
 @argh.arg(
     "--secondaryauxpath",
     help="Path to secondary auxiliary data",
     type=str,
-    default="data/auxiliary_data/secondary_auxiliary_data_11262025.csv",
+    default="data/auxiliary_data/secondary_auxiliary_data_20251206.csv",
 )
 @argh.arg(
     "--wpcpath",
     help="Path to WPC data",
     type=str,
     default="data/auxiliary_data/wdl_pov_clock_oct_2024/wdl_pov_clock_oct_2024.csv",
+)
+@argh.arg(
+    "--refugeepath",
+    help="Path to refugee data",
+    type=str,
+    default="data/auxiliary_data/persons_of_concern.csv",
 )
 def main(
     year=2021,
@@ -486,6 +506,7 @@ def main(
     auxpath="",
     secondaryauxpath="",
     wpcpath="",
+    refugeepath="",
 ):
     os.makedirs(f"exhibits/year={year}/figs", exist_ok=True)
     os.makedirs(f"exhibits/year={year}/tables", exist_ok=True)
@@ -504,9 +525,11 @@ def main(
         auxpath=auxpath,
         secondaryauxpath=secondaryauxpath,
         wpcpath=wpcpath,
+        restricted_feature_set=False,
+        refugeepath=refugeepath,
     )
 
-    get_malawi_rate_vs_gap_figure_1(metadata)
+    get_togo_rate_vs_gap_figure_1(metadata)
     get_headline_figure_2(metadata)
     get_rate_vs_gap_headline_figure_3(metadata)
     get_oracle_ratio_figure_4(metadata)
@@ -514,6 +537,7 @@ def main(
     get_gdp_plot_figure_6(metadata)
     get_headline_figure_3_dollar(metadata)
     get_scatter_figure_7(metadata)
+    get_rate_vs_gap_dimension_figure_8(metadata)
     get_table_extrapolation(metadata)
     # get_appendix_table_out_of_sample_rmse()
     get_appendix_table_survey(metadata)

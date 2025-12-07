@@ -22,7 +22,7 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
             "gt": {
                 "trainpath": "data/{}/train.parquet".format(country),
                 "summarypath": "data/{}/summary.parquet".format(country),
-                "auxpath": "data/auxiliary_data/auxiliary_data_11262025.csv",
+                "auxpath": "data/auxiliary_data/auxiliary_data_20251206.csv",
             },
         },
     }
@@ -48,7 +48,7 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
     continuous_rate_config = base_config.copy()
 
     continuous_rate_config["continuous_rate"] = {
-        "n_alpha": [50, 100, 200],
+        "n_alpha": [50, 100, 200],  # if country != "IDN" else [50, 100],
         "density_estimation": {
             "n_features": [5, 10, 15, 20],
             "n_bins": [10, 50, 100, 200],
@@ -143,7 +143,7 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
 #     "TGO",
 #     "UGA",
 # ]
-countries = ["YEM"]
+countries = ["IDN"]
 geo_extrapolation = [True]
 for country in countries:
     for geo in geo_extrapolation:

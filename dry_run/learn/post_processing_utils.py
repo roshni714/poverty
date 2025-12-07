@@ -49,8 +49,17 @@ def get_country_name(code, metadata):
     Returns:
         str: Country name.
     """
-    wpc_aux_data = metadata.preprocess_wpc_data([code])
-    name = wpc_aux_data["country_name"].values[0]
+    wpc_aux_data = metadata.preprocess_wpc_data()
+    refugee_data = metadata.preprocess_refugee_data()
+
+    df = pd.concat(
+        [
+            wpc_aux_data[["country_code", "country_name"]],
+            refugee_data[["country_code", "country_name"]],
+        ]
+    ).drop_duplicates()
+    df = df[df["country_code"] == code]
+    name = df["country_name"].values[0]
     return name
 
 

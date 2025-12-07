@@ -7,6 +7,7 @@ from learn.aggregation import (
     CountryMethodPovertyResults,
 )
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import PolynomialFeatures
 
 
 def get_national_poverty_rate_target(metadata):
@@ -44,6 +45,7 @@ class ExtrapolationResults:
         self,
         countries,
         metadata,
+        degree=1,
         insample_data_source="survey",
         outofsample_data_source="wb",
     ):
@@ -56,6 +58,7 @@ class ExtrapolationResults:
         self.nationalPovertyRate = main_national_target
         self.insample_data_source = insample_data_source
         self.outofsample_data_source = outofsample_data_source
+        self.poly_features = PolynomialFeatures(degree=degree, include_bias=True)
 
     def get_true_feasible_oracle_costs(self):
         """
@@ -90,29 +93,30 @@ class ExtrapolationResults:
             in_sample_cost = cont_gap_results[i].rate_to_cost_interpolator(
                 self.nationalPovertyRate
             )
-            
-            # Determine the post-transfer poverty gap that is achieved by a feasible policy that 
+
+            # Determine the post-transfer poverty gap that is achieved by a feasible policy that
             # attains a 1% poverty rate.
-            needed_gap = cont_gap_results[i].rate_to_gap_interpolator(self.nationalPovertyRate)
+            needed_gap = cont_gap_results[i].rate_to_gap_interpolator(
+                self.nationalPovertyRate
+            )
 
             # Determine the cost of the oracle policy that attains this same poverty gap.
-            oracle_cost_to_achieve_gap = oracle_results[i].gap_to_cost_interpolator(needed_gap)
-
+            oracle_cost_to_achieve_gap = oracle_results[i].gap_to_cost_interpolator(
+                needed_gap
+            )
 
             in_sample_costs.append(in_sample_cost)
             oracle_costs.append(oracle_cost_to_achieve_gap)
-            oracle_costs_full_poverty_elimination.append(
-                oracle_cost
-            )
+            oracle_costs_full_poverty_elimination.append(oracle_cost)
 
-            in_sample_country_ratios.append(
-                in_sample_cost / oracle_cost_to_achieve_gap
-            )
+            in_sample_country_ratios.append(in_sample_cost / oracle_cost_to_achieve_gap)
         survey_df = pd.DataFrame(
             {
                 "Country": self.in_sample_countries,
                 "Policy Cost": np.array(in_sample_costs),
-                "Oracle Cost ({}%)".format(self.nationalPovertyRate): np.array(oracle_cost),
+                "Oracle Cost ({}%)".format(self.nationalPovertyRate): np.array(
+                    oracle_cost
+                ),
                 "Oracle Cost": np.array(oracle_costs_full_poverty_elimination),
             }
         )
@@ -123,8 +127,8 @@ class ExtrapolationResults:
         X = []
         y = []
 
-
         aux_data = self.metadata.preprocess_country_aux_data()
+        wpc_df = self.metadata.preprocess_wpc_data()
         for i, country in enumerate(self.in_sample_countries):
             # X.append(wpc_df[
             #    (wpc_df["country_code"] == country) & (wpc_df["year"] == aux_data[aux_data["country_code"] == country]["survey_year"].values[0])
@@ -133,22 +137,24 @@ class ExtrapolationResults:
                 "survey_poverty_rate_povertyline_{}".format(self.year)
             ].item()
             X.append(pov_rate)
-            print(country, pov_rate)
         y = self.get_true_feasible_oracle_costs()
         X = np.array(X).reshape(len(X), 1)
         y = np.array(y).reshape(len(X), 1)
+        new_X = self.poly_features.fit_transform(X)
         model = LinearRegression(fit_intercept=True)
-        model.fit(X, y)
+        model.fit(new_X, y)
         self.model = model
-        self.score = model.score(X, y)
+        self.score = model.score(new_X, y)
         return X, y, model
 
     def plot_figure(self, save_as):
-        X, y, model = self.fit_regression_model()
+        X_insample, y, model = self.fit_regression_model()
         fig, ax = plt.subplots(1, 2, figsize=(20, 8))
         fontsize = 20
-        ax[0].scatter(X * 100, y, color="orange", alpha=0.5, s=100)
-        ax[0].plot(X * 100, model.predict(X), "-", color="black")
+        X = np.linspace(X_insample.min(), X_insample.max(), 100).reshape(100, 1)
+        new_X = self.poly_features.fit_transform(X)
+        ax[0].scatter(X_insample * 100, y, color="orange", alpha=0.5, s=100)
+        ax[0].plot(X * 100, model.predict(new_X), "-", color="black")
         ax[0].set_xlabel("Survey Poverty Rate (%)", fontsize=fontsize)
         ax[0].set_ylabel("Feasible/Oracle Ratio", fontsize=fontsize)
         wpc_data = self.metadata.preprocess_wpc_data()
@@ -188,36 +194,49 @@ class ExtrapolationResults:
 
     def get_conversion_factor(self, country):
         df = self.metadata.preprocess_country_aux_data()
-        ppp_exchange_rate = (
-            df[df["country_code"] == country][
-                "PPP_conversion_factor_{}".format(self.year)
-            ]
-            .values[0]
-            .item()
-        )
-        market_exchange_rate = (
-            df[df["country_code"] == country][
-                "market_exchange_rate_{}".format(self.year)
-            ]
-            .values[0]
-            .item()
-        )
-        population = (
-            df[df["country_code"] == country]["total_population_2023"].values[0].item()
-        )
-        
-        secondary_df = self.metadata.preprocess_secondary_aux_data()
+        if len(df[df["country_code"] == country]) == 0:
+            return np.nan
+        else:
+            ppp_exchange_rate = (
+                df[df["country_code"] == country][
+                    "PPP_conversion_factor_{}".format(self.year)
+                ]
+                .values[0]
+                .item()
+            )
+            market_exchange_rate = (
+                df[df["country_code"] == country][
+                    "market_exchange_rate_{}".format(self.year)
+                ]
+                .values[0]
+                .item()
+            )
+            population = (
+                df[df["country_code"] == country]["total_population_2023"]
+                .values[0]
+                .item()
+            )
 
-        inflation_adjustment = 1/secondary_df[secondary_df["indicator"] == "conversion_factor_nominal_USD_{}_to_2023".format(self.year)]["value"].values[0].item()
+            secondary_df = self.metadata.preprocess_secondary_aux_data()
 
-        return (
-            self.povertyline
-            * inflation_adjustment
-            * population
-            * 365
-            * (ppp_exchange_rate / market_exchange_rate)
-            / (10**9)
-        )
+            inflation_adjustment = (
+                1
+                / secondary_df[
+                    secondary_df["indicator"]
+                    == "conversion_factor_nominal_USD_2023_to_{}".format(self.year)
+                ]["value"]
+                .values[0]
+                .item()
+            )
+
+            return (
+                self.povertyline
+                * inflation_adjustment
+                * population
+                * 365
+                * (ppp_exchange_rate / market_exchange_rate)
+                / (10**9)
+            )
 
     def get_in_sample_costs(self, survey_year, use_reg):
         if self.insample_data_source == "survey" and use_reg == False:
@@ -299,8 +318,9 @@ class ExtrapolationResults:
         else:
             raise ValueError("not a valid data_source time combination")
 
-        pred_ratios = np.maximum(self.model.predict(np.array(X_test)), 1)
-        pred = pred_ratios * np.array(oracle_costs).reshape(len(X_test), 1)
+        X_new = self.poly_features.fit_transform(np.array(X_test))
+        pred_ratios = np.maximum(self.model.predict(np.array(X_new)), 1)
+        pred = pred_ratios * np.array(oracle_costs).reshape(len(X_new), 1)
 
         in_sample_cost_df = pd.DataFrame(
             {
@@ -415,8 +435,9 @@ class ExtrapolationResults:
                 conversion_factor = self.get_conversion_factor(country)
                 oracle_costs.append(gap_index * conversion_factor)
 
-        pred_ratios = np.maximum(self.model.predict(np.array(X_test)), 1)
-        pred = pred_ratios * np.array(oracle_costs).reshape(len(X_test), 1)
+        X_new = self.poly_features.fit_transform(np.array(X_test))
+        pred_ratios = np.maximum(self.model.predict(np.array(X_new)), 1)
+        pred = pred_ratios * np.array(oracle_costs).reshape(len(X_new), 1)
         out_of_sample_cost_df = pd.DataFrame(
             {
                 "Country": out_of_sample_countries,
@@ -429,6 +450,34 @@ class ExtrapolationResults:
         )
 
         return out_of_sample_cost_df
+
+    def get_global_poverty_gap(self):
+        oracle_costs = []
+        wpc_df = self.metadata.preprocess_wpc_data()
+        all_countries = wpc_df["country_code"].unique().tolist()
+        countries_not_included = []
+        for i, country in enumerate(all_countries):
+            conversion_factor = self.get_conversion_factor(country)
+            gap_index_df = wpc_df[
+                (wpc_df["country_code"] == country) & (wpc_df["year"] == 2023)
+            ]
+            if np.isnan(conversion_factor):
+                countries_not_included.append(country)
+                print(
+                    wpc_df[wpc_df["country_code"] == country]["country_name"].values[0],
+                    "invalid conversion factor from WB PIP aux data",
+                )
+                continue
+
+            gap_index = gap_index_df["wpc_poverty_gap_index"].item()
+            oracle_costs.append(gap_index * conversion_factor)
+
+        print(
+            "Countries w/ poverty rate > 1% not included in global poverty gap calculation:",
+            countries_not_included,
+        )
+        total_global_poverty_gap = np.sum(oracle_costs)
+        return total_global_poverty_gap, countries_not_included
 
 
 # COUNTRIES = [

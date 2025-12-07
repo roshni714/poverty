@@ -23,6 +23,7 @@ class CountryMethodPovertyResults:
         self.country = country
         self.method = method
         self.geo_extrapolation = metadata.geo_extrapolation
+        self.restricted_feature_set = metadata.restricted_feature_set
         self.year = metadata.year
         self.povertyline = metadata.povertyline
         self.metadata = metadata
@@ -46,11 +47,25 @@ class CountryMethodPovertyResults:
             subfolder = "geo_extrapolation"
         else:
             subfolder = "geo_interpolation"
-        df = pd.read_csv(
-            "learn/results/{}/{}/year={}/{}.csv".format(
-                self.country, subfolder, self.year, METHODS[method]["csv"]
+
+        if method == "oracle_gap":
+            df = pd.read_csv(
+                "learn/results/{}/{}/year={}/{}.csv".format(
+                    self.country, subfolder, self.year, METHODS[method]["csv"]
+                )
             )
-        )
+        elif method != "oracle_gap" and self.restricted_feature_set:
+            df = pd.read_csv(
+                "learn/results/{}/{}/year={}_d=20/{}.csv".format(
+                    self.country, subfolder, self.year, METHODS[method]["csv"]
+                )
+            )
+        else:
+            df = pd.read_csv(
+                "learn/results/{}/{}/year={}/{}.csv".format(
+                    self.country, subfolder, self.year, METHODS[method]["csv"]
+                )
+            )
         return df
 
     def _get_conversion_factor(self):
@@ -64,8 +79,15 @@ class CountryMethodPovertyResults:
 
         # nominal conversion factor from year (of international poverty line) to 2023
         secondary_df = self.metadata.preprocess_secondary_aux_data()
-        inflation_adjustment = 1/secondary_df[secondary_df["indicator"] == "conversion_factor_nominal_USD_{}_to_2023".format(self.year)]["value"].values[0].item()
-
+        inflation_adjustment = (
+            1
+            / secondary_df[
+                secondary_df["indicator"]
+                == "conversion_factor_nominal_USD_2023_to_{}".format(self.year)
+            ]["value"]
+            .values[0]
+            .item()
+        )
 
         country_df = df[df["country_code"] == self.country]
         if country_df.shape[0] == 0:
