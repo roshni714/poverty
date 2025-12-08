@@ -51,6 +51,7 @@ COUNTRIES = [
     "GHA",
     "GNB",
     "IND",
+    "IDN",
     "KEN",
     "MDG",
     "MLI",
@@ -479,7 +480,7 @@ def make_presentation_figures(metadata):
     "--auxpath",
     help="Path to auxiliary data",
     type=str,
-    default="data/auxiliary_data/auxiliary_data_20251206.csv",
+    default="data/auxiliary_data/auxiliary_data_20251207.csv",
 )
 @argh.arg(
     "--secondaryauxpath",

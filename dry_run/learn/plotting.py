@@ -335,13 +335,15 @@ def get_rate_vs_gap_restricted_feature_set(countries, metadata, save_as):
         countries=countries, method="continuous_gap", metadata=metadata_new
     )
     all_results.append(restricted_feature_set_results)
-    # all_results.append(AggregatePovertyResults(countries=countries,
-    #                                             method="continuous_gap",
-    #                                             metadata=metadata))
-    method_list = ["continuous_rate", "continuous_gap"]
+    all_results.append(
+        AggregatePovertyResults(
+            countries=countries, method="continuous_gap", metadata=metadata
+        )
+    )
+    method_list = ["continuous_rate", "continuous_gap", "continuous_gap"]
     fig, ax = plt.subplots(1, 2, figsize=(24, 8))
-    append_to_method_name = [": d=20", ": d=20"]
-    colors = ["orange", "blue"]
+    append_to_method_name = [": d=20", ": d=20", ": d=all"]
+    colors = ["orange", "royalblue", "blue"]
 
     for i, method in enumerate(method_list):
         color = colors[i]
@@ -430,7 +432,17 @@ def get_refugee_cost(metadata):
         country_total = row["num_beneficiaries"] * conversion_factor
         total += country_total
 
-    return total, dropped_countries
+    global_gdp = (
+        secondary_df[
+            secondary_df["indicator"] == "global_GDP_2023".format(metadata.year)
+        ]["value"]
+        .values[0]
+        .item()
+    )
+
+    percentage_refugee_global_gdp = 100 * total / global_gdp
+
+    return percentage_refugee_global_gdp, dropped_countries
 
 
 def get_table_policy_cost_gdp(countries, metadata, save_as):
@@ -553,6 +565,7 @@ def get_table_survey_info(countries, metadata, save_as, slides=False):
         "Household Income and Expenditure Survey (HIES) 2022": "HIES",
         "Permanent Household Survey 2021-22": "Permanent Household Survey",
         "Household Budget Survey (HBS) 2014": "Household Budget Survey",
+        "National Socio-Economic Survey (SUSENAS) 2018": "SUSENAS",
     }
 
     def rename_survey(x):
@@ -581,20 +594,28 @@ def get_table_survey_info(countries, metadata, save_as, slides=False):
 
     df = df.merge(new_df, on="country_code", how="left")
 
+    df["survey_year"] = df["survey_year"].astype(int)
+    df["survey_poverty_rate_povertyline_{}".format(metadata.year)] *= 100
+    df["wb_poverty_rate_povertyline_{}_survey_year".format(metadata.year)] *= 100
+    df["WB Rate PIP Using"] = (
+        df["wb_poverty_rate_povertyline_{}_survey_year".format(metadata.year)]
+        * df["pip_using"]
+    )
+    df["WB Rate PIP Not Using"] = df[
+        "wb_poverty_rate_povertyline_{}_survey_year".format(metadata.year)
+    ] * (1 - df["pip_using"])
+    df.sort_values(by=["country_name"], inplace=True)
     columns = [
         "country_name",
         "survey_name",
         "survey_year",
         "sample_size",
         "covariate_dimension",
+        "WB Rate PIP Using",
+        "WB Rate PIP Not Using",
         "survey_poverty_rate_povertyline_{}".format(metadata.year),
-        "wb_poverty_rate_povertyline_{}_survey_year".format(metadata.year),
     ]
-    df["survey_year"] = df["survey_year"].astype(int)
     df = df[columns]
-    df["survey_poverty_rate_povertyline_{}".format(metadata.year)] *= 100
-    df["wb_poverty_rate_povertyline_{}_survey_year".format(metadata.year)] *= 100
-    df.sort_values(by=["country_name"], inplace=True)
     df.rename(
         columns={
             "country_name": "Country",
@@ -603,27 +624,38 @@ def get_table_survey_info(countries, metadata, save_as, slides=False):
             "survey_poverty_rate_povertyline_{}".format(
                 metadata.year
             ): "Survey Poverty Rate",
-            "wb_poverty_rate_povertyline_{}_survey_year".format(
-                metadata.year
-            ): "WB Poverty Rate",
             "survey_name": "Survey Name",
             "survey_year": "Survey Year",
         },
         inplace=True,
     )
+    df["WB Rate PIP Using"] = df["WB Rate PIP Using"].apply(
+        lambda x: x if x != 0 else np.nan
+    )
+    df["WB Rate PIP Not Using"] = df["WB Rate PIP Not Using"].apply(
+        lambda x: x if x != 0 else np.nan
+    )
+
     if save_as:
         df.to_latex(
             save_as + ".tex",
             index=False,
-            float_format="%.2f",
+            float_format="%.1f",
             escape=False,
         )
     if slides:
-        df.drop(columns=["WB Poverty Rate", "Survey Poverty Rate"], inplace=True)
+        df.drop(
+            columns=[
+                "WB Rate PIP Using",
+                "WB Rate PIP Not Using",
+                "Survey Poverty Rate",
+            ],
+            inplace=True,
+        )
         df.to_latex(
             save_as + "_slides.tex",
             index=False,
-            float_format="%.2f",
+            float_format="%.1f",
             escape=False,
         )
     return df
@@ -648,7 +680,7 @@ def get_table_wpc(countries, metadata, save_as):
     df[["Country", "Poverty Rate", "Share of World's Poor"]].to_latex(
         save_as + ".tex",
         index=False,
-        float_format="%.2f",
+        float_format="%.1f",
         escape=False,
     )
 
@@ -1049,7 +1081,7 @@ def make_macro_file(countries, metadata, save_as):
     )
 
     # GET REFUGEE COST
-    refugee_cost, refugee_dropped_countries = get_refugee_cost(metadata)
+    refugee_cost_percentage, refugee_dropped_countries = get_refugee_cost(metadata)
     refugee_dropped_countries_string = make_string_country_list(
         refugee_dropped_countries, metadata=metadata
     )
@@ -1393,7 +1425,16 @@ def make_macro_file(countries, metadata, save_as):
         f.write("\\newcommand{\\togoSampleSize}" + "{{{}}}\n".format(togo_n))
         f.write("\\newcommand{\\minDimension}" + "{{{}}}\n".format(min_d))
         f.write("\\newcommand{\\maxDimension}" + "{{{}}}\n".format(max_d))
-        f.write("\\newcommand{\\refugeeCost}" + "{{{}}}\n".format(round(refugee_cost)))
+        f.write(
+            "\\newcommand{\\refugeeGlobalGDP}"
+            + "{{{}}}\n".format(round(refugee_cost_percentage, 2))
+        )
+        f.write(
+            "\\newcommand{\\refugeePlusExtrapolationGlobalGDP}"
+            + "{{{}}}\n".format(
+                round(refugee_cost_percentage + percentage_feasible_global_gdp, 2)
+            )
+        )
         f.write(
             "\\newcommand{\\refugeeDroppedCountries}"
             + "{{{}}}\n".format(refugee_dropped_countries_string)

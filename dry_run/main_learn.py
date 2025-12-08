@@ -274,7 +274,7 @@ def learn_oracle_gap(
 @argh.arg("--country", default="malawi")
 @argh.arg("--trainpath", default=None)
 @argh.arg("--testpath", default=None)
-@argh.arg("--auxpath", default="data/auxiliary_data/auxiliary_data_20251206.csv")
+@argh.arg("--auxpath", default="data/auxiliary_data/auxiliary_data_20251207.csv")
 @argh.arg("--summarypath", default="data/summary_2019.parquet")
 @argh.arg("--device", default="cpu")
 def main(
@@ -282,7 +282,7 @@ def main(
     povertyline=3.0,
     year=2021,
     nfeatures=None,
-    auxpath="data/auxiliary_data/auxiliary_data_20251206.csv",
+    auxpath="data/auxiliary_data/auxiliary_data_20251207.csv",
     country="malawi",
     trainpath=None,
     testpath=None,

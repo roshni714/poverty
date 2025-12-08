@@ -25,6 +25,17 @@ class Metadata:
         self.restricted_feature_set = restricted_feature_set
         self.refugeepath = refugeepath
 
+        wpc_aux_data = self.preprocess_wpc_data()
+        refugee_data = self.preprocess_refugee_data()
+
+        df = pd.concat(
+            [
+                wpc_aux_data[["country_code", "country_name"]],
+                refugee_data[["country_code", "country_name"]],
+            ]
+        ).drop_duplicates()
+        self.codebook = df
+
     def preprocess_wpc_data(self, countries=None):
         df = pd.read_csv(self.wpcpath)
         df.rename(
