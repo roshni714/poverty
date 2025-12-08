@@ -2,7 +2,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import interp1d
-from sklearn.linear_model import LinearRegression
 from learn.aggregation import (
     AggregatePovertyResults,
     CountryMethodPovertyResults,
@@ -11,7 +10,6 @@ from learn.aux_data_prep import Metadata
 from learn.formatting import METHODS
 from extrapolation import get_national_poverty_rate_target, ExtrapolationResults
 from learn.post_processing_utils import (
-    convert_nominal_2023_to_nominal_survey_year,
     get_data_dimension,
     get_country_name,
     make_string_country_list,
