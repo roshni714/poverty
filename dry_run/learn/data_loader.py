@@ -3,6 +3,7 @@ import numpy as np
 
 from opt_targeted_transfers import Dataset, split
 
+AUX_DATA_CSV = "/data/eop/compiled_country_data/auxiliary_data_20251014.csv"
 
 def load_datasets(trainpath, testpath, summarypath, outcome, weight):
     """
@@ -68,10 +69,22 @@ def convert_to_onehot(df, summary):
         "covariate"
     ].tolist()
 
+<<<<<<< Updated upstream
     one_hot = pd.get_dummies(df[categorical_columns]).astype(np.float32)
     df.drop(columns=categorical_columns, inplace=True)
     new_df = pd.concat([df, one_hot], axis=1)
     return new_df
+=======
+    categorical_columns = [col for col in categorical_columns if col in df.columns]
+    if len(categorical_columns) > 0:
+
+        one_hot = pd.get_dummies(df[categorical_columns]).astype(np.float32)
+        df.drop(columns=categorical_columns, inplace=True)
+        new_df = pd.concat([df, one_hot], axis=1)
+        return new_df
+    else:
+        return df
+>>>>>>> Stashed changes
 
 
 def _load_data(path):

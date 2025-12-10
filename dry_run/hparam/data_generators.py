@@ -54,11 +54,24 @@ def convert_to_onehot(df, summary):
     categorical_columns = summary[summary["type"] == "categorical"][
         "covariate"
     ].tolist()
+    categorical_columns = summary[summary[data_type] == "categorical"][
+        covariate
+    ].tolist()
+    categorical_columns = [col for col in categorical_columns if col in df.columns]
 
-    one_hot = pd.get_dummies(df[categorical_columns]).astype(np.float32)
-    df.drop(columns=categorical_columns, inplace=True)
-    new_df = pd.concat([df, one_hot], axis=1)
-    return new_df
+    if len(categorical_columns) > 0:
+        one_hot = pd.get_dummies(df[categorical_columns]).astype(np.float32)
+        df.drop(columns=categorical_columns, inplace=True)
+        try:
+            new_df = pd.concat([df, one_hot], axis=1).astype("float32")
+        except:
+            combined = pd.concat([df, one_hot], axis=1)
+            non_numeric_cols = [col for col in combined.columns if not pd.api.types.is_numeric_dtype(combined[col])]
+            print("Non-numeric columns:", non_numeric_cols)
+            raise
+        return new_df
+    else:
+        return df
 
 
 def add_missing_columns(df_synthetic, categorical_mapping):
