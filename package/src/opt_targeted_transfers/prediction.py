@@ -1,141 +1,168 @@
-import torch
 import numpy as np
+from opt_targeted_transfers.dataset_utils import standardize
+from sklearn.linear_model import Lasso, LinearRegression
+import torch
 import tqdm
 import copy
-from scipy.signal import argrelextrema
-from scipy.interpolate import interp1d
-
-from opt_targeted_transfers.cond_dist import NonparametricConditionalDistribution
-from opt_targeted_transfers.dataset_utils import standardize
 
 
-def get_prediction_function(dataset, n_classes, class_thresholds, n_epochs=300):
+def get_pmt_lasso_regressor(train_dataset, validation_dataset, alpha=0.1, winsorize=97):
     """
-    Get prediction function for a given dataset.
-
-    :param dataset: The dataset used for training the regressor.
-    :type dataset: Dataset
-    :param n_epochs: The number of epochs for training the regressor. Defaults to 300.
-    :type n_epochs: int
-    :return: The quantile regressor.
-    :rtype: Callable[[np.ndarray], np.ndarray]
+    Fit a Lasso regression model to the training data and return a function that predicts consumption.
     """
-    X = dataset.X
-    y = dataset.y
-    r = dataset.r
+    X_train, y_train, r_train = train_dataset.get_data()
+    X_val, y_val, r_val = validation_dataset.get_data()
+
+    X = np.concatenate([X_train, X_val], axis=0)
+    y = np.concatenate([y_train, y_val], axis=0)
+    r = np.concatenate([r_train, r_val], axis=0)
+
+    upper_cap = np.percentile(y, winsorize)
+    y = np.clip(y, None, upper_cap)
 
     X, X_mean, X_std = standardize(X)
+    y, y_mean, y_std = standardize(y)
 
-    np.random.seed(123456)
-    torch.manual_seed(123456)
+    if alpha == 0.0:
+        # If alpha is 0, use Linear Regression instead of Lasso
+        model = LinearRegression(fit_intercept=True)
+    else:
+        model = Lasso(alpha=alpha, fit_intercept=True)
+    model.fit(X, y, sample_weight=r)
 
-    if X.shape[1] > 0:
-        d = X.shape[1]
-        h_hat = torch.nn.Sequential(
-            torch.nn.Linear(d, 5), torch.nn.ReLU(), torch.nn.Linear(5, n_classes)
+    def estimator(X_test):
+        X_test = (X_test - X_mean) / X_std
+        predicted_consumption = (
+            model.predict(X_test).reshape(X_test.shape[0], 1) * y_std + y_mean
         )
 
-        loss_f = torch.nn.CrossEntropyLoss(reduction="none")
+        return predicted_consumption.flatten()
 
-        def cross_entropy_loss(h_hat, idx):
-            sub_n = len(idx)
-            pred = h_hat(torch.Tensor(X[idx, :]))
-            return loss_f(pred, torch.Tensor(y[idx]).long())
+    return estimator
 
-        optimizer = torch.optim.Adam(h_hat.parameters(), lr=1e-2)
-        train_prop = 0.7
-        idx_train_set, idx_val_set = list(range(int(train_prop * len(X)))), list(
-            range(int(train_prop * len(X)), len(X))
+
+def get_pmt_linear_regressor(train_dataset, validation_dataset):
+    # revise this to use cross validation in future?
+    X_train, y_train, r_train = train_dataset.get_data()
+    X_val, y_val, r_val = validation_dataset.get_data()
+
+    X = np.concatenate([X_train, X_val], axis=0)
+    y = np.concatenate([y_train, y_val], axis=0)
+    r = np.concatenate([r_train, r_val], axis=0)
+
+    X, X_mean, X_std = standardize(X)
+    y, y_mean, y_std = standardize(y)
+
+    model = LinearRegression(fit_intercept=True)
+    model.fit(X, y, sample_weight=r)
+
+    def estimator(X_test):
+        X_test = (X_test - X_mean) / X_std
+        predicted_consumption = (
+            model.predict(X_test).reshape(X_test.shape[0], 1) * y_std + y_mean
         )
 
-        batch_size = int(len(idx_train_set) / 3)
-        print("Fitting predictor via classification with cross entropy loss...")
+        return predicted_consumption.flatten()
+
+    return estimator
+
+
+def get_mse_loss(predictor, validation_dataset):
+    X, y, r = validation_dataset.get_data()
+    res = predictor(X)
+    mse_loss = (res - y) ** 2
+    weighted_mse_loss = np.sum(mse_loss * r) / np.sum(r)
+    return weighted_mse_loss
+
+
+def get_pmt_nn_regressor(
+    train_dataset,
+    validation_dataset,
+    n_layers,
+    n_hidden_units,
+    lr,
+    winsorize=97,
+    n_epochs=300,
+    seed=123843,
+    device="cpu",
+):
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+
+    X_train, y_train, r_train = train_dataset.get_data()
+    X_val, y_val, r_val = validation_dataset.get_data()
+    upper_cap = np.percentile(y_train, winsorize)
+    y_train = np.clip(y_train, None, upper_cap)
+    y_val = np.clip(y_val, None, upper_cap)
+    X_train, X_mean, X_std = standardize(X_train)
+    y_train, y_mean, y_std = standardize(y_train)
+    X_val = (X_val - X_mean) / X_std
+    y_val = (y_val - y_mean) / y_std
+
+    if X_train.shape[1] == 0:
+        pass
+    else:
+        d = X_train.shape[1]
+
+        model_list = [torch.nn.Linear(d, n_hidden_units), torch.nn.ReLU()]
+        for _ in range(n_layers - 1):
+            model_list.append(torch.nn.Linear(n_hidden_units, n_hidden_units))
+            model_list.append(torch.nn.ReLU())
+        model_list.append(torch.nn.Linear(n_hidden_units, 1))
+        predictor = torch.nn.Sequential(*model_list).to(device)
+
+        def mse_loss(predictor, X, y):
+            y_pred = predictor(torch.Tensor(X).to(device)).squeeze()
+            return (y_pred - torch.Tensor(y).to(device)) ** 2
+
+        optimizer = torch.optim.Adam(predictor.parameters(), lr=lr)
+        batch_size = int(len(X_train) / 5)
         pbar = tqdm.tqdm(list(range(n_epochs)))
         val_losses = []
         models = []
 
         for epoch in pbar:
-            if epoch % 25 == 0:
+            if epoch % 10 == 0:
+                predictor.eval()
+
                 val_loss = torch.sum(
-                    cross_entropy_loss(h_hat, idx_val_set)
-                    * torch.Tensor(r[idx_val_set])
+                    mse_loss(predictor, X_val, y_val)
+                    * torch.tensor(r_val).to(device)
+                    / torch.tensor(r_val).sum().to(device)
                 )
                 val_losses.append(val_loss.detach().item())
-                models.append(copy.deepcopy(h_hat))
+                models.append(copy.deepcopy(predictor.cpu()))
 
-            idx = np.random.choice(idx_train_set, size=batch_size)
+            predictor.train()
+            predictor = predictor.to(device)
+            idx = np.random.choice(len(X_train), batch_size, replace=True)
             optimizer.zero_grad()
-            loss = torch.sum(cross_entropy_loss(h_hat, idx) * torch.Tensor(r[idx]))
+            loss = torch.sum(
+                mse_loss(predictor, X_train[idx, :], y_train[idx])
+                * torch.tensor(r_train[idx]).to(device)
+            ) / torch.tensor(r_train[idx]).sum().to(device)
             loss.backward()
             optimizer.step()
 
-            pbar.set_postfix({"loss": loss.item()})
+            pbar.set_postfix({"val loss": val_losses[-1]})
         best_model_idx = np.argmin(val_losses)
-        final_h_hat = models[best_model_idx]
+        final_model = models[best_model_idx].cpu()
 
-    def prediction_function(X_test):
+    def consumption_predictor(X_test):
         if X_test.shape[1] == 0:
-            pdf_matrix = torch.zeros(len(X_test), n_classes)
-            pdf_matrix[:, 0] = 1.0
+            pass
         else:
             X_test = (X_test - X_mean) / X_std
-            pdf_matrix = (
-                torch.nn.functional.softmax(
-                    final_h_hat(torch.Tensor(X_test)), dim=1
-                ).reshape(X_test.shape[0], n_classes)
-            ).detach()
-        cdf_matrix = torch.cumsum(pdf_matrix, dim=1)
-        zeros = torch.zeros((len(X_test), 1))
-        cdf_matrix = torch.cat((zeros, cdf_matrix), dim=1)[:, :-1]
-        idx_maxima = argrelextrema(pdf_matrix.numpy(), np.less_equal, axis=1)
-        idx_minima = argrelextrema(pdf_matrix.numpy(), np.greater_equal, axis=1)
-
-        best_idx = torch.argmax(pdf_matrix, axis=1)
-        modes = class_thresholds[best_idx]
-        cond_dists = []
-
-        for i in range(len(X_test)):
-            idx_extrema = np.sort(
-                np.hstack(
-                    (
-                        idx_maxima[1][idx_maxima[0] == i],
-                        idx_minima[1][idx_minima[0] == i],
-                    )
+            pred_consumption = (
+                (
+                    final_model(torch.Tensor(X_test)).reshape(X_test.shape[0], 1)
+                    * y_std
+                    + y_mean
                 )
+                .flatten()
+                .detach()
+                .numpy()
             )
-            cdf_function = interp1d(
-                class_thresholds,
-                cdf_matrix[i].flatten(),
-                bounds_error=False,
-                kind="previous",
-                fill_value=(0.0, 1.0),
-            )
-            pdf_function = interp1d(
-                class_thresholds,
-                pdf_matrix[i].flatten(),
-                bounds_error=False,
-                kind="previous",
-                fill_value=0.0,
-            )
-            ppf_function = interp1d(
-                cdf_matrix[i].flatten(),
-                class_thresholds,
-                bounds_error=False,
-                kind="previous",
-                fill_value=(class_thresholds[0], class_thresholds[-1]),
-            )
+            return pred_consumption
 
-            cond_dists.append(
-                NonparametricConditionalDistribution(
-                    pdf_function,
-                    cdf_function,
-                    ppf_function,
-                    extrema=class_thresholds[idx_extrema].flatten(),
-                    outcome_range=(class_thresholds[0], class_thresholds[-1]),
-                    mode=modes[i].item(),
-                )
-            )
-
-        return cond_dists
-
-    return prediction_function
+    return consumption_predictor

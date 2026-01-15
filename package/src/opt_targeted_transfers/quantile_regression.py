@@ -35,6 +35,7 @@ def get_quantile_regressor(
     train_dataset,
     validation_dataset,
     quantile,
+    winsorize_outcome=97,
     n_layers=1,
     n_hidden_units=256,
     lr=5e-3,
@@ -71,6 +72,11 @@ def get_quantile_regressor(
 
     X_train, y_train, r_train = train_dataset.get_data()
     X_val, y_val, r_val = validation_dataset.get_data()
+    upper_cap = np.percentile(y_train, winsorize_outcome)
+
+    # Note: Assumes outcome is non-negative.
+    y_train = np.clip(y_train, None, upper_cap)
+    y_val = np.clip(y_val, None, upper_cap)
     X_train, X_mean, X_std = standardize(X_train)
     y_train, y_mean, y_std = standardize(y_train)
     X_val = (X_val - X_mean) / X_std
@@ -98,7 +104,7 @@ def get_quantile_regressor(
             )
 
         optimizer = torch.optim.Adam(q_hat.parameters(), lr=lr)
-        batch_size = int(len(X_train) / 5)
+        batch_size = int(min(16000, len(X_train)) / 5)
         pbar = tqdm.tqdm(list(range(n_epochs)))
         val_losses = []
         models = []
@@ -106,20 +112,23 @@ def get_quantile_regressor(
         for epoch in pbar:
             if epoch % 10 == 0:
                 q_hat.eval()
+
                 val_loss = torch.sum(
-                    quantile_loss(q_hat, X_val, y_val) * torch.tensor(r_val).to(device)
+                    quantile_loss(q_hat, X_val, y_val)
+                    * torch.tensor(r_val).to(device)
+                    / torch.tensor(r_val).sum().to(device)
                 )
                 val_losses.append(val_loss.detach().item())
                 models.append(copy.deepcopy(q_hat.cpu()))
 
             q_hat.train()
-            q_hat= q_hat.to(device)
+            q_hat = q_hat.to(device)
             idx = np.random.choice(len(X_train), batch_size, replace=True)
             optimizer.zero_grad()
             loss = torch.sum(
                 quantile_loss(q_hat, X_train[idx, :], y_train[idx])
                 * torch.tensor(r_train[idx]).to(device)
-            )
+            ) / torch.tensor(r_train[idx]).sum().to(device)
             loss.backward()
             optimizer.step()
 
@@ -142,6 +151,6 @@ def get_quantile_regressor(
                 .detach()
                 .numpy()
             )
-            return np.maximum(quantile, 0.0)
+            return np.maximum(quantile, 0)
 
     return quantile_regressor

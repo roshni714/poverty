@@ -3,6 +3,40 @@ import numpy as np
 from opt_targeted_transfers import standardize
 
 
+def feature_importance(train_dataset, validation_dataset, truncation_upper_value=10):
+    """
+    Compute variable importance by measuring the R^2 of including the feature
+    Args:
+        train_dataset (Dataset): The training dataset.
+        validation_dataset (Dataset): The validation dataset.
+        truncation_upper_value (float): The outcome space is truncated at this value.
+    Returns:
+        importances (dict): A dictionary mapping feature names to their importance scores.
+    """
+    importances = []
+    feature_list = sorted(train_dataset.covs.copy())
+    for feature in feature_list:
+        train_dataset.covs = [feature]
+        X, y, r = train_dataset.get_data()
+        X, X_mean, X_std = standardize(X)
+        y = np.clip(y, None, truncation_upper_value)
+        y, y_mean, y_std = standardize(y)
+
+        model = Ridge(fit_intercept=True)
+        model.fit(X, y, sample_weight=r)
+
+        validation_dataset.covs = [feature]
+        X_val, y_val, r_val = validation_dataset.get_data()
+        X_val = (X_val - X_mean) / X_std
+        y_val = np.clip(y_val, None, truncation_upper_value)
+        y_val = (y_val - y_mean) / y_std
+
+        score = model.score(X_val, y_val, sample_weight=r_val)
+        importances.append((feature, score))
+    importances.sort(key=lambda x: x[1], reverse=True)
+    return importances
+
+
 def forward_selection(
     train_dataset, validation_dataset, truncation_upper_value=10, max_features=50
 ):
@@ -26,10 +60,19 @@ def forward_selection(
 
     scores = []
 
-    for i in range(max_features):
-        best_score = 0
+    # if X.shape[0] > 16000:
+    #     np.random.seed(3758926)
+    #     sample_indices = np.random.choice(X.shape[0], size=16000, replace=False)
+    #     X = X[sample_indices]
+    #     y = y[sample_indices]
+    #     r = r[sample_indices]
+
+    for i in range(min(max_features, len(feature_list))):
+        best_score = -np.inf
         best_feature = None
         best_model = None
+
+        l = []
 
         for feature in feature_list:
             features = ordered_features + [feature]
@@ -49,14 +92,18 @@ def forward_selection(
             y_val = (y_val - y_mean) / y_std
 
             score = model.score(X_val, y_val, sample_weight=r_val)
+            l.append((feature, score))
 
             if score > best_score:
                 best_score = score
                 best_feature = feature
                 best_model = model
-
         ordered_features.append(best_feature)
         scores.append(best_score)
+        if best_feature not in feature_list:
+            import pdb
+
+            pdb.set_trace()
         feature_list.remove(best_feature)
         print(best_feature, best_score)
 

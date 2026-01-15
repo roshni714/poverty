@@ -1,5 +1,4 @@
 from opt_targeted_transfers.dataset_utils import Dataset
-from opt_targeted_transfers.prediction import get_prediction_function
 from opt_targeted_transfers.density_estimation import get_cond_density_estimator
 from opt_targeted_transfers.knapsack import compute_alpha_opt_policies
 from opt_targeted_transfers.oracle import (
@@ -7,12 +6,15 @@ from opt_targeted_transfers.oracle import (
     run_oracle_poverty_gap_floor_scheme,
     run_oracle_poverty_gap_lift_to_line_scheme,
 )
-
 from opt_targeted_transfers.quantile_regression import get_quantile_regressor
 from opt_targeted_transfers.evaluate import (
     post_transfer_metrics,
     expected_value_transfers,
     policy_cost,
+)
+from opt_targeted_transfers.prediction import (
+    get_pmt_nn_regressor,
+    get_pmt_lasso_regressor,
 )
 from opt_targeted_transfers.conditional_improvement import (
     get_conditional_improvement_regressor,
@@ -39,7 +41,7 @@ class TargetedTransfers:
 
     def __init__(
         self,
-        c_bar=2.15,
+        c_bar=3.0,
         budget=None,
     ):
         self.c_bar = c_bar
@@ -138,10 +140,10 @@ class RateTargetedTransfers(TargetedTransfers):
     Computes the optimal rate targeting transfer policy.
     """
 
-    def __init__(self, c_bar=2.15, budget=None):
+    def __init__(self, c_bar=3.0, budget=None):
         """
         Initialize a new instance of the UnconditionalTargetedTransfers class.
-        :param c_bar: The minimum threshold value (poverty line). Defaults to 2.15.
+        :param c_bar: The minimum threshold value (poverty line). Defaults to 3.0.
         :type c_bar: float
         :param tolerance: The tolerance. Defaults to None.
         :type tolerance: float or None
@@ -238,7 +240,6 @@ class RateTargetedTransfers(TargetedTransfers):
             n_alpha=n_alpha,
             path=path,
         )
-
         idx = np.argmin(poverty_rates)
         self.assignments = all_opt_assignments[idx]
         return self.assignments
@@ -293,7 +294,7 @@ class RateTargetedTransfers(TargetedTransfers):
 
 
 class BinaryTargetedTransfers(TargetedTransfers):
-    def __init__(self, c_bar=2.15, budget=None, n_regressors=20):
+    def __init__(self, c_bar=3.0, budget=None, n_regressors=20):
 
         super().__init__(c_bar=c_bar, budget=budget)
 
@@ -323,7 +324,7 @@ class BinaryTargetedTransfers(TargetedTransfers):
         t_to_estimated_benefits = dict()
         for t in self.candidate_t_values:
             regressor = self.t_to_household_estimator_map[t]
-            X_val, _, _ = validation_dataset.get_data()
+            X_val, _, r_val = validation_dataset.get_data()
             estimated_benefits = regressor(X_val)
             ordered_households = np.argsort(estimated_benefits)[::-1]
             t_to_ordered_households[t] = ordered_households
@@ -333,18 +334,12 @@ class BinaryTargetedTransfers(TargetedTransfers):
             highest_estimated_benefits = -float("inf")
             best_t = None
 
-            for t in self.candidate_t_values:
-                threshold = self._get_threshold_to_receive_transfers(
-                    validation_dataset,
-                    t_to_estimated_benefits[t],
-                    t_to_ordered_households[t],
-                    t,
-                    budget,
-                )
-                idx_to_receive_transfers = (
-                    self._get_indices_to_receive_transfers_threshold(
-                        validation_dataset, t, threshold
-                    )
+            candidates_given_budget = reversed(
+                self.candidate_t_values[self.candidate_t_values >= budget]
+            )
+            for t in candidates_given_budget:
+                idx_to_receive_transfers = self._get_indices_to_receive_transfers_exact(
+                    r_val, t_to_ordered_households[t], t, budget
                 )
                 total_estimated_benefits = self._get_avg_estimated_benefit(
                     validation_dataset, t, idx_to_receive_transfers
@@ -357,51 +352,18 @@ class BinaryTargetedTransfers(TargetedTransfers):
                     best_t = t
 
             assert best_t is not None
-
             self.budget_to_t_map[budget] = best_t
 
-    def _get_threshold_to_receive_transfers(
-        self,
-        validation_dataset,
-        estimated_benefits,
-        household_idx_ranked_by_benefit,
-        t,
-        budget,
-    ):
-        _, _, r_val = validation_dataset.get_data()
-
-        pop_weight_receive_transfers = budget / t
-        weights_ranked_by_benefit = r_val[household_idx_ranked_by_benefit]
-        cumsum_weights = np.cumsum(weights_ranked_by_benefit)
-        indicator_receive_transfers = cumsum_weights < pop_weight_receive_transfers
-        idx_receive_transfers = household_idx_ranked_by_benefit[
-            indicator_receive_transfers
-        ]
-        threshold = estimated_benefits[idx_receive_transfers[-1]]
-        return threshold
-
-    def _get_indices_to_receive_transfers_threshold(
-        self, validation_dataset, t, threshold
-    ):
-        if self.t_to_household_estimator_map is None:
-            raise ValueError("Need to run fit before a policy can be computed")
-
-        X_val, _, _ = validation_dataset.get_data()
-
-        regressor = self.t_to_household_estimator_map[t]
-        estimated_benefits = regressor(X_val)
-        idx_receive_transfers = np.where(estimated_benefits > threshold)[0]
-        return idx_receive_transfers
-
     def _get_indices_to_receive_transfers_exact(
-        self, test_covariate_dataset, household_idx_ranked_by_benefit, t, budget
+        self, r, household_idx_ranked_by_benefit, t, budget
     ):
-        _, r_test = test_covariate_dataset.get_data()
-
         pop_weight_receive_transfers = budget / t
-        weights_ranked_by_benefit = r_test[household_idx_ranked_by_benefit]
+        weights_ranked_by_benefit = r[household_idx_ranked_by_benefit]
         cumsum_weights = np.cumsum(weights_ranked_by_benefit)
-        indicator_receive_transfers = cumsum_weights < pop_weight_receive_transfers
+        # cumsum_weights /= cumsum_weights[
+        #     -1
+        # ]  # should have no effect if cumsum_weights[-1] ==1.0, but should handle a numerical issue in the case cumsum_weights[-1] is slightly greater than 1.
+        indicator_receive_transfers = cumsum_weights <= pop_weight_receive_transfers
         idx_receive_transfers = household_idx_ranked_by_benefit[
             indicator_receive_transfers
         ]
@@ -419,14 +381,14 @@ class BinaryTargetedTransfers(TargetedTransfers):
                 f"budget {self.budget} was not included provided to get_opt_transfer_sizes_given_budget_grid"
             )
 
-        X_test, _ = test_covariate_dataset.get_data()
+        X_test, r_test = test_covariate_dataset.get_data()
 
         best_t = self.budget_to_t_map[self.budget]
         regressor = self.t_to_household_estimator_map[best_t]
         estimated_benefits = regressor(X_test)
         ordered_households = np.argsort(estimated_benefits)[::-1]
         indices_to_receive_transfers = self._get_indices_to_receive_transfers_exact(
-            test_covariate_dataset, ordered_households, best_t, self.budget
+            r_test, ordered_households, best_t, self.budget
         )
 
         assignments = {i: [(0.0, 1.0)] for i in range(len(test_covariate_dataset))}
@@ -445,7 +407,7 @@ class BinaryTargetedTransfers(TargetedTransfers):
 
 
 class BinaryGapTargetedTransfers(BinaryTargetedTransfers):
-    def __init__(self, c_bar=2.15, budget=None, n_regressors=20):
+    def __init__(self, c_bar=3.0, budget=None, n_regressors=20):
 
         super().__init__(c_bar=c_bar, budget=budget, n_regressors=n_regressors)
 
@@ -484,7 +446,7 @@ class BinaryGapTargetedTransfers(BinaryTargetedTransfers):
 
 
 class BinaryRateTargetedTransfers(BinaryTargetedTransfers):
-    def __init__(self, c_bar=2.15, budget=None, n_regressors=20):
+    def __init__(self, c_bar=3.0, budget=None, n_regressors=20):
 
         super().__init__(c_bar=c_bar, budget=budget, n_regressors=n_regressors)
 
@@ -527,9 +489,9 @@ class GapTargetedTransfers(TargetedTransfers):
     Poverty-gap targeting.
     """
 
-    def __init__(self, c_bar=2.15, budget=None, n_regressors=20):
+    def __init__(self, c_bar=3.0, budget=None, n_regressors=20):
         """
-        :param c_bar: The minimum threshold value (poverty line). Defaults to 2.15.
+        :param c_bar: The minimum threshold value (poverty line). Defaults to 3.0.
         :type c_bar: float
         """
 
@@ -572,8 +534,9 @@ class GapTargetedTransfers(TargetedTransfers):
 
         quantiles = np.linspace(0.0, 1.0, self.n_regressors)
         self.quantile_regressors = dict()
+        self.quantiles = quantiles
 
-        for quantile in quantiles:
+        for quantile in quantiles[1:]:
             print("Fitting quantile regressor for quantile {}".format(quantile))
             quantile_regressor = get_quantile_regressor(
                 train_dataset=train_dataset,
@@ -588,10 +551,14 @@ class GapTargetedTransfers(TargetedTransfers):
             )
             self.quantile_regressors[quantile] = quantile_regressor
 
+        def get_zero_quantile_regressor(X):
+            return np.zeros((X.shape[0],))
+
+        self.quantile_regressors[0.0] = get_zero_quantile_regressor
+
     def _interpolate_conditional_quantile(self, X, quantile):
         """
-        Evaluates the expected wealth of each household at the given quantile, given its
-        predictors.
+        Evaluates the conditional quantile
         """
 
         quantile_regressors = self.quantile_regressors
@@ -660,26 +627,65 @@ class GapTargetedTransfers(TargetedTransfers):
     def run_opt(self, test_covariate_dataset):
         if self.quantile_regressors is None:
             raise ValueError("Missing quantile regressors - run fit first.")
-        # For each quantile regressor, compute the corresponding assignments and policy cost
-        costs = []
-        all_assignments = []
+
         X_test, r_test = test_covariate_dataset.get_data()
-        lambda_values = reversed(np.linspace(0.0, 1.0, 200))
-        for lambda_ in lambda_values:
-            assignments = self._get_assignments_for_lambda(X_test, lambda_)
-            cost = policy_cost(test_covariate_dataset, assignments)
-            costs.append(cost)
-            all_assignments.append(assignments)
-        idx = bisect_left(costs, self.budget)
-        if idx == 0:
-            self.assignments = all_assignments[0]
-            return all_assignments[0]
-        if idx > 1 and idx < len(costs):
-            self.assignments = all_assignments[idx - 1]
-            return all_assignments[idx - 1]
-        if idx == len(costs):
-            self.assignments = all_assignments[-1]
-            return all_assignments[-1]
+        r_test = r_test / r_test.sum()  # normalize weights to sum to
+
+        low = 0
+        high = 1.0
+        low_assignments = self._get_assignments_for_lambda(X_test, low)
+        low_cost = policy_cost(test_covariate_dataset, low_assignments)
+        if self.budget >= low_cost:
+            # This only happens if budget > poverty line, in which case can just give everyone the same transfer.
+            assignments = {
+                i: [(self.budget, 1.0)] for i in range(len(test_covariate_dataset))
+            }
+            self.assignments = assignments
+            return assignments
+
+        lambda_value = (high + low) / 2
+        assignments = self._get_assignments_for_lambda(X_test, lambda_value)
+        lamb_cost = policy_cost(test_covariate_dataset, assignments)
+
+        while np.abs(lamb_cost - self.budget) > 1e-3:
+            if lamb_cost > self.budget:
+                low = lambda_value
+            else:
+                high = lambda_value
+            next_lambda_value = (high + low) / 2
+            assignments = self._get_assignments_for_lambda(X_test, next_lambda_value)
+            next_lamb_cost = policy_cost(test_covariate_dataset, assignments)
+            lambda_value = next_lambda_value
+            lamb_cost = next_lamb_cost
+        self.assignments = assignments
+        return assignments
+
+        # # For each quantile regressor, compute the corresponding assignments and policy cost
+        # costs = []
+        # all_assignments = []
+        # X_test, r_test = test_covariate_dataset.get_data()
+        # r_test = r_test / r_test.sum()  # normalize weights to sum to 1
+        # lambda_values = reversed(np.linspace(0.0, 1.0, 200))
+        # for lambda_ in lambda_values:
+        #     assignments = self._get_assignments_for_lambda(X_test, lambda_)
+        #     cost = policy_cost(test_covariate_dataset, assignments)
+        #     costs.append(cost)
+        #     all_assignments.append(assignments)
+        # idx = bisect_left(costs, self.budget)
+
+        # if idx == 0:
+        #     self.assignments = all_assignments[0]
+        #     return all_assignments[0]
+        # if idx >= 1 and idx < len(costs):
+        #     if np.abs(costs[idx] - self.budget) < 1e-5:
+        #         self.assignments = all_assignments[idx]
+        #         return all_assignments[idx]
+        #     elif costs[idx] > self.budget:
+        #         self.assignments = all_assignments[idx - 1]
+        #         return all_assignments[idx - 1]
+        # if idx == len(costs):
+        #     self.assignments = all_assignments[-1]
+        #     return all_assignments[-1]
 
 
 class OracleGapTargetedTransfers(TargetedTransfers):
@@ -687,17 +693,14 @@ class OracleGapTargetedTransfers(TargetedTransfers):
     There is not one well-defined optimal policy to minimize the post-transfer poverty gap: As long as
     every dollar goes to households below the poverty line, the reduction in poverty gap will be the optimal.
     This class implements two policies:
-      * lifting as many households as possible to the poverty line, with the restriction that a less-poor
-        household does not receive more than a poorer household: this amounts to iteratively raising households
-        to the poverty line, starting from the poorest, until the specified tolerance is reached.
-      * raising a poverty "floor" until the desired tolerance is reached: a floor is a wealth level below which no
-        household is permitted to be. Any household below that floor receives a transfer of the appropriate size
-        to raise them to the floor. The floor is set to minimally satisfy the specified tolerance.
+      * "lift_to_line" which is the optimal oracle rate-minimizing policy
+      * "consumption_floor" which sets the consumption floor for units. Any household below that floor receives a transfer of the appropriate size
+        to raise them to the floor. The floor is set to minimally satisfy the specified tolerance. This is the weakly-equitable rate-minimizing policy.
     """
 
-    def __init__(self, c_bar=2.15, budget=None, scheme="lift_to_line"):
+    def __init__(self, c_bar=3.0, budget=None, scheme="lift_to_line"):
 
-        assert scheme in ("lift_to_line", "floor")
+        assert scheme in ("lift_to_line", "consumption_floor")
 
         super().__init__(c_bar=c_bar, budget=budget)
         self.name = "oracle_gap"
@@ -710,7 +713,7 @@ class OracleGapTargetedTransfers(TargetedTransfers):
                 test_dataset, budget=self.budget, c_bar=self.c_bar
             )
 
-        elif self.scheme == "floor":
+        elif self.scheme == "consumption_floor":
             assignments = run_oracle_poverty_gap_floor_scheme(
                 test_dataset, budget=self.budget, c_bar=self.c_bar
             )
@@ -719,7 +722,7 @@ class OracleGapTargetedTransfers(TargetedTransfers):
 
 
 class OracleRateTargetedTransfers(TargetedTransfers):
-    def __init__(self, c_bar=2.15, budget=None):
+    def __init__(self, c_bar=3.0, budget=None):
 
         super().__init__(c_bar=c_bar, budget=budget)
         self.name = "oracle_rate"
@@ -731,5 +734,137 @@ class OracleRateTargetedTransfers(TargetedTransfers):
             c_bar=self.c_bar,
             budget=self.budget,
         )
+        self.assignments = assignments
+        return assignments
+
+
+class UBITargetedTransfers(TargetedTransfers):
+    def __init__(self, c_bar, budget=None):
+        """
+        :param c_bar: The minimum threshold value (poverty line). Defaults to 3.0.
+        :type c_bar: float
+        """
+
+        super().__init__(c_bar=c_bar, budget=budget)
+        self.name = "ubi"
+
+    def run_opt(self, test_covariate_dataset):
+        """
+        Assign the transfer value to all households
+        """
+        assert self.budget is not None
+        assignments = {
+            i: [(self.budget, 1.0)] for i in range(len(test_covariate_dataset))
+        }
+        self.assignments = assignments
+        return assignments
+
+
+class ModernPMTTargetedTransfers(BinaryTargetedTransfers):
+    """
+    Modern PMT style targeting
+    """
+
+    def __init__(self, c_bar=3.0, budget=None, transfer_value=1.0):
+        """
+        :param c_bar: The minimum threshold value (poverty line). Defaults to 3.0.
+        :type c_bar: float
+        """
+
+        super().__init__(c_bar=c_bar, budget=budget)
+        self.name = "pmt"
+        self.transfer_value = transfer_value
+
+    def fit(
+        self,
+        train_dataset,
+        validation_dataset,
+        n_layers=1,
+        n_hidden_units=256,
+        lr=5e-3,
+        n_epochs=300,
+        seed=123456,
+        device="cpu",
+    ):
+        """
+        :param n_layers: The number of hidden layers in the neural network. Defaults to 1.
+        :type n_layers: int
+        :param n_hidden_units: The number of hidden units in each hidden layer. Defaults to 256.
+        :type n_hidden_units: int
+        :param lr: The learning rate for training the neural network. Defaults to 5e-3.
+        :type lr: float
+        :param n_epochs: The number of epochs for training the neural network. Defaults to 300.
+        :type n_epochs: int
+        """
+
+        self.consumption_predictor = get_pmt_nn_regressor(
+            train_dataset,
+            validation_dataset,
+            n_layers=n_layers,
+            n_hidden_units=n_hidden_units,
+            lr=lr,
+            n_epochs=n_epochs,
+            seed=seed,
+            device=device,
+        )
+
+    def run_opt(self, test_covariate_dataset):
+
+        assert self.budget is not None
+
+        X_test, r_test = test_covariate_dataset.get_data()
+
+        estimated_benefits = self.consumption_predictor(X_test)
+        ordered_households = np.argsort(estimated_benefits)
+        indices_to_receive_transfers = self._get_indices_to_receive_transfers_exact(
+            r_test, ordered_households, self.transfer_value, self.budget
+        )
+
+        assignments = {i: [(0.0, 1.0)] for i in range(len(test_covariate_dataset))}
+        for i in indices_to_receive_transfers:
+            assignments[i] = [(self.transfer_value, 1.0)]
+        self.assignments = assignments
+        return assignments
+
+
+class PMTTargetedTransfers(BinaryTargetedTransfers):
+    """
+    PMT style targeting
+    """
+
+    def __init__(self, c_bar=3.0, budget=None, transfer_value=1.0):
+        """
+        :param c_bar: The minimum threshold value (poverty line). Defaults to 3.0.
+        :type c_bar: float
+        """
+
+        super().__init__(c_bar=c_bar, budget=budget)
+        self.name = "pmt"
+        self.transfer_value = transfer_value
+
+    def fit(self, train_dataset, validation_dataset, alpha=0.1):
+        """
+        Fitting linear regression
+        """
+
+        self.consumption_predictor = get_pmt_lasso_regressor(
+            train_dataset, validation_dataset, alpha=alpha
+        )
+
+    def run_opt(self, test_covariate_dataset):
+
+        assert self.budget is not None
+
+        X_test, r_test = test_covariate_dataset.get_data()
+
+        estimated_benefits = self.consumption_predictor(X_test)
+        ordered_households = np.argsort(estimated_benefits)
+        indices_to_receive_transfers = self._get_indices_to_receive_transfers_exact(
+            r_test, ordered_households, self.transfer_value, self.budget
+        )
+
+        assignments = {i: [(0.0, 1.0)] for i in range(len(test_covariate_dataset))}
+        for i in indices_to_receive_transfers:
+            assignments[i] = [(self.transfer_value, 1.0)]
         self.assignments = assignments
         return assignments

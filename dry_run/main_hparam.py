@@ -2,7 +2,7 @@ import yaml
 import argh
 from hparam.data_generators import (
     get_wgan_data_generator,
-    get_gt_data_generator,
+    get_gt_train_data_generator,
 )
 from hparam.density_estimation_hparam_search import (
     get_optimal_density_estimation_parameters,
@@ -12,6 +12,8 @@ from hparam.n_regressors_hparam_search import get_optimal_n_regressors
 from hparam.nn_hparam_search import (
     get_optimal_nn_quantile_regression_parameters,
     get_optimal_nn_improvement_parameters,
+    get_optimal_nn_pmt_parameters,
+    get_optimal_lasso_parameters,
 )
 
 
@@ -32,6 +34,7 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
 
     savedir = config_hparams["savedir"]
     device = config_hparams["device"]
+    geo_extrapolation = config_hparams["data"]["geo_extrapolation"]
 
     opt_hparams = {}
     opt_hparams["savedir"] = learnsavedir
@@ -40,30 +43,28 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
     opt_hparams["data"] = {}
     opt_hparams["data"]["outcome"] = data_config_params["outcome"]
     opt_hparams["data"]["weight"] = data_config_params["weight"]
-    if "gan" in data_config_params:
-        gan_config_params = data_config_params["gan"]
-        objectspath = gan_config_params["objectspath"]
-        summarypath = gan_config_params["summarypath"]
-        data_generator, original_cols = get_wgan_data_generator(
-            objectspath, summarypath=summarypath
-        )
+    opt_hparams["data"]["geo_extrapolation"] = geo_extrapolation
 
-    elif "gt" in data_config_params:
+    if "gt" in data_config_params:
         gt_config_params = data_config_params["gt"]
         trainpath = gt_config_params["trainpath"]
         summarypath = gt_config_params["summarypath"]
-        data_generator, original_cols = get_gt_data_generator(
-            trainpath, summarypath=summarypath
+
+        train_data_generator, ntrain, val_df, original_cols = (
+            get_gt_train_data_generator(
+                trainpath,
+                summarypath=summarypath,
+                auxpath=gt_config_params["auxpath"],
+                outcome=data_config_params["outcome"],
+                year=data_config_params["year"],
+                geo_extrapolation=geo_extrapolation,
+                val_split=0.33,
+            )
         )
 
-    ntrain = data_config_params["ntrain"]
-    nval = data_config_params["nval"]
-    ntest = data_config_params["ntest"]
     outcome = data_config_params["outcome"]
     weight = data_config_params["weight"]
-
     name = config.split("/")[-1].split(".yaml")[0]
-
     print(config_hparams)
 
     if "continuous_rate" in config_hparams:
@@ -72,11 +73,11 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         if "density_estimation" in rate:
             opt_density_estimation_hparams = get_optimal_density_estimation_parameters(
                 density_estimation_hparam_ranges=rate["density_estimation"],
-                data_generator=data_generator,
+                data_generator=train_data_generator,
                 device=device,
                 original_cols=original_cols,
                 ntrain=ntrain,
-                nval=nval,
+                val_df=val_df,
                 outcome=outcome,
                 weight=weight,
                 savepath=f"{savedir}/density_estimation_{name}.csv",
@@ -87,11 +88,12 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
 
             opt_n_alpha = get_optimal_knapsack_parameters(
                 rate["n_alpha"],
-                data_generator=data_generator,
+                povertyline=data_config_params["povertyline"],
+                data_generator=train_data_generator,
                 device=device,
                 original_cols=original_cols,
                 ntrain=ntrain,
-                ntest=ntest,
+                val_df=val_df,
                 outcome=outcome,
                 weight=weight,
                 density_estimation_params=opt_density_estimation_hparams,
@@ -104,12 +106,13 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         binary_rate = config_hparams["binary_rate"]
         opt_nn_hparams = get_optimal_nn_improvement_parameters(
             loss_type="binary_rate",
+            povertyline=data_config_params["povertyline"],
             nn_hparam_ranges=binary_rate["neural_network"],
-            data_generator=data_generator,
+            data_generator=train_data_generator,
             device=device,
             original_cols=original_cols,
             ntrain=ntrain,
-            nval=nval,
+            val_df=val_df,
             outcome=outcome,
             weight=weight,
             savepath=f"{savedir}/nn_{name}.csv",
@@ -120,11 +123,12 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         opt_n_regressors = get_optimal_n_regressors(
             binary_rate["n_regressors"],
             loss_type="binary_rate",
-            data_generator=data_generator,
+            povertyline=data_config_params["povertyline"],
+            data_generator=train_data_generator,
             device=device,
             original_cols=original_cols,
             ntrain=ntrain,
-            ntest=ntest,
+            val_df=val_df,
             outcome=outcome,
             weight=weight,
             neural_network_params=opt_nn_hparams,
@@ -136,11 +140,11 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         continuous_gap = config_hparams["continuous_gap"]
         opt_nn_hparams = get_optimal_nn_quantile_regression_parameters(
             nn_hparam_ranges=continuous_gap["neural_network"],
-            data_generator=data_generator,
+            data_generator=train_data_generator,
             device=device,
             original_cols=original_cols,
             ntrain=ntrain,
-            nval=nval,
+            val_df=val_df,
             outcome=outcome,
             weight=weight,
             savepath=f"{savedir}/nn_{name}.csv",
@@ -152,11 +156,12 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         opt_n_regressors = get_optimal_n_regressors(
             continuous_gap["n_regressors"],
             loss_type="continuous_gap",
-            data_generator=data_generator,
+            povertyline=data_config_params["povertyline"],
+            data_generator=train_data_generator,
             device=device,
             original_cols=original_cols,
             ntrain=ntrain,
-            ntest=ntest,
+            val_df=val_df,
             outcome=outcome,
             weight=weight,
             neural_network_params=opt_nn_hparams,
@@ -168,12 +173,13 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         binary_gap = config_hparams["binary_gap"]
         opt_nn_hparams = get_optimal_nn_improvement_parameters(
             loss_type="binary_gap",
+            povertyline=data_config_params["povertyline"],
             nn_hparam_ranges=binary_gap["neural_network"],
-            data_generator=data_generator,
+            data_generator=train_data_generator,
             device=device,
             original_cols=original_cols,
             ntrain=ntrain,
-            nval=nval,
+            val_df=val_df,
             outcome=outcome,
             weight=weight,
             savepath=f"{savedir}/nn_{name}.csv",
@@ -183,17 +189,54 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         opt_n_regressors = get_optimal_n_regressors(
             binary_gap["n_regressors"],
             loss_type="binary_gap",
-            data_generator=data_generator,
+            povertyline=data_config_params["povertyline"],
+            data_generator=train_data_generator,
             device=device,
             original_cols=original_cols,
             ntrain=ntrain,
-            ntest=ntest,
+            val_df=val_df,
             outcome=outcome,
             weight=weight,
             neural_network_params=opt_nn_hparams,
             savepath=f"{savedir}/n_regressors_{name}.csv",
         )
         opt_hparams["binary_gap"]["n_regressors"] = opt_n_regressors
+
+    if "modern_pmt" in config_hparams:
+        opt_hparams["modern_pmt"] = {}
+        modern_pmt = config_hparams["modern_pmt"]
+        opt_nn_hparams = get_optimal_nn_pmt_parameters(
+            nn_hparam_ranges=modern_pmt["neural_network"],
+            data_generator=train_data_generator,
+            device=device,
+            original_cols=original_cols,
+            ntrain=ntrain,
+            val_df=val_df,
+            outcome=outcome,
+            weight=weight,
+            savepath=f"{savedir}/nn_{name}.csv",
+        )
+        print(opt_nn_hparams)
+        opt_hparams["modern_pmt"]["neural_network"] = opt_nn_hparams
+        opt_hparams["modern_pmt"]["transfer_value"] = data_config_params["povertyline"]
+
+    if "pmt" in config_hparams:
+        opt_hparams["pmt"] = {}
+        pmt = config_hparams["pmt"]
+        opt_lasso_hparams = get_optimal_lasso_parameters(
+            lasso_hparam_ranges=pmt["lasso"],
+            data_generator=train_data_generator,
+            device=device,
+            original_cols=original_cols,
+            ntrain=ntrain,
+            val_df=val_df,
+            outcome=outcome,
+            weight=weight,
+            savepath=f"{savedir}/lasso_{name}.csv",
+        )
+        print(opt_lasso_hparams)
+        opt_hparams["pmt"]["lasso"] = opt_lasso_hparams
+        opt_hparams["pmt"]["transfer_value"] = data_config_params["povertyline"]
 
     with open(f"{savedir}/output_{name}.yaml", "w") as file:
         yaml.dump(opt_hparams, file, default_flow_style=False)

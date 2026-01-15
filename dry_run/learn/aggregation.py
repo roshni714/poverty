@@ -1,122 +1,32 @@
 import pandas as pd
 import numpy as np
 from scipy.interpolate import interp1d
-from sklearn.linear_model import LinearRegression
-
-METHODS = {
-    "oracle_gap": {
-        "csv": "oracle_gap",
-        "name": "Oracle Gap Minimization",
-        "color": "green",
-        "linestyle": "-",
-    },
-    "continuous_gap": {
-        "csv": "output_gt_continuous_gap",
-        "name": "Gap Minimization (Unrestricted)",
-        "color": "blue",
-        "linestyle": "-",
-    },
-    "binary_gap": {
-        "csv": "output_gt_binary_gap",
-        "name": "Gap Minimization (Binary)",
-        "color": "blue",
-        "linestyle": "--",
-    },
-    "continuous_rate": {
-        "csv": "output_gt_continuous_rate",
-        "name": "Rate Minimization (Unrestricted)",
-        "color": "orange",
-        "linestyle": "-",
-    },
-    "binary_rate": {
-        "csv": "output_gt_binary_rate",
-        "name": "Rate Minimization (Binary)",
-        "color": "orange",
-        "linestyle": "--",
-    },
-    "pmt": {
-        "csv": "output_gt_pmt",
-        "name": "PMT (Lasso)",
-        "color": "red",
-        "linestyle": "-",
-    },
-    "modern_pmt": {
-        "csv": "output_gt_modern_pmt",
-        "name": "PMT (NN)",
-        "color": "red",
-        "linestyle": "--",
-    },
-    "ubi": {
-        "csv": "ubi",
-        "name": "UBI by Country",
-        "color": "purple",
-        "linestyle": "-",
-    },
-}
-
-COUNTRY_AUX_DATA_CSV = "/data/eop/compiled_country_data/auxiliary_data/auxiliary_data_20251014.csv"
-WORLD_POVERTY_CLOCK_DATA_CSV = "learn/wpc_data.csv"
-SECONDARY_AUX_DATA_CSV = "/data/eop/compiled_country_data/auxiliary_data/secondary_auxiliary_20251014.csv"
-
-# def prune_results(xs, ys, val=0.0):
-#     mask = np.abs(xs - val) < 1e-3
-#     if mask.sum() <= 1:
-#         return xs, ys
-#     xs_nonzero = list(np.array(xs)[~mask])
-#     ys_nonzero = list(np.array(ys)[~mask])
-
-#     ys_zero = ys[mask]
-#     xs = xs_nonzero + [val]
-#     ys = ys_nonzero + [min(ys_zero)]
-#     return np.array(xs), np.array(ys)
-
-
-def preprocess_wpc_data(countries=None):
-    df = pd.read_csv(WORLD_POVERTY_CLOCK_DATA_CSV)
-    df.rename(
-        columns={
-            "Country (color codes: inputs, intermediates, final outputs, error checks)": "country",
-            "Population": "total_population",
-            "Share of country's population that is in extreme poverty (WPC)": "wpc_poverty_rate",
-            "Share of world's extremely poor population that live in this country (based on WPC)": "wpc_share_world_poor",
-        },
-        inplace=True,
-    )
-
-    def process_name(name):
-        name = name.replace(" ", "_")
-        name = name.replace("-", "_")
-        name = "".join(c.lower() for c in name if c.isalnum() or c == "_")
-        return name
-
-    df["country"] = df["country"].apply(process_name)
-    df["country"] = df["country"].replace({"ivory_coast": "cote_divoire"})
-    if countries is not None:
-        df = df[df["country"].isin(countries)]
-    columns = [
-        "country",
-        "wpc_poverty_rate",
-        "wpc_share_world_poor",
-        "total_population",
-    ]
-    df.sort_values(by="country", inplace=True)
-    df = df[columns]
-    df["wpc_poverty_rate"] = df["wpc_poverty_rate"].str.replace("%", "").astype(float)
-    df["wpc_share_world_poor"] = (
-        df["wpc_share_world_poor"].str.replace("%", "").astype(float)
-    )
-    df["total_population"] = df["total_population"].str.replace(",", "").astype(int)
-    return df
+from learn.formatting import METHODS
 
 
 class CountryMethodPovertyResults:
-    def __init__(self, country, method, geo_extrapolation, setting_code, povertyline, year):
+    """
+    Class to report poverty results for a specific country and method.
+
+    :param country: The name of the country.
+    :type country: str
+    :param method: The method to report results for.
+    :type method: str
+    :param geo_extrapolation: Whether to use geo-extrapolation or geo-interpolation.
+    :type geo_extrapolation: bool
+    :param povertyline: The international poverty line in PPP (e.g. 2.15, 3.0)
+    :type povertyline: float
+    :param year: The year of the international poverty line (2017 or 2021).
+    """
+
+    def __init__(self, country, method, metadata):
         self.country = country
         self.method = method
-        self.geo_extrapolation = geo_extrapolation
-        self.setting_code = setting_code
-        self.year = year
-        self.povertyline = povertyline
+        self.geo_extrapolation = metadata.geo_extrapolation
+        self.restricted_feature_set = metadata.restricted_feature_set
+        self.year = metadata.year
+        self.povertyline = metadata.povertyline
+        self.metadata = metadata
         self.conversion_factor = self._get_conversion_factor()
         self._get_min_poverty_gap_index_and_rate()
         self._get_initial_poverty_gap_index_and_rate()
@@ -138,50 +48,97 @@ class CountryMethodPovertyResults:
         else:
             subfolder = "geo_interpolation"
 
-        df = pd.read_csv(
-            f"/home/selker/eop/eop/run_togo_simulations/simulations"
-            f"/learn/results/{self.setting_code}/year={self.year}/{METHODS[method]['csv']}.csv"
-        )
-        
+        if method == "oracle_gap":
+            df = pd.read_csv(
+                "learn/results/{}/{}/year={}/{}.csv".format(
+                    self.country, subfolder, self.year, METHODS[method]["csv"]
+                )
+            )
+        elif method != "oracle_gap" and self.restricted_feature_set:
+            df = pd.read_csv(
+                "learn/results/{}/{}/year={}_d=20/{}.csv".format(
+                    self.country, subfolder, self.year, METHODS[method]["csv"]
+                )
+            )
+        else:
+            df = pd.read_csv(
+                "learn/results/{}/{}/year={}/{}.csv".format(
+                    self.country, subfolder, self.year, METHODS[method]["csv"]
+                )
+            )
         return df
 
     def _get_conversion_factor(self):
-        df = preprocess_country_aux_data()
+        """
+        Conversion factor from per capita per day in PPP in year corresponding to self.year to total annual cost in billion USD (nominal 2023).
 
-        # second_df = pd.read_csv(SECONDARY_AUX_DATA_CSV)
-        # nominal_conversion_factor = second_df["conversion_factor_nominal_USD_{}_to_2023".format(self.year)].values[0]
-        # print("WARNING: FIX HARDCODED NOMINAL CONVERSION FACTOR")
-        if self.year == 2021:
-            nominal_conversion_factor = 1.14
-        elif self.year == 2017:
-            nominal_conversion_factor = 1.23
+        :return: Conversion factor.
+        :rtype: float
+        """
+        df = self.metadata.preprocess_country_aux_data()
 
-        country_df = df[df["country"] == self.country]
+        # nominal conversion factor from year (of international poverty line) to 2023
+        secondary_df = self.metadata.preprocess_secondary_aux_data()
+        inflation_adjustment = (
+            1
+            / secondary_df[
+                secondary_df["indicator"]
+                == "conversion_factor_nominal_USD_2023_to_{}".format(self.year)
+            ]["value"]
+            .values[0]
+            .item()
+        )
+
+        country_df = df[df["country_code"] == self.country]
+        if country_df.shape[0] == 0:
+            raise ValueError(
+                "Country {} not found in auxiliary data.".format(self.country)
+            )
 
         factor = (
-            country_df["total_population_survey_year"].values[0]
-            * 365
-            * nominal_conversion_factor
+            country_df["total_population_survey_year"].values[0]  # population
+            * 365  # days per year
+            * inflation_adjustment  # from year to 2023 nominal
             * (
                 country_df["PPP_conversion_factor_{}".format(self.year)].values[0]
                 / country_df["market_exchange_rate_{}".format(self.year)].values[0]
-            )
-        ) / 1000000000
+            )  # from PPP to nominal USD in year
+        ) / 1000000000  # to billion USD
         return factor
 
     def _get_initial_poverty_gap_index_and_rate(self):
+        """
+        Set initial poverty gap index and rate.
+        """
         df = self._load_data("oracle_gap")
         self.initial_gap_index = (
-            df["initial_poverty_gap"].max() / self.povertyline
+            df["initial_poverty_gap"].values[0] / self.povertyline
         ) * 100
-        self.initial_rate = df["initial_poverty_rate"].max() * 100
+        self.initial_rate = df["initial_poverty_rate"].values[0] * 100
 
     def get_poverty_gap(self):
+        """
+        Get the total poverty gap in billion USD (nominal 2023).
+        :return: Total poverty gap.
+        :rtype: float
+        """
         return (
             self.conversion_factor * (self.initial_gap_index / 100) * self.povertyline
         )
 
+    def get_ubi_cost(self):
+        """
+        Get the cost of a universal basic income at the poverty line in billion USD (nominal 2023).
+        :return: UBI cost.
+        :rtype: float
+        """
+        return self.conversion_factor * self.povertyline
+
     def _get_min_poverty_gap_index_and_rate(self):
+        """
+        Get minimum poverty gap index and rate achieved by method.
+        Note this method is used so that we do not extrapolate beyond bounds of the results.
+        """
         df = self._load_data(self.method)
         self.min_gap_index = (
             df["post_transfer_poverty_gap"].min() / self.povertyline
@@ -189,27 +146,31 @@ class CountryMethodPovertyResults:
         self.min_rate = df["post_transfer_poverty_rate"].min() * 100
 
     def _get_result_interpolators(self):
+        """
+        Set results interpolators for poverty gap index to cost, poverty rate to cost, and poverty rate to poverty gap index.
+        """
         df = self._load_data(self.method)
         country_conversion_factor = self.conversion_factor
+
+        # Build interpolator from poverty gap index to cost
         gaps = list(df["post_transfer_poverty_gap"] * 100 / self.povertyline)
-        cost_gaps = list(df["policy_cost_per_capita"] * country_conversion_factor)
+        costs = list(df["policy_cost_per_capita"] * country_conversion_factor)
         gaps.append(self.initial_gap_index)
-        cost_gaps.append(0.0)
-
-        country_gap_to_cost_interpolator = interp1d(gaps, cost_gaps, kind="linear")
-
+        costs.append(0.0)
+        country_gap_to_cost_interpolator = interp1d(gaps, costs, kind="linear")
         self.gap_to_cost_interpolator = country_gap_to_cost_interpolator
         self.gap_to_cost_interpolator_domain = (
             min(gaps),
             max(gaps),
         )
+
+        # Build interpolator from poverty gap index to poverty rate
         rates = list(df["post_transfer_poverty_rate"] * 100)
         rates.append(self.initial_rate)
         rates1 = rates.copy()
         rates1.append(0.0)
         gaps1 = gaps.copy()
         gaps1.append(0.0)
-        # (np.array(gaps1), np.array(rates1))
         country_gap_to_rate_interpolator = interp1d(
             rates1,
             gaps1,
@@ -222,10 +183,10 @@ class CountryMethodPovertyResults:
             max(rates1),
         )
 
-        # rates_pruned, costs_pruned = prune_results(np.array(rates), np.array(cost_gaps))
+        # Build interpolator from poverty rate to cost
         rate_to_cost_interpolator = interp1d(
             rates,
-            cost_gaps,
+            costs,
             kind="linear",
         )
         self.rate_to_cost_interpolator = rate_to_cost_interpolator
@@ -235,30 +196,33 @@ class CountryMethodPovertyResults:
         )
 
 
-def preprocess_country_aux_data():
-    df = pd.read_csv(COUNTRY_AUX_DATA_CSV)
-
-    def process_name(name):
-        name = name.replace(" ", "_")
-        name = name.replace("-", "_")
-        name = "".join(c.lower() for c in name if c.isalnum() or c == "_")
-        return name
-
-    df["country"] = df["country"].apply(process_name)
-    return df
-
-
 class AggregatePovertyResults:
+    """
+    Class to report aggregate poverty results across multiple countries for a specific method.
+    :param countries: List of country codes.
+    :type countries: list
+    :param method: The method to report results for.
+    :type method: str
+    :param geo_extrapolation: Whether to use geo-extrapolation or geo-interpolation.
+    :type geo_extrapolation: bool
+    :param year: The year of the international poverty line (2017 or 2021).
+    :type year: int
+    :param povertyline: The international poverty line in PPP (e.g. 2.15, 3.0)
+    :type povertyline: float
+    """
 
-    def __init__(self, countries, method, geo_extrapolation, year, povertyline):
+    def __init__(self, countries, method, metadata):
         self.countries = countries
         self.method = method
-        self.geo_extrapolation = geo_extrapolation
-        self.year = year
-        self.povertyline = povertyline
+        self.geo_extrapolation = metadata.geo_extrapolation
+        self.year = metadata.year
+        self.povertyline = metadata.povertyline
+        self.metadata = metadata
         self.country_results = {
             country: CountryMethodPovertyResults(
-                country, method, geo_extrapolation, povertyline, year
+                country,
+                method,
+                metadata,
             )
             for country in countries
         }
@@ -266,28 +230,38 @@ class AggregatePovertyResults:
         self._get_aggregate_interpolators()
 
     def _get_country_weights_and_pop(self):
-        df = preprocess_country_aux_data()
-        df = df[df["country"].isin(self.countries)]
+        """
+        Set population weights for each country based on survey year population.
+        """
+        df = self.metadata.preprocess_country_aux_data()
+        df = df[df["country_code"].isin(self.countries)]
         df["weight"] = (
             df["total_population_survey_year"]
             / df["total_population_survey_year"].sum()
         )
         self.country_weights = (
-            df[["country", "weight", "total_population_survey_year"]]
-            .set_index("country")
+            df[["country_code", "weight", "total_population_survey_year"]]
+            .set_index("country_code")
             .to_dict()
         )
 
     def get_aggregate_ubi_cost(self):
-        aggregate_conversion_factor = sum(
-            [
-                self.country_results[country].conversion_factor
-                for country in self.countries
-            ]
+        """
+        Get the aggregate cost of a universal basic income at the poverty line in billion USD (nominal 2023).
+        :return: Aggregate UBI cost.
+        :rtype: float
+        """
+
+        return sum(
+            [self.country_results[country].get_ubi_cost() for country in self.countries]
         )
-        return self.povertyline * aggregate_conversion_factor
 
     def get_aggregate_poverty_gap(self):
+        """
+        Get the aggregate poverty gap in billion USD (nominal 2023).
+        :return: Aggregate poverty gap.
+        :rtype: float
+        """
         gaps = np.array(
             [
                 self.country_results[country].get_poverty_gap()
@@ -298,6 +272,11 @@ class AggregatePovertyResults:
         return np.sum(gaps)
 
     def get_initial_aggregate_gap_index_and_rate(self):
+        """
+        Get initial population-weighted poverty gap index and rate.
+        :return: Tuple of (initial aggregate poverty gap index, initial aggregate poverty rate).
+        :rtype: tuple
+        """
         initial_gaps = [
             self.country_results[country].initial_gap_index
             for country in self.countries
@@ -315,6 +294,11 @@ class AggregatePovertyResults:
         return pop_weighted_initial_poverty_gap_index, pop_weighted_initial_poverty_rate
 
     def get_min_aggregate_gap_index_and_rate(self):
+        """
+        Get minimum population-weighted poverty gap index and rate achieved by method.
+        :return: Tuple of (minimum aggregate poverty gap index, minimum aggregate poverty rate).
+        :rtype: tuple
+        """
         min_gaps = [
             self.country_results[country].min_gap_index for country in self.countries
         ]
@@ -329,16 +313,28 @@ class AggregatePovertyResults:
         return pop_weighted_min_poverty_gap, pop_weighted_min_poverty_rate
 
     def get_max_min_gap_and_rate(self):
+        """
+        Get maximum of minimum poverty gap index and rate across countries.
+        :return: Tuple of (maximum of minimum poverty gap index, maximum of minimum poverty rate).
+        :rtype: tuple
+        """
         max_min_poverty_gap = max(
             [self.country_results[country].min_gap_index for country in self.countries]
         )
-        max_min_poverty_rate = max(
-            [self.country_results[country].min_rate for country in self.countries]
-        )
+
+        rates = [self.country_results[country].min_rate for country in self.countries]
+        max_min_poverty_rate = max(rates)
+
         return max_min_poverty_gap, max_min_poverty_rate
 
     def _get_aggregate_interpolators(self):
+        """
+        Set aggregate interpolators for poverty gap index to cost, poverty rate to cost, and poverty rate to poverty gap index.
+        """
         _, max_min_rate = self.get_max_min_gap_and_rate()
+        # if self.method == "continuous_gap":
+        #    import pdb; pdb.set_trace()
+
         max_max_rate = max(
             [self.country_results[country].initial_rate for country in self.countries]
         )
@@ -346,7 +342,11 @@ class AggregatePovertyResults:
             [self.country_weights["weight"][country] for country in self.countries]
         )
 
-        wc_rates = np.linspace(max_min_rate, max_max_rate, 200)
+        wc_rates = np.linspace(max_min_rate, max_max_rate, 400)
+
+        # Let wc_rate be the national poverty rate target for all countries.
+        # Build an interpolator from wc_rate to actual population-weighted poverty gap index and rate.
+
         agg_gaps = 0.0
         agg_rates = 0.0
         for i, country in enumerate(self.countries):
@@ -369,6 +369,10 @@ class AggregatePovertyResults:
             wc_rates, agg_rates, kind="linear"
         )
 
+        # Build an interpolator from wc_rate to aggregate cost by
+        # (1) mapping wc_rate to actual poverty rate for each country,
+        # (2) mapping actual poverty rate to cost for each country,
+        # (3) summing costs across countries.
         agg_costs = 0.0
         for i, country in enumerate(self.countries):
             country_result = self.country_results[country]

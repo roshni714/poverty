@@ -51,12 +51,24 @@ def convert_to_onehot(df, summary):
     :return new_df: The input data with one-hot encoding.
     :rtype: pandas.DataFrame
     """
-    categorical_columns = summary[summary["type"] == "categorical"][
-        "covariate"
+
+    if "type" in summary.columns:
+        data_type = "type"
+    elif "data_type" in summary.columns:
+        data_type = "data_type"
+
+    if "covariate" in summary.columns:
+        covariate = "covariate"
+    else:
+        covariate = "variable_name"
+
+    categorical_columns = summary[summary[data_type] == "categorical"][
+        covariate
     ].tolist()
     categorical_columns = summary[summary[data_type] == "categorical"][
         covariate
     ].tolist()
+
     categorical_columns = [col for col in categorical_columns if col in df.columns]
 
     if len(categorical_columns) > 0:
@@ -133,7 +145,53 @@ def get_wgan_data_generator(objectspath, summarypath):
     return data_generator, original_cols
 
 
-def get_gt_data_generator(trainpath, summarypath):
+def get_training_data_for_geo_extrapolation(
+    data, summary, geo_extrapolation, seed=1537498
+):
+    """
+    Preprocess the training data for geo-extrapolation.
+
+    Args:
+        data (pd.DataFrame): The input data.
+        summary (pd.DataFrame): The summary data.
+
+    Returns:
+        pd.DataFrame: The preprocessed data without geographic identifiers only for a subset of geographic regions.
+    """
+
+    geo_cols = summary[summary["geographic_indicator"] == True][
+        "variable_name"
+    ].tolist()
+
+    # fine_geo_cols = summary[summary["geographic_indicator_finer"] == True][
+    #     "variable_name"
+    # ].tolist()
+    coarse_geo_cols = summary[summary["geographic_indicator_coarser"] == True][
+        "variable_name"
+    ].tolist()
+
+    # remove_for_fine = set(geo_cols) - set(fine_geo_cols)
+    remove_for_coarse = set(geo_cols) - set(coarse_geo_cols)
+    # remove_for_fine = list(remove_for_fine)
+    remove_for_coarse = list(remove_for_coarse)
+
+    if geo_extrapolation:
+        data = data.drop(columns=remove_for_coarse)
+    else:
+        assert False
+
+    return data
+
+
+def get_gt_train_data_generator(
+    trainpath,
+    summarypath,
+    outcome,
+    auxpath,
+    year,
+    geo_extrapolation=False,
+    val_split=0.33,
+):
     """
     Load the ground truth training dataset and return a data generator function.
 
@@ -144,41 +202,47 @@ def get_gt_data_generator(trainpath, summarypath):
         data_generator (function): A function that generates samples from the ground truth dataset.
     """
 
-    data = pd.read_parquet(trainpath).reset_index(drop=True)
+    raw_data = pd.read_parquet(trainpath).reset_index(drop=True)
     summary = pd.read_parquet(summarypath)
 
-    # some of this preprocessing code should eventually be deprecated because
-    # it should be handled by prior data preprocessing code
+    if "hhid" in raw_data.columns:
+        raw_data = raw_data.drop(columns=["hhid"])
+    if "case_id" in raw_data.columns:
+        raw_data = raw_data.drop(columns=["case_id"])
+    if "hh_id" in raw_data.columns:
+        raw_data = raw_data.drop(columns=["hh_id"])
+    if "hh_wgt" in raw_data.columns:
+        raw_data = raw_data.drop(columns=["hh_wgt"])
 
-    # compute outcome conversion factor
-    # a = 340.2 / 430.05  # Malawi CPI in 2017 USD / Malawi CPI in 2019 USD
-    # b = 241.98  # Malawi Kwacha to USD exchange rate in 2017
-    # adulteq = data["adulteq"]
-    # can alternatively implement this as data["num_adults"] + alpha * data["num_children"]
-    # where alpha is in (0, 1).
-    # conversion_factor = (a / b) * (1 / 365) * (1 / adulteq)
-    # data["consumption_per_capita_per_day"] = data["rexpagg"] * conversion_factor
+    if year == 2021:
+        conversion_factor = 1.0
+    else:
+        df = pd.read_csv(auxpath)
+        country = trainpath.split("/")[-2]
+        conversion_factor = df[df.country_code == country][
+            "overall_conversion_factor_ratio_from_2021_to_{}".format(year)
+        ].values[0]
 
-    # we include hh_wgt and consumption_per_capita_per_day so that
-    # we can synthetically generate samples from the joint distribution (X, Y, R)
-    # durable_verifiable_covariates = list(
-    #    pd.read_csv("data/durable_verifiable_covariates.csv")["Covariates"]
-    # )
+    raw_data[outcome] = raw_data[outcome] * conversion_factor
 
-    # data = data[
-    #    durable_verifiable_covariates + ["consumption_per_capita_per_day", "hh_wgt"]
-    # ]
+    data = get_training_data_for_geo_extrapolation(raw_data, summary, geo_extrapolation)
 
     original_cols = data.columns.tolist()
 
     data = convert_to_onehot(data, summary)
 
+    rng = np.random.default_rng(54389831)
+    ntrain = len(data)
+    val_idx = rng.choice(list(range(len(data))), int(val_split * len(data)))
+    val_df = data.loc[val_idx].reset_index(drop=True)
+    train_idx = np.array(list(set(range(len(data))) - set(val_df)))
+
     def data_generator(nsamples, seed):
         rng = np.random.default_rng(seed)
-        sample_indices = rng.choice(data.index, nsamples, replace=True)
+        sample_indices = rng.choice(train_idx, nsamples, replace=True)
         return data.loc[sample_indices].reset_index(drop=True)
 
-    return data_generator, original_cols
+    return data_generator, ntrain, val_df, original_cols
 
 
 def apply_generator(data_wrapper, generator, df, seed):

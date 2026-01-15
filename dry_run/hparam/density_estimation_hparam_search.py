@@ -6,10 +6,10 @@ import pandas as pd
 def get_optimal_density_estimation_parameters(
     density_estimation_hparam_ranges,
     data_generator,
+    val_df,
     device,
     original_cols,
     ntrain,
-    nval,
     outcome,
     weight,
     savepath,
@@ -54,7 +54,6 @@ def get_optimal_density_estimation_parameters(
         n_knots_range = [4]
 
     train_df = data_generator(nsamples=ntrain, seed=547396234)
-    val_df = data_generator(nsamples=nval, seed=79809342)
     feature_list = original_cols.copy()
     feature_list.remove(outcome)
     feature_list.remove(weight)
@@ -65,12 +64,11 @@ def get_optimal_density_estimation_parameters(
     ordered_features, _ = forward_selection(
         train_dataset, val_dataset, max_features=max(n_features_range)
     )
+    print("Feature selection complete")
 
     results = []
     for trial in range(3):
         train_df = data_generator(nsamples=ntrain, seed=1283 + trial)
-        val_df = data_generator(nsamples=nval, seed=6483 + trial)
-
         for n_features in n_features_range:
             train_dataset = Dataset(
                 train_df,
@@ -87,6 +85,7 @@ def get_optimal_density_estimation_parameters(
             )
 
             new_train_dataset, new_val_dataset = split(train_dataset)
+            print("split dataset")
 
             for degree in degree_range:
                 for n_bins in n_bins_range:

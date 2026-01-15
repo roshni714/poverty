@@ -5,17 +5,18 @@ from opt_targeted_transfers import (
 )
 from opt_targeted_transfers import Dataset, split
 import pandas as pd
-from constants import C_BAR, BUDGETS
+import numpy as np
 
 
 def get_optimal_n_regressors(
     n_regressors_range,
     loss_type,
+    povertyline,
     data_generator,
+    val_df,
     device,
     original_cols,
     ntrain,
-    ntest,
     outcome,
     weight,
     neural_network_params,
@@ -40,11 +41,13 @@ def get_optimal_n_regressors(
         opt_params (dict): Optimal hyperparameters for knapsack.
     """
 
-    train_df = data_generator(nsamples=ntrain, seed=547396234)
     feature_list = original_cols.copy()
     feature_list.remove(outcome)
     feature_list.remove(weight)
-    train_dataset = Dataset(train_df, outcome=outcome, weight=weight, covs=feature_list)
+    test_covariate_dataset = Dataset(
+        val_df, outcome=None, weight=weight, covs=feature_list
+    )
+    test_dataset = Dataset(val_df, outcome=outcome, weight=weight, covs=feature_list)
 
     if loss_type == "binary_rate":
         TT = BinaryRateTargetedTransfers
@@ -58,16 +61,15 @@ def get_optimal_n_regressors(
 
     results = []
     for trial in range(3):
-        test_df = data_generator(nsamples=ntest, seed=79809242 + trial)
-        test_covariate_dataset = Dataset(
-            test_df, outcome=None, weight=weight, covs=feature_list
+        train_df = data_generator(nsamples=ntrain, seed=547396234 + trial)
+        train_dataset = Dataset(
+            train_df, outcome=outcome, weight=weight, covs=feature_list
         )
-        test_dataset = Dataset(
-            test_df, outcome=outcome, weight=weight, covs=feature_list
-        )
+
         new_train_dataset, new_val_dataset = split(train_dataset)
+        budgets = np.linspace(0.05, povertyline, 15)
         for n_regressors in n_regressors_range:
-            tt = TT(c_bar=C_BAR, n_regressors=n_regressors)
+            tt = TT(c_bar=povertyline, n_regressors=n_regressors)
             tt.fit(
                 new_train_dataset,
                 new_val_dataset,
@@ -75,12 +77,12 @@ def get_optimal_n_regressors(
                 **neural_network_params,
             )
             if "binary" in loss_type:
-                tt.get_opt_transfer_sizes_given_budget_grid(new_val_dataset, BUDGETS)
+                tt.get_opt_transfer_sizes_given_budget_grid(new_val_dataset, budgets)
             res = tt.compute_auc(
                 test_dataset=test_dataset,
                 test_covariate_dataset=test_covariate_dataset,
                 metrics=[metric],
-                budgets=BUDGETS,
+                budgets=budgets,
             )
             results.append(
                 {

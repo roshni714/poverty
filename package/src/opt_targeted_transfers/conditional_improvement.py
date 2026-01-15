@@ -6,7 +6,7 @@ import copy
 
 
 def get_avg_estimated_benefit(
-    validation_dataset, loss_type, idx_to_receive_transfers, t, c_bar=2.15
+    validation_dataset, loss_type, idx_to_receive_transfers, t, c_bar
 ):
     X, y, r = validation_dataset.get_data()
 
@@ -26,7 +26,7 @@ def get_avg_estimated_benefit(
 
 
 def get_conditional_improvement_loss(
-    validation_dataset, loss_type, predictor, t, c_bar=2.15
+    validation_dataset, loss_type, predictor, t, c_bar
 ):
     """
     Get the conditional gap improvement loss for a given transfer size.
@@ -65,7 +65,7 @@ def get_conditional_improvement_regressor(
     validation_dataset,
     loss_type,
     t,
-    c_bar=2.15,
+    c_bar,
     n_layers=1,
     n_hidden_units=64,
     lr=5e-3,
@@ -126,9 +126,6 @@ def get_conditional_improvement_regressor(
     assert np.min(benefits_train) >= 0
     assert np.min(benefits_val) >= 0
 
-    benefits_train, benefits_mean, benefits_std = standardize(benefits_train)
-    benefits_val = (benefits_val - benefits_mean) / benefits_std
-
     if X_train.shape[1] == 0:
         # TODO fill in
         pass
@@ -148,7 +145,7 @@ def get_conditional_improvement_regressor(
 
         optimizer = torch.optim.Adam(predictor.parameters(), lr=lr)
 
-        batch_size = int(len(X_train) / 5)
+        batch_size = int(min(16000, len(X_train)) / 5)
         print(f"Fitting conditional {loss_type} improvement for transfer size {t}")
         pbar = tqdm.tqdm(list(range(n_epochs)))
         val_losses = []
@@ -162,8 +159,6 @@ def get_conditional_improvement_regressor(
                     * torch.Tensor(r_val).to(device)
                 )
                 val_losses.append(val_loss.detach().item())
-                # ideally do torch.save to save checkpoints. Google it. Avoid saving so many models
-                # in memory. And more correct.
                 models.append(copy.deepcopy(predictor.cpu()))
             predictor = predictor.to(device)
             predictor.train()
@@ -187,15 +182,11 @@ def get_conditional_improvement_regressor(
 
     def estimator(X_test):
         if X_test.shape[1] == 0:
-            predicted_benefits = benefits_mean * np.ones((X_test.shape[0], 1))
+            pass
         else:
             X_test = (X_test - X_mean) / X_std
             predicted_benefits = (
-                (
-                    final_predictor(torch.Tensor(X_test)).reshape(X_test.shape[0], 1)
-                    * benefits_std
-                    + benefits_mean
-                )
+                (final_predictor(torch.Tensor(X_test)).reshape(X_test.shape[0], 1))
                 .detach()
                 .numpy()
                 .flatten()

@@ -7,22 +7,26 @@ from opt_targeted_transfers import (
     GapTargetedTransfers,
     BinaryRateTargetedTransfers,
     BinaryGapTargetedTransfers,
+    UBITargetedTransfers,
     OracleGapTargetedTransfers,
-    OracleRateTargetedTransfers,
+    PMTTargetedTransfers,
+    ModernPMTTargetedTransfers,
     write_result,
 )
 from learn.data_loader import load_datasets
-from constants import C_BAR, BUDGETS
 import os
 
 
-def run_evaluation(tt, test_covariate_dataset, test_dataset, savepath):
+def run_evaluation(tt, test_covariate_dataset, test_dataset, budgets, savepath):
     if os.path.exists(savepath + ".csv"):
         os.remove(savepath + ".csv")
 
-    for budget in BUDGETS:
+    for budget in budgets:
         tt.set_budget(budget)
-        tt.run_opt(test_covariate_dataset)
+        if "oracle" in tt.name:
+            tt.run_opt(test_dataset)
+        else:
+            tt.run_opt(test_covariate_dataset)
         res = tt.evaluate(test_dataset)
         print(res)
         write_result(savepath + ".csv", res)
@@ -34,7 +38,7 @@ def run_evaluation(tt, test_covariate_dataset, test_dataset, savepath):
         test_dataset=test_dataset,
         test_covariate_dataset=test_covariate_dataset,
         metrics=["post_transfer_poverty_rate", "post_transfer_poverty_gap"],
-        budgets=BUDGETS,
+        budgets=budgets,
     )
     if os.path.exists(savepath + "_auc.csv"):
         os.remove(savepath + "_auc.csv")
@@ -102,6 +106,8 @@ def learn_continuous_rate(
     test_covariate_dataset,
     test_dataset,
     continuous_rate_params,
+    povertyline,
+    budgets,
     device,
     savepath,
 ):
@@ -120,7 +126,7 @@ def learn_continuous_rate(
     test_covariate_dataset.covs = features
     test_dataset.covs = features
 
-    tt = RateTargetedTransfers(c_bar=C_BAR)
+    tt = RateTargetedTransfers(c_bar=povertyline)
     tt.fit(
         train_dataset,
         validation_dataset,
@@ -132,7 +138,7 @@ def learn_continuous_rate(
     all_res = []
     if os.path.exists(savepath + ".csv"):
         os.remove(savepath + ".csv")
-    for budget in BUDGETS:
+    for budget in budgets:
         tt.set_budget(budget)
         tt.run_opt(test_covariate_dataset, n_alpha=continuous_rate_params["n_alpha"])
         res = tt.evaluate(test_dataset)
@@ -151,7 +157,7 @@ def learn_continuous_rate(
         y_items = []
         for res in all_res:
             y_items.append(res[metric])
-        auc = np.trapz(y_items, x=BUDGETS)
+        auc = np.trapz(y_items, x=budgets)
         auc_res[metric] = auc
 
     write_result(savepath + "_auc.csv", auc_res)
@@ -163,6 +169,8 @@ def learn_binary_rate(
     test_covariate_dataset,
     test_dataset,
     binary_rate_params,
+    povertyline,
+    budgets,
     device,
     savepath,
 ):
@@ -171,7 +179,7 @@ def learn_binary_rate(
     """
     print("Learning binary rate targeted transfers...")
     tt = BinaryRateTargetedTransfers(
-        c_bar=C_BAR, n_regressors=binary_rate_params["n_regressors"]
+        c_bar=povertyline, n_regressors=binary_rate_params["n_regressors"]
     )
     tt.fit(
         train_dataset,
@@ -179,8 +187,8 @@ def learn_binary_rate(
         device=device,
         **binary_rate_params["neural_network"],
     )
-    tt.get_opt_transfer_sizes_given_budget_grid(validation_dataset, BUDGETS)
-    run_evaluation(tt, test_covariate_dataset, test_dataset, savepath)
+    tt.get_opt_transfer_sizes_given_budget_grid(validation_dataset, budgets)
+    run_evaluation(tt, test_covariate_dataset, test_dataset, budgets, savepath)
 
 
 def learn_continuous_gap(
@@ -189,6 +197,8 @@ def learn_continuous_gap(
     test_covariate_dataset,
     test_dataset,
     continuous_gap_params,
+    povertyline,
+    budgets,
     device,
     savepath,
 ):
@@ -197,7 +207,7 @@ def learn_continuous_gap(
     """
     print("Learning continuous gap targeted transfers...")
     tt = GapTargetedTransfers(
-        c_bar=C_BAR, n_regressors=continuous_gap_params["n_regressors"]
+        c_bar=povertyline, n_regressors=continuous_gap_params["n_regressors"]
     )
     tt.fit(
         train_dataset,
@@ -205,7 +215,7 @@ def learn_continuous_gap(
         device=device,
         **continuous_gap_params["neural_network"],
     )
-    run_evaluation(tt, test_covariate_dataset, test_dataset, savepath)
+    run_evaluation(tt, test_covariate_dataset, test_dataset, budgets, savepath)
 
 
 def learn_binary_gap(
@@ -214,6 +224,8 @@ def learn_binary_gap(
     test_covariate_dataset,
     test_dataset,
     binary_gap_params,
+    povertyline,
+    budgets,
     device,
     savepath,
 ):
@@ -222,7 +234,7 @@ def learn_binary_gap(
     """
     print("Learning binary gap targeted transfers...")
     tt = BinaryGapTargetedTransfers(
-        c_bar=C_BAR, n_regressors=binary_gap_params["n_regressors"]
+        c_bar=povertyline, n_regressors=binary_gap_params["n_regressors"]
     )
     tt.fit(
         train_dataset,
@@ -230,20 +242,103 @@ def learn_binary_gap(
         device=device,
         **binary_gap_params["neural_network"],
     )
-    tt.get_opt_transfer_sizes_given_budget_grid(validation_dataset, BUDGETS)
-    run_evaluation(tt, test_covariate_dataset, test_dataset, savepath)
+    tt.get_opt_transfer_sizes_given_budget_grid(validation_dataset, budgets)
+    run_evaluation(tt, test_covariate_dataset, test_dataset, budgets, savepath)
+
+
+def learn_modern_pmt(
+    train_dataset,
+    validation_dataset,
+    test_covariate_dataset,
+    test_dataset,
+    modern_pmt_params,
+    povertyline,
+    budgets,
+    device,
+    savepath,
+):
+    """
+    Learn the modern PMT targeted transfers
+    """
+    print("Learning modern PMT targeted transfers...")
+    tt = ModernPMTTargetedTransfers(c_bar=povertyline, transfer_value=povertyline)
+    tt.fit(
+        train_dataset=train_dataset,
+        validation_dataset=validation_dataset,
+        device=device,
+        **modern_pmt_params["neural_network"],
+    )
+    run_evaluation(tt, test_covariate_dataset, test_dataset, budgets, savepath)
+
+
+def learn_pmt(
+    train_dataset,
+    validation_dataset,
+    test_covariate_dataset,
+    test_dataset,
+    pmt_params,
+    povertyline,
+    budgets,
+    device,
+    savepath,
+):
+    """
+    Learn PMT targeted transfers
+    """
+    print("Learning PMT targeted transfers...")
+    tt = PMTTargetedTransfers(c_bar=povertyline, transfer_value=povertyline)
+    tt.fit(
+        train_dataset,
+        validation_dataset,
+        alpha=pmt_params["lasso"]["alpha"],
+    )
+    run_evaluation(tt, test_covariate_dataset, test_dataset, budgets, savepath)
+
+
+def learn_ubi(test_covariate_dataset, test_dataset, povertyline, budgets, savepath):
+    """
+    Learn UBI targeted transfers
+    """
+    print("Learning UBI targeted transfers...")
+    tt = UBITargetedTransfers(c_bar=povertyline)
+    run_evaluation(tt, test_covariate_dataset, test_dataset, budgets, savepath)
+
+
+def learn_oracle_gap(
+    test_covariate_dataset,
+    test_dataset,
+    povertyline,
+    budgets,
+    savepath,
+):
+    """
+    Learn the oracle gap targeted transfers
+    """
+    print("Learning oracle gap targeted transfers...")
+    tt = OracleGapTargetedTransfers(c_bar=povertyline, scheme="consumption_floor")
+    run_evaluation(tt, test_covariate_dataset, test_dataset, budgets, savepath)
 
 
 @argh.arg("--config", default="hparam_results/output_gan_continuous_rate.yaml")
-@argh.arg("--trainpath", default="data/train.parquet")
-@argh.arg("--testpath", default="data/test.parquet")
+@argh.arg("--povertyline", default=3.0)
+@argh.arg("--year", default=2021)
+@argh.arg("--nfeatures", default=None, type=int)
+@argh.arg("--country", default="malawi")
+@argh.arg("--trainpath", default=None)
+@argh.arg("--testpath", default=None)
+@argh.arg("--auxpath", default="data/auxiliary_data/auxiliary_data_20251207.csv")
 @argh.arg("--summarypath", default="data/summary_2019.parquet")
 @argh.arg("--device", default="cpu")
 def main(
     config="hparam_results/output_gan_continuous_rate.yaml",
-    trainpath="data/train.parquet",
-    testpath="data/test.parquet",
-    summarypath="data/summary_2019.parquet",
+    povertyline=3.0,
+    year=2021,
+    nfeatures=None,
+    auxpath="data/auxiliary_data/auxiliary_data_20251207.csv",
+    country="malawi",
+    trainpath=None,
+    testpath=None,
+    summarypath=None,
     device="cpu",
 ):
     """
@@ -265,10 +360,12 @@ def main(
                 "binary_rate",
                 "continuous_gap",
                 "binary_gap",
-                "oracle_rate",
                 "oracle_gap",
                 "data",
                 "savedir",
+                "pmt",
+                "ubi",
+                "modern_pmt",
             ]
             for key in config_keys
         ]
@@ -282,34 +379,77 @@ def main(
             trainpath,
             testpath,
             summarypath,
+            auxpath,
+            geo_extrapolation=data_config["geo_extrapolation"],
             outcome=data_config["outcome"],
             weight=data_config["weight"],
+            country=country,
+            year=year,
         )
     )
 
-    name = config.split("/")[-1].split(".yaml")[0]
-    savepath = savedir + "/" + name
+    if nfeatures is not None:
+        features, _ = forward_selection(
+            train_dataset,
+            validation_dataset,
+            max_features=nfeatures,
+        )
+        train_dataset.covs = features
+        validation_dataset.covs = features
+        test_covariate_dataset.covs = features
+        test_dataset.covs = features
 
-    METHODS = {
+    name = config.split("/")[-1].split(".yaml")[0]
+
+    if nfeatures is not None:
+        savepath = (
+            savedir + "/" + "year=" + str(year) + "_d=" + str(nfeatures) + "/" + name
+        )
+    else:
+        savepath = savedir + "/" + "year=" + str(year) + "/" + name
+
+    LEARNING_METHODS = {
         "continuous_rate": learn_continuous_rate,
         "binary_rate": learn_binary_rate,
         "continuous_gap": learn_continuous_gap,
         "binary_gap": learn_binary_gap,
-        "oracle_rate": learn_oracle_rate,
-        "oracle_gap": learn_oracle_gap,
+        "pmt": learn_pmt,
+        "modern_pmt": learn_modern_pmt,
     }
 
+    NONLEARNING_METHODS = {"oracle_gap": learn_oracle_gap, "ubi": learn_ubi}
+
+    _, y_test, r_test = test_dataset.get_data()
+    pov_gap = np.sum(np.maximum(povertyline - y_test, 0) * r_test)
+    oracle_budgets = np.linspace(0.0, pov_gap, 15)
+    budgets = np.linspace(0.05, povertyline, 15)
+
     for key in config_keys:
-        if key in METHODS:
-            method = METHODS[key]
+        if key in LEARNING_METHODS:
+            method = LEARNING_METHODS[key]
             method(
                 train_dataset,
                 validation_dataset,
                 test_covariate_dataset,
                 test_dataset,
                 config_hparam[key],
-                device,
-                savepath,
+                povertyline=povertyline,
+                budgets=budgets,
+                device=device,
+                savepath=savepath,
+            )
+        elif key in NONLEARNING_METHODS:
+            if "oracle" in key:
+                learn_budgets = oracle_budgets
+            else:
+                learn_budgets = budgets
+            method = NONLEARNING_METHODS[key]
+            method(
+                test_covariate_dataset,
+                test_dataset,
+                povertyline=povertyline,
+                budgets=learn_budgets,
+                savepath=savepath,
             )
         else:
             continue

@@ -5,20 +5,188 @@ from opt_targeted_transfers import (
     get_quantile_loss,
     get_conditional_improvement_regressor,
     get_conditional_improvement_loss,
+    get_pmt_nn_regressor,
+    get_pmt_lasso_regressor,
+    get_mse_loss,
 )
 import pandas as pd
 import numpy as np
-from constants import C_BAR
+
+
+def get_optimal_lasso_parameters(
+    lasso_hparam_ranges,
+    data_generator,
+    val_df,
+    device,
+    original_cols,
+    ntrain,
+    outcome,
+    weight,
+    savepath,
+):
+    """
+    Get optimal Lasso hyperparameters.
+
+    Args:
+        lasso_hparam_ranges (dict): Hyperparameter ranges for Lasso.
+        data_generator (generator): Data generator.
+        device (str): Device to train the model on.
+        original_cols (list): Original columns before one-hot encoding.
+        ntrain (int): Number of training samples.
+        outcome (str): Outcome variable.
+        weight (str): Weight variable.
+        savepath (str): Path to save results.
+
+    Returns:
+        opt_params: Optimal hyperparameters for Lasso.
+    """
+
+    if "alpha" in lasso_hparam_ranges:
+        alpha_range = lasso_hparam_ranges["alpha"]
+    else:
+        alpha_range = [0.1]
+
+    results = []
+
+    for trial in range(3):
+        train_df = data_generator(nsamples=ntrain, seed=54734234 + trial)
+        covs = original_cols.copy()
+        covs.remove(outcome)
+        covs.remove(weight)
+        train_dataset = Dataset(train_df, outcome=outcome, weight=weight, covs=covs)
+        big_val_dataset = Dataset(val_df, outcome=outcome, weight=weight, covs=covs)
+        new_train_dataset, new_val_dataset = split(train_dataset)
+
+        for alpha in alpha_range:
+            print(f"Training Lasso with alpha {alpha} during trial {trial}...")
+
+            model = get_pmt_lasso_regressor(
+                train_dataset=new_train_dataset,
+                validation_dataset=new_val_dataset,
+                alpha=alpha,
+            )
+
+            loss = get_mse_loss(
+                predictor=model, validation_dataset=big_val_dataset
+            ).item()
+            results.append(
+                {
+                    "alpha": alpha,
+                    "loss": loss,
+                    "trial": trial,
+                }
+            )
+
+    df = pd.DataFrame.from_records(results)
+    df.to_csv(savepath, index=False)
+    df = df.groupby(["alpha"]).mean().reset_index()
+    optimal_params = df.loc[df["loss"].idxmin()].to_dict()
+    del optimal_params["loss"]
+    del optimal_params["trial"]
+    return optimal_params
+
+
+def get_optimal_nn_pmt_parameters(
+    nn_hparam_ranges,
+    data_generator,
+    val_df,
+    device,
+    original_cols,
+    ntrain,
+    outcome,
+    weight,
+    savepath,
+):
+    """
+    Get optimal neural network hyperparameters for PMT.
+
+    Args:
+        nn_hparam_ranges (dict): Hyperparameter ranges for neural network.
+        data_generator (generator): Data generator.
+        device (str): Device to train the neural network on.
+        original_cols (list): Original columns before one-hot encoding.
+        ntrain (int): Number of training samples.
+        nval (int): Number of validation samples.
+        outcome (str): Outcome variable.
+        weight (str): Weight variable.
+        savepath (str): Path to save results.
+
+    Returns:
+        opt_params: Optimal hyperparameters for neural network.
+    """
+
+    if "n_layers" in nn_hparam_ranges:
+        n_layers_range = nn_hparam_ranges["n_layers"]
+    else:
+        n_layers_range = [1]
+
+    if "n_hidden_units" in nn_hparam_ranges:
+        n_hidden_units_range = nn_hparam_ranges["n_hidden_units"]
+    else:
+        n_hidden_units_range = [2 ** round(np.log(original_cols), 1)]
+    if "lr" in nn_hparam_ranges:
+        lr_range = nn_hparam_ranges["lr"]
+    else:
+        lr_range = [5e-3]
+
+    results = []
+
+    for trial in range(3):
+        train_df = data_generator(nsamples=ntrain, seed=54734234 + trial)
+        covs = original_cols.copy()
+        covs.remove(outcome)
+        covs.remove(weight)
+        train_dataset = Dataset(train_df, outcome=outcome, weight=weight, covs=covs)
+        big_val_dataset = Dataset(val_df, outcome=outcome, weight=weight, covs=covs)
+        new_train_dataset, new_val_dataset = split(train_dataset)
+        for n_layers in n_layers_range:
+            for n_hidden_units in n_hidden_units_range:
+                for lr in lr_range:
+                    print(
+                        f"Training neural network with {n_layers} layers, {n_hidden_units} hidden units, and learning rate {lr} during trial {trial}..."
+                    )
+
+                    model = get_pmt_nn_regressor(
+                        train_dataset=new_train_dataset,
+                        validation_dataset=new_val_dataset,
+                        n_layers=n_layers,
+                        n_hidden_units=n_hidden_units,
+                        lr=lr,
+                        device=device,
+                    )
+
+                    loss = get_mse_loss(
+                        predictor=model, validation_dataset=big_val_dataset
+                    ).item()
+                    results.append(
+                        {
+                            "n_layers": n_layers,
+                            "n_hidden_units": n_hidden_units,
+                            "lr": lr,
+                            "loss": loss,
+                            "trial": trial,
+                        }
+                    )
+    df = pd.DataFrame.from_records(results)
+    df.to_csv(savepath, index=False)
+    df = df.groupby(["n_layers", "n_hidden_units", "lr"]).mean().reset_index()
+    optimal_params = df.loc[df["loss"].idxmin()].to_dict()
+    del optimal_params["loss"]
+    del optimal_params["trial"]
+    for hparam in ["n_hidden_units", "n_layers"]:
+        optimal_params[hparam] = int(optimal_params[hparam])
+    return optimal_params
 
 
 def get_optimal_nn_improvement_parameters(
     loss_type,
     nn_hparam_ranges,
+    povertyline,
     data_generator,
+    val_df,
     device,
     original_cols,
     ntrain,
-    nval,
     outcome,
     weight,
     savepath,
@@ -56,11 +224,15 @@ def get_optimal_nn_improvement_parameters(
         lr_range = [5e-3]
 
     results = []
-    transfer_sizes = [0.5, 1.0, 1.5]
+
+    train_df = data_generator(nsamples=ntrain, seed=0)
+    gaps = np.maximum(povertyline - train_df[outcome].values, 0)
+    gaps = gaps[gaps > 0]
+    transfer_sizes = np.percentile(gaps, [50, 75, 95])
+    print("Transfer sizes to consider:", transfer_sizes)
 
     for trial in range(3):
         train_df = data_generator(nsamples=ntrain, seed=54734234 + trial)
-        val_df = data_generator(nsamples=nval, seed=7959342 + trial)
         covs = original_cols.copy()
         covs.remove(outcome)
         covs.remove(weight)
@@ -80,7 +252,7 @@ def get_optimal_nn_improvement_parameters(
                             train_dataset=new_train_dataset,
                             validation_dataset=new_val_dataset,
                             t=transfer_size,
-                            c_bar=C_BAR,
+                            c_bar=povertyline,
                             n_layers=n_layers,
                             n_hidden_units=n_hidden_units,
                             lr=lr,
@@ -91,7 +263,7 @@ def get_optimal_nn_improvement_parameters(
                             loss_type=loss_type,
                             predictor=model,
                             t=transfer_size,
-                            c_bar=C_BAR,
+                            c_bar=povertyline,
                         ).item()
                         results.append(
                             {
@@ -118,10 +290,10 @@ def get_optimal_nn_improvement_parameters(
 def get_optimal_nn_quantile_regression_parameters(
     nn_hparam_ranges,
     data_generator,
+    val_df,
     device,
     original_cols,
     ntrain,
-    nval,
     outcome,
     weight,
     savepath,
@@ -162,7 +334,6 @@ def get_optimal_nn_quantile_regression_parameters(
 
     for trial in range(3):
         train_df = data_generator(nsamples=ntrain, seed=54734234 + trial)
-        val_df = data_generator(nsamples=nval, seed=7959342 + trial)
         covs = original_cols.copy()
         covs.remove(outcome)
         covs.remove(weight)
