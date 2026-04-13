@@ -41,7 +41,7 @@ class TargetedTransfers:
 
     def __init__(
         self,
-        c_bar=3.0,
+        c_bar=3.,
         budget=None,
     ):
         self.c_bar = c_bar
@@ -410,7 +410,6 @@ class BinaryGapTargetedTransfers(BinaryTargetedTransfers):
     def __init__(self, c_bar=3.0, budget=None, n_regressors=20):
 
         super().__init__(c_bar=c_bar, budget=budget, n_regressors=n_regressors)
-
         self.name = "binary_gap"
 
     def fit(
@@ -449,7 +448,6 @@ class BinaryRateTargetedTransfers(BinaryTargetedTransfers):
     def __init__(self, c_bar=3.0, budget=None, n_regressors=20):
 
         super().__init__(c_bar=c_bar, budget=budget, n_regressors=n_regressors)
-
         self.name = "binary_rate"
 
     def fit(

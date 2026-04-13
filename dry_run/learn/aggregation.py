@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from scipy.interpolate import interp1d
 from learn.formatting import METHODS
+import os
 
 
 class CountryMethodPovertyResults:
@@ -194,6 +195,91 @@ class CountryMethodPovertyResults:
             min(rates),
             max(rates),
         )
+
+    def _load_transfer_data(self):
+        """
+        Load the transfer data for a specific country and method.
+        :return: A DataFrame containing the transfer data for the specified country and method.
+        :rtype: pandas.DataFrame
+        """
+        if self.geo_extrapolation:
+            subfolder = "geo_extrapolation"
+        else:
+            subfolder = "geo_interpolation"
+
+        if self.method == "oracle_gap":
+            directory_path = "learn/results/{}/{}/year={}".format(
+                self.country, subfolder, self.year
+            )
+            prefix = "oracle_gap_budget="
+        elif self.method != "oracle_gap" and self.restricted_feature_set:
+            directory_path = "learn/results/{}/{}/year={}_d=20".format(
+                self.country, subfolder, self.year
+            )
+            prefix = "output_gt_{}_budget=".format(self.method)
+        else:
+            directory_path = "learn/results/{}/{}/year={}".format(
+                self.country, subfolder, self.year
+            )
+            prefix = "output_gt_{}_budget=".format(self.method)
+
+        files_with_prefix = []
+        for filename in os.listdir(directory_path):
+            if filename.startswith(prefix) and os.path.isfile(
+                os.path.join(directory_path, filename)
+            ):
+                files_with_prefix.append(filename)
+
+        transfer_dfs = []
+
+        for filename in files_with_prefix:
+            if filename.startswith(prefix):
+                transfer_df = pd.read_csv(os.path.join(directory_path, filename))
+                test_data = pd.read_parquet(
+                    "data/{}/test.parquet".format(self.country)
+                ).reset_index(drop=True)
+                transfer_df = transfer_df.merge(
+                    test_data["headcount_adjusted_hh_wgt"],
+                    left_index=True,
+                    right_index=True,
+                )
+                transfer_dfs.append(transfer_df)
+
+        return transfer_dfs
+
+    def get_number_of_people_targeted(self):
+        """
+        Get the number of people targeted by the method.
+        :return: Number of people targeted.
+        :rtype: float
+        """
+        transfer_dfs = self._load_transfer_data()
+
+        pov_rates = []
+        num_targeted = []
+        df = self.metadata.preprocess_country_aux_data()
+        total_pop = df[df["country_code"] == self.country][
+            "total_population_survey_year"
+        ].values[0]
+        for transfer_df in transfer_dfs:
+            transfer_df["headcount_adjusted_hh_wgt"] /= transfer_df[
+                "headcount_adjusted_hh_wgt"
+            ].sum()
+            sum_weights_positive_transfer = transfer_df[transfer_df["ev_transfer"] > 0][
+                "headcount_adjusted_hh_wgt"
+            ].sum()
+            post_transfer_pov_rate = np.sum(
+                (
+                    transfer_df["consumption"] + transfer_df["ev_transfer"]
+                    < self.povertyline
+                )
+                * transfer_df["headcount_adjusted_hh_wgt"]
+            )
+            pov_rates.append(post_transfer_pov_rate)
+            num_targeted.append(sum_weights_positive_transfer * total_pop)
+
+        interpolator = interp1d(np.array(pov_rates) * 100, num_targeted, kind="linear")
+        return interpolator
 
 
 class AggregatePovertyResults:

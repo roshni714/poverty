@@ -264,14 +264,12 @@ class ExtrapolationResults:
                 X_test.append(
                     [
                         df[df["country_code"] == country][
-                            "wb_poverty_rate_povertyline_{}_most_recent".format(
-                                self.year
-                            )
+                            "wb_poverty_rate_2023_povertyline_{}".format(self.year)
                         ].item()
                     ]
                 )
                 gap_index = df[df["country_code"] == country][
-                    "wb_poverty_gap_index_povertyline_{}_most_recent".format(self.year)
+                    "wb_poverty_gap_index_2023_povertyline_{}".format(self.year)
                 ].item()
                 conversion_factor = self.get_conversion_factor(country)
                 oracle_costs.append(gap_index * conversion_factor)
@@ -338,10 +336,8 @@ class ExtrapolationResults:
         dropped_countries = []
 
         if self.outofsample_data_source == "wb":
-            poverty_rate_key = "wb_poverty_rate_povertyline_{}_most_recent".format(
-                self.year
-            )
-            poverty_gap_key = "wb_poverty_gap_index_povertyline_{}_most_recent".format(
+            poverty_rate_key = "wb_poverty_rate_2023_povertyline_{}".format(self.year)
+            poverty_gap_key = "wb_poverty_gap_index_2023_povertyline_{}".format(
                 self.year
             )
             df = self.metadata.preprocess_country_aux_data()
@@ -406,14 +402,12 @@ class ExtrapolationResults:
                 X_test.append(
                     [
                         df[df["country_code"] == country][
-                            "wb_poverty_rate_povertyline_{}_most_recent".format(
-                                self.year
-                            )
+                            "wb_poverty_rate_2023_povertyline_{}".format(self.year)
                         ].item()
                     ]
                 )
                 gap_index = df[df["country_code"] == country][
-                    "wb_poverty_gap_index_povertyline_{}_most_recent".format(self.year)
+                    "wb_poverty_gap_index_2023_povertyline_{}".format(self.year)
                 ].item()
                 conversion_factor = self.get_conversion_factor(country)
                 oracle_costs.append(gap_index * conversion_factor)

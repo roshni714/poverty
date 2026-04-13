@@ -11,6 +11,7 @@ from opt_targeted_transfers import (
     OracleGapTargetedTransfers,
     PMTTargetedTransfers,
     ModernPMTTargetedTransfers,
+    WelfareTargetedTransfers,
     write_result,
 )
 from learn.data_loader import load_datasets
@@ -267,6 +268,31 @@ def learn_oracle_gap(
     run_evaluation(tt, test_covariate_dataset, test_dataset, budgets, savepath)
 
 
+def learn_welfare(
+    train_dataset,
+    validation_dataset,
+    test_covariate_dataset,
+    test_dataset,
+    welfare_params,
+    povertyline,
+    budgets,
+    device,
+    savepath,
+):
+    """
+    Learn the welfare targeted transfers
+    """
+    print("Learning welfare targeted transfers...")
+    tt = WelfareTargetedTransfers(c_bar=povertyline, budget=2)
+    tt.fit(
+        train_dataset=train_dataset,
+        validation_dataset=validation_dataset,
+        device=device,
+        **welfare_params["neural_network"],
+    )
+    run_evaluation(tt, test_covariate_dataset, test_dataset, budgets, savepath)
+
+
 @argh.arg("--config", default="hparam_results/output_gan_continuous_rate.yaml")
 @argh.arg("--povertyline", default=3.0)
 @argh.arg("--year", default=2021)
@@ -274,7 +300,7 @@ def learn_oracle_gap(
 @argh.arg("--country", default="malawi")
 @argh.arg("--trainpath", default=None)
 @argh.arg("--testpath", default=None)
-@argh.arg("--auxpath", default="data/auxiliary_data/auxiliary_data_20251207.csv")
+@argh.arg("--auxpath", default="data/auxiliary_data/auxiliary_data_20260409.csv")
 @argh.arg("--summarypath", default="data/summary_2019.parquet")
 @argh.arg("--device", default="cpu")
 def main(
@@ -309,6 +335,7 @@ def main(
                 "continuous_gap",
                 "binary_gap",
                 "oracle_gap",
+                "welfare",
                 "data",
                 "savedir",
                 "pmt",
@@ -363,6 +390,7 @@ def main(
         "binary_gap": learn_binary_gap,
         "pmt": learn_pmt,
         "modern_pmt": learn_modern_pmt,
+        "welfare": learn_welfare,
     }
 
     NONLEARNING_METHODS = {"oracle_gap": learn_oracle_gap, "ubi": learn_ubi}

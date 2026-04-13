@@ -19,10 +19,10 @@ GPU_SBATCH_PREFACE = """#!/bin/bash
 
 
 SBATCH_PREFACE = """#!/bin/bash
-#SBATCH -t 40:00:00             # limit of 1 day runtime
+#SBATCH -t 72:00:00             # limit of 1 day runtime
 #SBATCH -c 1
-#SBATCH --mem 20GB
-#SBATCH -p normal
+#SBATCH --mem 10GB
+#SBATCH -p long
 #SBATCH --exclude=yen15
 #SBATCH --ntasks-per-node=1
 #SBATCH --job-name="{}.sh"
@@ -31,7 +31,7 @@ SBATCH_PREFACE = """#!/bin/bash
 """
 
 OUTPUT_PATH = (
-    "/home/users/rsahoo/zfs/projects/faculty/swager-poverty/poverty/dry_run/scripts3"
+    "/home/users/rsahoo/zfs/projects/faculty/swager-poverty/poverty/dry_run/scripts"
 )
 
 
@@ -65,7 +65,23 @@ def generate_rate_vs_gap_comparison():
 
 
 def generate_learn_run_2017_restricted_features_povertyline():
-    countries = ["BEN"]
+    countries = [
+        "BDI",
+        "BGD",
+        "CAF",
+        "COD",
+        "GHA",
+        "IDN",
+        "IND",
+        "LBR",
+        "MDG",
+        "MEX",
+        "PAK",
+        "RWA",
+        "SDN",
+        "TLS",
+        "ZWE",
+    ]
     geo_extrapolation = [True]
     configs = ["output_gt_continuous_gap.yaml"]
 
@@ -91,48 +107,34 @@ def generate_learn_run_2017_restricted_features_povertyline():
 
 
 def generate_learn_run_2017_povertyline():
-    # countries = [
-    #     "BGD",
-    #     "BEN",
-    #     "BFA",
-    #     "CIV",
-    #     "ETH",
-    #     "GNB",
-    #     "KEN",
-    #     "MDG",
-    #     "MWI",
-    #     "MLI",
-    #     "NER",
-    #     "RWA",
-    #     "SEN",
-    #     "TZA",
-    #     "ZAF",
-    #     "TGO",
-    #     "UGA",
-    # ]
-    # geo_extrapolation = [True]
-    # configs = [
-    #     # "output_gt_continuous_gap.yaml",
-    #     "output_gt_binary_rate.yaml",
-    #     "output_gt_binary_gap.yaml",
-    #     # "output_gt_continuous_rate.yaml",
-    #     # "output_gt_modern_pmt.yaml",
-    #     # "oracle_gap.yaml",
-    #     # "output_gt_pmt.yaml",
-    #     # "ubi.yaml",
-    # ]
 
-    countries = ["IDN"]
+    countries = [
+        #    "BDI",
+        #    "BGD",
+        #    "CAF",
+        #    "COD",
+        #    "GHA",
+        #    "IDN",
+        #    "IND",
+        #    "LBR",
+        #    "MDG",
+        "MEX",
+        #   "PAK",
+        #   "RWA",
+        "SDN",
+        #    "TLS",
+        "ZWE",
+    ]
     geo_extrapolation = [True]
     configs = [
-        # "output_gt_continuous_rate.yaml",
-        # "output_gt_binary_rate.yaml",
-        # "output_gt_binary_gap.yaml",
-        # "output_gt_continuous_gap.yaml",
-        # "output_gt_modern_pmt.yaml",
-        # "oracle_gap.yaml",
+        "output_gt_continuous_gap.yaml",
+        "output_gt_binary_rate.yaml",
+        "output_gt_binary_gap.yaml",
+        "output_gt_continuous_rate.yaml",
+        "output_gt_modern_pmt.yaml",
+        "oracle_gap.yaml",
         "output_gt_pmt.yaml",
-        # "ubi.yaml",
+        "ubi.yaml",
     ]
 
     for country in countries:
@@ -157,7 +159,23 @@ def generate_learn_run_2017_povertyline():
 
 
 def generate_learn_run_2021_povertyline():
-    countries = ["IDN"]
+    countries = [
+        "BDI",
+        "BGD",
+        "CAF",
+        "COD",
+        "GHA",
+        "IDN",
+        "IND",
+        "LBR",
+        "MDG",
+        "MEX",
+        "PAK",
+        "RWA",
+        "SDN",
+        "TLS",
+        "ZWE",
+    ]
     geo_extrapolation = [True]
     configs = [
         "output_gt_continuous_rate.yaml",
@@ -165,9 +183,9 @@ def generate_learn_run_2021_povertyline():
         "output_gt_binary_gap.yaml",
         "output_gt_continuous_gap.yaml",
         "output_gt_modern_pmt.yaml",
-        # "oracle_gap.yaml",
-        # "output_gt_pmt.yaml",
-        # "ubi.yaml",
+        "oracle_gap.yaml",
+        "output_gt_pmt.yaml",
+        "ubi.yaml",
     ]
 
     for country in countries:
@@ -193,21 +211,16 @@ def generate_learn_run_2021_povertyline():
 
 def generate_hparam_run():
     countries = [
-        # "GHA",
-        # "NGA",
+        "IND",
         "IDN",
-        # "YEM",
-        # "COL",
-        # "IND"
     ]
+
     geo_extrapolation = [True]
     configs = [
         "gt_continuous_rate.yaml",
-        "gt_binary_rate.yaml",
-        "gt_binary_gap.yaml",
+        # "gt_binary_rate.yaml",
+        # "gt_binary_gap.yaml",
         "gt_continuous_gap.yaml",
-        "gt_modern_pmt.yaml",
-        # "gt_pmt.yaml",
     ]
 
     for country in countries:
@@ -454,8 +467,8 @@ def generate_gt_run():
 
 # generate_gt_run()
 # generate_rate_vs_gap_comparison()
-# generate_hparam_run()
-generate_learn_run_2017_restricted_features_povertyline()
+generate_hparam_run()
+# generate_learn_run_2017_restricted_features_povertyline()
 # generate_learn_run_2017_povertyline()
 # generate_learn_run_2021_povertyline()
 # generate_learn_run()

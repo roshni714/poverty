@@ -52,4 +52,10 @@ METHODS = {
         "color": "purple",
         "linestyle": "--",
     },
+    "welfare": {
+        "csv": "output_gt_welfare",
+        "name": "Welfare Maximization",
+        "color": "cyan",
+        "linestyle": "-",
+    },
 }

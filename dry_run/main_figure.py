@@ -15,11 +15,14 @@ from learn import (
     make_macro_file,
     plot_scatter_poverty_countries,
     get_rate_vs_gap_restricted_feature_set,
+    get_number_of_people_targeted,
+    get_extrapolation_comparison,
     Metadata,
 )
 import argh
 
 METHODS_ALL = [
+    # "welfare",
     "ubi",
     "modern_pmt",
     "pmt",
@@ -42,29 +45,38 @@ METHODS_RATE_VS_GAP = ["binary_gap", "continuous_gap", "binary_rate", "continuou
 METHODS_RATE_VS_GAP_CONT = ["continuous_gap", "continuous_rate"]
 
 COUNTRIES = [
-    "BGD",
+    "BDI",
     "BEN",
     "BFA",
+    "BGD",
     "CIV",
     "COL",
+    "COD",
     "ETH",
     "GHA",
     "GNB",
-    "IND",
-    "IDN",
+    # "IND",
+    # "IDN",
+    "LBR",
     "KEN",
     "MDG",
     "MLI",
+    "MEX",
     "MWI",
     "NER",
+    "PAK",
     "NGA",
     "RWA",
+    "SDN",
     "SEN",
     "TGO",
+    "TLS",
     "TZA",
     "ZAF",
     "UGA",
     "YEM",
+    "ZAF",
+    "ZWE",
 ]
 
 
@@ -249,6 +261,14 @@ def get_rate_vs_gap_dimension_figure_8(metadata):
         save_as="exhibits/year={}/figs/paper-figure-8-rate_vs_gap_dimension".format(
             metadata.year
         ),
+    )
+
+
+def get_pop_targeted_aux_data(metadata):
+    get_number_of_people_targeted(
+        COUNTRIES,
+        metadata=metadata,
+        save_as="exhibits/year={}/tables/pop_targeted".format(metadata.year),
     )
 
 
@@ -480,13 +500,13 @@ def make_presentation_figures(metadata):
     "--auxpath",
     help="Path to auxiliary data",
     type=str,
-    default="data/auxiliary_data/auxiliary_data_20251207.csv",
+    default="data/auxiliary_data/auxiliary_data_20260409.csv",
 )
 @argh.arg(
     "--secondaryauxpath",
     help="Path to secondary auxiliary data",
     type=str,
-    default="data/auxiliary_data/secondary_auxiliary_data_20251206.csv",
+    default="data/auxiliary_data/secondary_auxiliary_data_20260409.csv",
 )
 @argh.arg(
     "--wpcpath",
@@ -530,27 +550,31 @@ def main(
         refugeepath=refugeepath,
     )
 
-    get_togo_rate_vs_gap_figure_1(metadata)
-    get_headline_figure_2(metadata)
-    get_rate_vs_gap_headline_figure_3(metadata)
-    get_oracle_ratio_figure_4(metadata)
-    get_ubi_ratio_figure_5(metadata)
-    get_gdp_plot_figure_6(metadata)
-    get_headline_figure_3_dollar(metadata)
-    get_scatter_figure_7(metadata)
-    get_rate_vs_gap_dimension_figure_8(metadata)
-    get_table_extrapolation(metadata)
-    # get_appendix_table_out_of_sample_rmse()
-    get_appendix_table_survey(metadata)
-    get_appendix_table_wpc(metadata)
-    get_appendix_table_policy_cost_insample(metadata)
+    # get_extrapolation_comparison(COUNTRIES, metadata)
+
+    # get_pop_targeted_aux_data(metadata)
+
+    # get_togo_rate_vs_gap_figure_1(metadata)
+    # get_headline_figure_2(metadata)
+    # get_rate_vs_gap_headline_figure_3(metadata)
+    # get_oracle_ratio_figure_4(metadata)
+    # get_ubi_ratio_figure_5(metadata)
+    # get_gdp_plot_figure_6(metadata)
+    # get_headline_figure_3_dollar(metadata)
+    # get_scatter_figure_7(metadata)
+    # get_rate_vs_gap_dimension_figure_8(metadata)
+    # get_table_extrapolation(metadata)
+    # # get_appendix_table_out_of_sample_rmse()
+    # get_appendix_table_survey(metadata)
+    # get_appendix_table_wpc(metadata)
+    # get_appendix_table_policy_cost_insample(metadata)
     get_country_level_analysis(metadata)
-    make_macro_file(
-        COUNTRIES,
-        metadata=metadata,
-        save_as="exhibits/empirical_macros",
-    )
-    make_presentation_figures(metadata)
+    # make_macro_file(
+    #     COUNTRIES,
+    #     metadata=metadata,
+    #     save_as="exhibits/empirical_macros",
+    # )
+    # make_presentation_figures(metadata)
 
 
 if __name__ == "__main__":

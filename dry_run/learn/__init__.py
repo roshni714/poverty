@@ -11,6 +11,8 @@ from learn.plotting import (
     make_macro_file,
     plot_scatter_poverty_countries,
     get_rate_vs_gap_restricted_feature_set,
+    get_number_of_people_targeted,
+    get_extrapolation_comparison,
 )
 from learn.presentation_figures import (
     make_plot_for_country_presentation,

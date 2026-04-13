@@ -22,7 +22,7 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
             "gt": {
                 "trainpath": "data/{}/train.parquet".format(country),
                 "summarypath": "data/{}/summary.parquet".format(country),
-                "auxpath": "data/auxiliary_data/auxiliary_data_20251206.csv",
+                "auxpath": "data/auxiliary_data/auxiliary_data_20260409.csv",
             },
         },
     }
@@ -143,7 +143,23 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
 #     "TGO",
 #     "UGA",
 # ]
-countries = ["IDN"]
+countries = [
+    "BDI",
+    "BGD",
+    "CAF",
+    "COD",
+    "GHA",
+    "IDN",
+    "IND",
+    "LBR",
+    "MDG",
+    "MEX",
+    "PAK",
+    "RWA",
+    "SDN",
+    "TLS",
+    "ZWE",
+]
 geo_extrapolation = [True]
 for country in countries:
     for geo in geo_extrapolation:

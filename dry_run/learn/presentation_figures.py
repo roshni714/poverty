@@ -155,11 +155,11 @@ def aggregate_plot_roshni_presentation(
     method_list = [
         # "ubi",
         # "modern_pmt",
-        # "pmt",
+        "pmt",
         # "binary_gap",
-        "continuous_rate",
+        # "continuous_rate",
         "continuous_gap",
-        # "oracle_gap",
+        "oracle_gap",
     ]
 
     arrow_min_x = 1.0
@@ -206,8 +206,8 @@ def aggregate_plot_roshni_presentation(
         np.linspace(0.0, initial_rate),
         np.ones(50) * ubi_cost,
         linestyle="--",
-        color=METHODS["ubi_standard"]["color"],
-        label=METHODS["ubi_standard"]["name"] + " (${})".format(metadata.povertyline),
+        color=METHODS["ubi"]["color"],
+        label="UBI ${}".format(metadata.povertyline),
         linewidth=3,
         alpha=alpha,
         zorder=2,
@@ -216,8 +216,8 @@ def aggregate_plot_roshni_presentation(
         np.linspace(0.0, initial_gap_index),
         np.ones(50) * ubi_cost,
         linestyle="--",
-        color=METHODS["ubi_standard"]["color"],
-        label=METHODS["ubi_standard"]["name"] + " (${})".format(metadata.povertyline),
+        color=METHODS["ubi"]["color"],
+        label="UBI ${}".format(metadata.povertyline),
         linewidth=3,
         alpha=alpha,
         zorder=2,
@@ -297,6 +297,7 @@ def aggregate_plot_roshni_presentation(
                 alpha=alpha,
                 linewidth=3,
             )
+            print("roshni agg", method, rate_interpolator(1.0))
             ax[1].plot(
                 np.linspace(gap_domain[0], gap_domain[1], 200),
                 gap_interpolator(np.linspace(gap_domain[0], gap_domain[1], 200)),

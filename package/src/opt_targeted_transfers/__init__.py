@@ -9,6 +9,7 @@ from opt_targeted_transfers.opt import (
     UBITargetedTransfers,
     ModernPMTTargetedTransfers,
 )
+from opt_targeted_transfers.welfare import (WelfareTargetedTransfers)
 from opt_targeted_transfers.density_estimation import (
     get_cond_density_estimator,
     get_nll,

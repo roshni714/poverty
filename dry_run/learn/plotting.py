@@ -525,6 +525,9 @@ def get_macros_relative_cost(
 
     percentage_feasible_global_gdp = 100 * policy_cost / global_gdp
     percentage_oracle_global_gdp = 100 * oracle_cost / global_gdp
+    import pdb
+
+    pdb.set_trace()
     percentage_feasible_quadratic_global_gdp = (
         100 * extrapolated_quadratic_cost / global_gdp
     )
@@ -704,18 +707,20 @@ def plot_bar_chart_ubi_ratio(countries, metadata, save_as):
         res.append(
             {
                 "country_code": country,
-                "ratio_of_ubi_and_targeting": ubi_cost / targeting_cost,
+                "ratio_of_usi_and_targeting": ubi_cost / targeting_cost,
             }
         )
 
     df = pd.DataFrame(res)
-    df.sort_values(by=["ratio_of_ubi_and_targeting"], ascending=False, inplace=True)
+    df.to_csv(f"{save_as}.csv", index=False)
+    print(df)
+    df.sort_values(by=["ratio_of_usi_and_targeting"], ascending=False, inplace=True)
     fontsize = 30
     plt.figure(figsize=(30, 8))
 
     plt.bar(
         [get_country_name(c, metadata) for c in df["country_code"]],
-        df["ratio_of_ubi_and_targeting"],
+        df["ratio_of_usi_and_targeting"],
         zorder=3,
     )
     plt.grid(axis="y", zorder=0)
@@ -733,7 +738,7 @@ def plot_bar_chart_ubi_ratio(countries, metadata, save_as):
         [cont_gap_results[i].initial_rate for i in range(len(countries))]
     ).reshape(-1, 1)
     ubi_ratios = np.array(
-        [res[i]["ratio_of_ubi_and_targeting"] for i in range(len(countries))]
+        [res[i]["ratio_of_usi_and_targeting"] for i in range(len(countries))]
     ).reshape(-1, 1)
     plt.scatter(
         initial_rates.flatten(), ubi_ratios.flatten(), marker="o", s=100, zorder=3
@@ -981,6 +986,106 @@ def get_percentages(countries, metadata):
     )
 
 
+def get_extrapolation_comparison(countries, metadata):
+    extrapolation_wpc = ExtrapolationResults(
+        countries,
+        insample_data_source="wpc",
+        outofsample_data_source="wpc",
+        metadata=metadata,
+        degree=1,
+    )
+    extrapolation_wpc.fit_regression_model()
+
+    insample_wpc = extrapolation_wpc.get_in_sample_costs(
+        survey_year=False, use_reg=True
+    )
+    insample_wpc.to_latex("exhibits/extrapolation_wpc_215_insample.tex", index=False)
+
+    insample_policy_cost_wpc = insample_wpc["Policy Cost"].loc["Total"]
+    outofsample_wpc = extrapolation_wpc.get_out_of_sample_costs()
+    outofsample_wpc.to_latex(
+        "exhibits/extrapolation_wpc_215_outofsample.tex", index=False
+    )
+    outofsample_policy_cost_wpc = outofsample_wpc["Policy Cost"].loc["Total"]
+
+    total_policy_cost_wpc = insample_policy_cost_wpc + outofsample_policy_cost_wpc
+
+    extrapolation_wb = ExtrapolationResults(
+        countries,
+        insample_data_source="wb",
+        outofsample_data_source="wb",
+        metadata=metadata,
+        degree=1,
+    )
+
+    extrapolation_wb.fit_regression_model()
+
+    insample_wb = extrapolation_wb.get_in_sample_costs(survey_year=False, use_reg=True)
+    insample_wb.to_latex("exhibits/extrapolation_wb_215_insample.tex", index=False)
+    insample_policy_cost_wb = insample_wb["Policy Cost"].loc["Total"]
+    outofsample_policy_cost_wb = extrapolation_wb.get_out_of_sample_costs()
+    outofsample_policy_cost_wb.to_latex(
+        "exhibits/extrapolation_wb_215_outofsample.tex", index=False
+    )
+    outofsample_policy_cost_wb = outofsample_policy_cost_wb["Policy Cost"].loc["Total"]
+
+    total_policy_cost_wb = insample_policy_cost_wb + outofsample_policy_cost_wb
+
+    print(
+        "WPC: Insample Policy Cost: {}, Out-of-sample Policy Cost: {}, Total Policy Cost: {}".format(
+            insample_policy_cost_wpc, outofsample_policy_cost_wpc, total_policy_cost_wpc
+        )
+    )
+
+    print(
+        "WB: Insample Policy Cost: {}, Out-of-sample Policy Cost: {}, Total Policy Cost: {}".format(
+            insample_policy_cost_wb, outofsample_policy_cost_wb, total_policy_cost_wb
+        )
+    )
+
+    metadata_new = Metadata(
+        povertyline=3,
+        year=2021,
+        nationalPovertyRate=metadata.nationalPovertyRate,
+        globalPovertyRate=metadata.globalPovertyRate,
+        auxpath=metadata.auxpath,
+        secondaryauxpath=metadata.secondaryauxpath,
+        wpcpath=metadata.wpcpath,
+        restricted_feature_set=False,
+        refugeepath=metadata.refugeepath,
+    )
+
+    extrapolation_wb_3 = ExtrapolationResults(
+        countries,
+        insample_data_source="wb",
+        outofsample_data_source="wb",
+        metadata=metadata_new,
+        degree=1,
+    )
+
+    extrapolation_wb_3.fit_regression_model()
+
+    insample_wb_3 = extrapolation_wb_3.get_in_sample_costs(
+        survey_year=False, use_reg=True
+    )
+    insample_policy_cost_wb_3 = insample_wb_3["Policy Cost"].loc["Total"]
+    insample_wb_3.to_latex("exhibits/extrapolation_wb_3_insample.tex", index=False)
+    outofsample_wb_3 = extrapolation_wb_3.get_out_of_sample_costs()
+    outofsample_wb_3.to_latex(
+        "exhibits/extrapolation_wb_3_outofsample.tex", index=False
+    )
+    outofsample_policy_cost_wb_3 = outofsample_wb_3["Policy Cost"].loc["Total"]
+
+    total_policy_cost_wb_3 = insample_policy_cost_wb_3 + outofsample_policy_cost_wb_3
+    print(
+        "WB $3 poverty: Insample Policy Cost: {}, Out-of-sample Policy Cost: {}, Total Policy Cost: {}".format(
+            insample_policy_cost_wb_3,
+            outofsample_policy_cost_wb_3,
+            total_policy_cost_wb_3,
+        )
+    )
+
+
 def get_extrapolation(countries, metadata, save_as=None):
 
     extrapolation = ExtrapolationResults(
@@ -1043,6 +1148,39 @@ def plot_scatter_poverty_countries(countries, metadata, save_as):
         metadata=metadata,
     )
     extrapolation.plot_figure(save_as=save_as)
+
+
+def get_number_of_people_targeted(countries, metadata, save_as):
+
+    method_results = [
+        CountryMethodPovertyResults(country, method="continuous_gap", metadata=metadata)
+        for country in countries
+    ]
+
+    number_targeted = []
+    pops = []
+    aux_df = metadata.preprocess_country_aux_data()
+
+    for i, country in enumerate(countries):
+        interpolator = method_results[i].get_number_of_people_targeted()
+        number_targeted.append(interpolator(metadata.nationalPovertyRate).item())
+        total_population = aux_df[aux_df["country_code"] == country][
+            "total_population_survey_year"
+        ].values[0]
+        pops.append(total_population)
+
+    df = pd.DataFrame(
+        {
+            "country_code": countries,
+            "population_targeted": np.round(np.array(number_targeted), 0),
+            "total_population_survey_year": pops,
+        }
+    )
+
+    if save_as:
+        df.to_csv(f"{save_as}.csv", index=False)
+
+    return df
 
 
 def make_macro_file(countries, metadata, save_as):
