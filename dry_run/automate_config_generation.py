@@ -61,6 +61,9 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
     modern_pmt_config["modern_pmt"] = default_nn_config.copy()
     del modern_pmt_config["modern_pmt"]["n_regressors"]
 
+    welfare_config = base_config.copy()
+    welfare_config["welfare"] = default_nn_config.copy()
+
     pmt_config = base_config.copy()
     pmt_config["pmt"] = {
         "transfer_value": 2.15,
@@ -100,6 +103,7 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
         "gt_continuous_gap",
         "gt_modern_pmt",
         "gt_pmt",
+        "gt_welfare"
     ]
     configs = [
         continuous_rate_config,
@@ -108,6 +112,7 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
         continuous_gap_config,
         modern_pmt_config,
         pmt_config,
+        welfare_config
     ]
 
     for i, name in enumerate(names):
@@ -122,28 +127,26 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
         yaml.dump(ubi_config, file, default_flow_style=False)
 
 
-# countries = [
-#     "BEN",
-#     "BFA",
-#     "BGD",
-#     "CIV",
-#     "GHA",
-#     "ETH",
-#     "GNB",
-#     "KEN",
-#     "MDG",
-#     "MWI",
-#     "MLI",
-#     "NER",
-#     "NGA",
-#     "RWA",
-#     "SEN",
-#     "TZA",
-#     "ZAF",
-#     "TGO",
-#     "UGA",
-# ]
 countries = [
+    "BEN",
+    "BFA",
+    "BGD",
+    "CIV",
+    "GHA",
+    "ETH",
+    "GNB",
+    "KEN",
+    "MDG",
+    "MWI",
+    "MLI",
+    "NER",
+    "NGA",
+    "RWA",
+    "SEN",
+    "TZA",
+    "ZAF",
+    "TGO",
+    "UGA",
     "BDI",
     "BGD",
     "CAF",

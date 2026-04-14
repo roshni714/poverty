@@ -2,6 +2,7 @@ from opt_targeted_transfers import (
     BinaryRateTargetedTransfers,
     BinaryGapTargetedTransfers,
     GapTargetedTransfers,
+    WelfareTargetedTransfers,
 )
 from opt_targeted_transfers import Dataset, split
 import pandas as pd
@@ -58,6 +59,9 @@ def get_optimal_n_regressors(
     elif loss_type == "continuous_gap":
         TT = GapTargetedTransfers
         metric = "post_transfer_poverty_gap"
+    elif loss_type == "welfare":
+        TT = WelfareTargetedTransfers
+        metric = "post_transfer_welfare"
 
     results = []
     for trial in range(3):

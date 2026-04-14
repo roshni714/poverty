@@ -19,10 +19,10 @@ GPU_SBATCH_PREFACE = """#!/bin/bash
 
 
 SBATCH_PREFACE = """#!/bin/bash
-#SBATCH -t 72:00:00             # limit of 1 day runtime
+#SBATCH -t 60:00:00             # limit of 1 day runtime
 #SBATCH -c 1
 #SBATCH --mem 10GB
-#SBATCH -p long
+#SBATCH -p normal
 #SBATCH --exclude=yen15
 #SBATCH --ntasks-per-node=1
 #SBATCH --job-name="{}.sh"

@@ -12,6 +12,7 @@ from hparam.n_regressors_hparam_search import get_optimal_n_regressors
 from hparam.nn_hparam_search import (
     get_optimal_nn_quantile_regression_parameters,
     get_optimal_nn_improvement_parameters,
+    get_optimal_nn_welfare_parameters,
     get_optimal_nn_pmt_parameters,
     get_optimal_lasso_parameters,
 )
@@ -219,6 +220,41 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         print(opt_nn_hparams)
         opt_hparams["modern_pmt"]["neural_network"] = opt_nn_hparams
         opt_hparams["modern_pmt"]["transfer_value"] = data_config_params["povertyline"]
+    
+    if "welfare" in config_hparams:
+        opt_hparams["welfare"] = {}
+        welfare = config_hparams["welfare"]
+        opt_nn_hparams = get_optimal_nn_welfare_parameters(
+            loss_type="welfare",
+            povertyline=data_config_params["povertyline"],
+            nn_hparam_ranges=welfare["neural_network"],
+            data_generator=train_data_generator,
+            device=device,
+            original_cols=original_cols,
+            ntrain=ntrain,
+            val_df=val_df,
+            outcome=outcome,
+            weight=weight,
+            savepath=f"{savedir}/nn_{name}.csv",
+        )
+        print(opt_nn_hparams)
+        opt_hparams["welfare"]["neural_network"] = opt_nn_hparams
+
+        opt_n_regressors = get_optimal_n_regressors(
+            welfare["n_regressors"],
+            loss_type="welfare",
+            povertyline=data_config_params["povertyline"],
+            data_generator=train_data_generator,
+            device=device,
+            original_cols=original_cols,
+            ntrain=ntrain,
+            val_df=val_df,
+            outcome=outcome,
+            weight=weight,
+            neural_network_params=opt_nn_hparams,
+            savepath=f"{savedir}/n_regressors_{name}.csv",
+        )
+        opt_hparams["welfare"]["n_regressors"] = opt_n_regressors
 
     if "pmt" in config_hparams:
         opt_hparams["pmt"] = {}

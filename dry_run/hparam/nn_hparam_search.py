@@ -6,6 +6,7 @@ from opt_targeted_transfers import (
     get_conditional_improvement_regressor,
     get_conditional_improvement_loss,
     get_pmt_nn_regressor,
+    get_conditional_marginal_utility_estimator,
     get_pmt_lasso_regressor,
     get_mse_loss,
 )
@@ -83,6 +84,96 @@ def get_optimal_lasso_parameters(
     optimal_params = df.loc[df["loss"].idxmin()].to_dict()
     del optimal_params["loss"]
     del optimal_params["trial"]
+    return optimal_params
+
+
+def get_optimal_nn_welfare_parameters(
+    nn_hparam_ranges,
+    data_generator,
+    val_df,
+    device,
+    original_cols,
+    ntrain,
+    outcome,
+    weight,
+    savepath,
+):
+    """
+    Get optimal neural network hyperparameters for welfare maximization.
+
+    Args:
+        nn_hparam_ranges (dict): Hyperparameter ranges for neural network.
+        data_generator (generator): Data generator.
+        device (str): Device to train the neural network on.
+        original_cols (list): Original columns before one-hot encoding.
+        ntrain (int): Number of training samples.
+        outcome (str): Outcome variable.
+        weight (str): Weight variable.
+        savepath (str): Path to save results.
+    Returns:
+        opt_params: Optimal hyperparameters for neural network.
+    """
+
+    if "n_layers" in nn_hparam_ranges:
+        n_layers_range = nn_hparam_ranges["n_layers"]
+    else:
+        n_layers_range = [1]
+
+    if "n_hidden_units" in nn_hparam_ranges:
+        n_hidden_units_range = nn_hparam_ranges["n_hidden_units"]
+    else:
+        n_hidden_units_range = [2 ** round(np.log(original_cols), 1)]
+    if "lr" in nn_hparam_ranges:
+        lr_range = nn_hparam_ranges["lr"]
+    else:
+        lr_range = [5e-3]
+
+    results = []
+
+    for trial in range(3):
+        train_df = data_generator(nsamples=ntrain, seed=54734234 + trial)
+        covs = original_cols.copy()
+        covs.remove(outcome)
+        covs.remove(weight)
+        train_dataset = Dataset(train_df, outcome=outcome, weight=weight, covs=covs)
+        big_val_dataset = Dataset(val_df, outcome=outcome, weight=weight, covs=covs)
+        new_train_dataset, new_val_dataset = split(train_dataset)
+        for n_layers in n_layers_range:
+            for n_hidden_units in n_hidden_units_range:
+                for lr in lr_range:
+                    print(
+                        f"Training neural network with {n_layers} layers, {n_hidden_units} hidden units, and learning rate {lr} during trial {trial}..."
+                    )
+                    model = get_conditional_marginal_utility_estimator(
+                        train_dataset=new_train_dataset,
+                        validation_dataset=new_val_dataset,
+                        utility_deriv_func= lambda x: 1/x,
+                        t=1.,
+                        n_layers=n_layers,
+                        n_hidden_units=n_hidden_units,
+                        lr=lr,
+                        device=device
+                    )
+                    loss = get_mse_loss(
+                        predictor=model, validation_dataset=big_val_dataset
+                    ).item()
+                    results.append(
+                        {
+                            "n_layers": n_layers,
+                            "n_hidden_units": n_hidden_units,
+                            "lr": lr,
+                            "loss": loss,
+                            "trial": trial,
+                        }
+                    )
+    df = pd.DataFrame.from_records(results)
+    df.to_csv(savepath, index=False)
+    df = df.groupby(["n_layers", "n_hidden_units", "lr"]).mean().reset_index()
+    optimal_params = df.loc[df["loss"].idxmin()].to_dict()
+    del optimal_params["loss"]
+    del optimal_params["trial"]
+    for hparam in ["n_hidden_units", "n_layers"]:
+        optimal_params[hparam] = int(optimal_params[hparam])
     return optimal_params
 
 

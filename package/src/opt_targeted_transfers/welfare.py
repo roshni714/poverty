@@ -131,13 +131,12 @@ def get_conditional_marginal_utility_estimator(
 class WelfareTargetedTransfers(TargetedTransfers):
 
     def __init__(self, c_bar, budget):
-        super().__init__(c_bar=c_bar, budget=budget)
+        super().__init__(c_bar=c_bar, budget=budget, n_regressors=20)
         self.utility_func = lambda x: np.log(x)
         self.utility_derivative_func = lambda x: 1/x
         self.budget = budget
         self.name = "welfare"
-
-        self.n_regressors = 20
+        self.n_regressors = n_regressors
         self.candidate_t_values = np.linspace(0.01, 10, self.n_regressors)
     
     def _get_assignments_for_lambda(self, X, transfer_marginal_utility_grid, lambda_):
