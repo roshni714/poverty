@@ -103,7 +103,7 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
         "gt_continuous_gap",
         "gt_modern_pmt",
         "gt_pmt",
-        "gt_welfare"
+        "gt_welfare",
     ]
     configs = [
         continuous_rate_config,
@@ -112,7 +112,7 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
         continuous_gap_config,
         modern_pmt_config,
         pmt_config,
-        welfare_config
+        welfare_config,
     ]
 
     for i, name in enumerate(names):

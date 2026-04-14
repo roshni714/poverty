@@ -57,6 +57,7 @@ def post_transfer_metrics(test_dataset, assignments, c_bar):
         pov_gap = 0.0
         pov_rate = 0.0
         cost = 0.0
+        welfare = 0.0
         for j in range(len(assignments[i])):
             transfer_amt = assignments[i][j][0]
             prob = assignments[i][j][1]

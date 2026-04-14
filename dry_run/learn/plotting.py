@@ -986,6 +986,29 @@ def get_percentages(countries, metadata):
     )
 
 
+def get_welfare_comparison(countries, metadata):
+
+    # take the amount it would cost to get a 1% poverty rate in each country
+    # how much could welfare be maximized.
+    res = AggregatePovertyResults(countries, method="continuous_gap", metadata=metadata)
+    weights = res.country_weights
+    weighted_avg_ratio = 0.0
+    for country in countries:
+        cont_gap = CountryMethodPovertyResults(
+            country=country, method="continuous_gap", metadata=metadata
+        )
+        welfare_max = CountryMethodPovertyResults(
+            country=country, method="welfare", metadata=metadata
+        )
+        initial_welfare = cont_gap.initial_welfare
+        gap_policy_cost = cont_gap.rate_to_cost_interpolator(1)
+        gap_welfare = cont_gap.cost_to_welfare_interpolator(gap_policy_cost)
+        welfare_welfare = welfare_max.cost_to_welfare_interpolator(gap_policy_cost)
+        ratio = (gap_welfare - initial_welfare) / (welfare_welfare - initial_welfare)
+        weighted_avg_ratio += ratio * weights[country]
+    return weighted_avg_ratio
+
+
 def get_extrapolation_comparison(countries, metadata):
     extrapolation_wpc = ExtrapolationResults(
         countries,

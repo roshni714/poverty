@@ -147,12 +147,12 @@ def get_optimal_nn_welfare_parameters(
                     model = get_conditional_marginal_utility_estimator(
                         train_dataset=new_train_dataset,
                         validation_dataset=new_val_dataset,
-                        utility_deriv_func= lambda x: 1/x,
-                        t=1.,
+                        utility_deriv_func=lambda x: 1 / x,
+                        t=1.0,
                         n_layers=n_layers,
                         n_hidden_units=n_hidden_units,
                         lr=lr,
-                        device=device
+                        device=device,
                     )
                     loss = get_mse_loss(
                         predictor=model, validation_dataset=big_val_dataset

@@ -41,7 +41,7 @@ class TargetedTransfers:
 
     def __init__(
         self,
-        c_bar=3.,
+        c_bar=3.0,
         budget=None,
     ):
         self.c_bar = c_bar

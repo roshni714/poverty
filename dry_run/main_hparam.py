@@ -220,13 +220,11 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         print(opt_nn_hparams)
         opt_hparams["modern_pmt"]["neural_network"] = opt_nn_hparams
         opt_hparams["modern_pmt"]["transfer_value"] = data_config_params["povertyline"]
-    
+
     if "welfare" in config_hparams:
         opt_hparams["welfare"] = {}
         welfare = config_hparams["welfare"]
         opt_nn_hparams = get_optimal_nn_welfare_parameters(
-            loss_type="welfare",
-            povertyline=data_config_params["povertyline"],
             nn_hparam_ranges=welfare["neural_network"],
             data_generator=train_data_generator,
             device=device,

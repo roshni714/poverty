@@ -6,12 +6,13 @@ import numpy as np
 import torch
 import tqdm
 import copy
+from scipy.interpolate import interp1d
 
 
 def get_conditional_marginal_utility_estimator(
     train_dataset,
     validation_dataset,
-    utility_derivative_func,
+    utility_deriv_func,
     t,
     n_layers=1,
     n_hidden_units=64,
@@ -51,9 +52,9 @@ def get_conditional_marginal_utility_estimator(
     X_val, y_val, r_val = validation_dataset.get_data()
     X_train, X_mean, X_std = standardize(X_train)
     X_val = (X_val - X_mean) / X_std
-    
-    benefits_train = utility_derivative_func(y_train + t)
-    benefits_val = utility_derivative_func(y_val + t)
+
+    benefits_train = utility_deriv_func(y_train + t)
+    benefits_val = utility_deriv_func(y_val + t)
 
     assert np.min(benefits_train) >= 0
     assert np.min(benefits_val) >= 0
@@ -123,36 +124,45 @@ def get_conditional_marginal_utility_estimator(
                 .numpy()
                 .flatten()
             )
-
-        return np.maximum(predicted_benefits, 0)
+        if t != 0:
+            return np.maximum(np.minimum(predicted_benefits, 1 / t), 0)
+        else:
+            return np.maximum(predicted_benefits, 0)
 
     return estimator
 
+
 class WelfareTargetedTransfers(TargetedTransfers):
 
-    def __init__(self, c_bar, budget):
-        super().__init__(c_bar=c_bar, budget=budget, n_regressors=20)
+    def __init__(self, c_bar=3, budget=None, n_regressors=20):
+        super().__init__(c_bar=c_bar, budget=budget)
         self.utility_func = lambda x: np.log(x)
-        self.utility_derivative_func = lambda x: 1/x
+        self.utility_deriv_func = lambda x: 1 / x
         self.budget = budget
         self.name = "welfare"
         self.n_regressors = n_regressors
-        self.candidate_t_values = np.linspace(0.01, 10, self.n_regressors)
-    
-    def _get_assignments_for_lambda(self, X, transfer_marginal_utility_grid, lambda_):
+        self.max_transfer_size = 32
+        self.candidate_t_values = np.logspace(
+            -2, 5, base=2, num=self.n_regressors
+        )  # np.concatenate((np.array([0.]), np.logspace(-2, 5, base=2, num=self.n_regressors - 1)))
+
+    def _get_assignments_for_lambda(self, X, interpolators, ranges, lambda_):
 
         # transfer_marginal_utility_grid is num_transfer_sizes x n
         # for each household, find the transfer size with the largest marginal utility below lambda
-        grid_less_than_lambda = transfer_marginal_utility_grid <= lambda_
-        # get index of largest transfer size with marginal utility above lambda
-        idx = np.maximum(np.sum(grid_less_than_lambda, axis=1) - 1, 0)
-        assert np.all(idx >= 0)
-        assignments = {i: [(self.candidate_t_values[idx[i]], 1.0)] for i in range(X.shape[0])}
+        pred = []
+        for i in range(len(X)):
+            if lambda_ < ranges[i][0]:
+                pred.append(self.max_transfer_size)
+            elif lambda_ > ranges[i][1]:
+                pred.append(0.0)
+            else:
+                pred.append(interpolators[i](np.array([lambda_])).item())
+        assignments = {i: [(pred[i], 1.0)] for i in range(X.shape[0])}
         return assignments
 
-
-
-    def fit(self,
+    def fit(
+        self,
         train_dataset,
         validation_dataset,
         n_layers=1,
@@ -166,71 +176,75 @@ class WelfareTargetedTransfers(TargetedTransfers):
         # For each transfer size t, fit conditional marginal utility estimator
         self.t_to_household_estimator_map = dict()
         for transfer_size in self.candidate_t_values:
-            self.t_to_household_estimator_map[transfer_size] = get_conditional_marginal_utility_estimator(
-                train_dataset,
-                validation_dataset=validation_dataset,
-                t=transfer_size,
-                utility_derivative_func=self.utility_derivative_func,
-                n_layers=n_layers,
-                n_hidden_units=n_hidden_units,
-                lr=lr,
-                n_epochs=n_epochs,
-                seed=seed,
-                device=device,
+            self.t_to_household_estimator_map[transfer_size] = (
+                get_conditional_marginal_utility_estimator(
+                    train_dataset,
+                    validation_dataset=validation_dataset,
+                    t=transfer_size,
+                    utility_deriv_func=self.utility_deriv_func,
+                    n_layers=n_layers,
+                    n_hidden_units=n_hidden_units,
+                    lr=lr,
+                    n_epochs=n_epochs,
+                    seed=seed,
+                    device=device,
+                )
             )
-    
-    def run_opt(self, test_covariate_dataset):
+
+    def run_opt(self, test_covariate_dataset, tol=1e-3):
         X_test, _ = test_covariate_dataset.get_data()
 
         res = []
-        lambda_min = float("inf")
-        lambda_max = 0
         for transfer_size in self.candidate_t_values:
             household_estimator = self.t_to_household_estimator_map[transfer_size]
             predicted_benefits = household_estimator(X_test)
-            lambda_min = min(lambda_min, np.min(predicted_benefits))
-            lambda_max = max(lambda_max, np.max(predicted_benefits))
             res.append(predicted_benefits)
-        transfer_marginal_utility_grid = np.array(res).T # num_transfer_sizes x n_train
-        
+        transfer_marginal_utility_grid = np.array(res).T  # num_transfer_sizes x n_train
+
+        interpolators = []
+        ranges = []
+        for i in range(transfer_marginal_utility_grid.shape[0]):
+            xs = sorted(
+                transfer_marginal_utility_grid[i, :], reverse=True
+            )  # "rearrangement" to handle nonmonotonicity
+            xs, unique_indices = np.unique(xs, return_index=True)
+            candidate_t_values = self.candidate_t_values[unique_indices]
+            interpolator = interp1d(xs, candidate_t_values)
+            assert np.all(np.diff(interpolator.x) > 0)
+            interpolators.append(interpolator)
+            ranges.append(
+                (
+                    transfer_marginal_utility_grid[i, :].min() + tol,
+                    transfer_marginal_utility_grid[i, :].max() - tol,
+                )
+            )
+
+        lambda_min = transfer_marginal_utility_grid.min()
+        lambda_max = transfer_marginal_utility_grid.max()
         lambda_mid = (lambda_min + lambda_max) / 2
-        assignments = self._get_assignments_for_lambda(X_test, transfer_marginal_utility_grid, lambda_mid)
+
+        assignments = self._get_assignments_for_lambda(
+            X_test, interpolators, ranges, lambda_mid
+        )
         lamb_cost = policy_cost(test_covariate_dataset, assignments)
 
         low = lambda_min
         high = lambda_max
         lambda_value = lambda_mid
-
+        i = 0
         while np.abs(lamb_cost - self.budget) > 1e-3:
             if lamb_cost > self.budget:
-                high = lambda_value
-            else:
                 low = lambda_value
+            else:
+                high = lambda_value
             next_lambda_value = (high + low) / 2
-            assignments = self._get_assignments_for_lambda(X_test, transfer_marginal_utility_grid, next_lambda_value)
+            assignments = self._get_assignments_for_lambda(
+                X_test, interpolators, ranges, next_lambda_value
+            )
             next_lamb_cost = policy_cost(test_covariate_dataset, assignments)
             lambda_value = next_lambda_value
             lamb_cost = next_lamb_cost
-            print(f"lambda: {lambda_value}, cost: {lamb_cost}", high, low)
-        
+            i += 1
+            print(i, f"lambda: {lambda_value}, cost: {lamb_cost}", high, low)
         self.assignments = assignments
         return assignments
-
-
-        
-
-        
-        
-
-
-
-        
-
-
-        
-        
-        
-
-
-
-    

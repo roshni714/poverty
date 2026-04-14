@@ -19,7 +19,7 @@ GPU_SBATCH_PREFACE = """#!/bin/bash
 
 
 SBATCH_PREFACE = """#!/bin/bash
-#SBATCH -t 60:00:00             # limit of 1 day runtime
+#SBATCH -t 10:00:00             # limit of 1 day runtime
 #SBATCH -c 1
 #SBATCH --mem 10GB
 #SBATCH -p normal
@@ -31,7 +31,7 @@ SBATCH_PREFACE = """#!/bin/bash
 """
 
 OUTPUT_PATH = (
-    "/home/users/rsahoo/zfs/projects/faculty/swager-poverty/poverty/dry_run/scripts"
+    "/home/users/rsahoo/zfs/projects/faculty/swager-poverty/poverty/dry_run/scripts2"
 )
 
 
@@ -109,20 +109,20 @@ def generate_learn_run_2017_restricted_features_povertyline():
 def generate_learn_run_2017_povertyline():
 
     countries = [
-        #    "BDI",
-        #    "BGD",
-        #    "CAF",
-        #    "COD",
-        #    "GHA",
-        #    "IDN",
-        #    "IND",
-        #    "LBR",
-        #    "MDG",
+        "BDI",
+        "BGD",
+        "CAF",
+        "COD",
+        "GHA",
+        "IDN",
+        "IND",
+        "LBR",
+        "MDG",
         "MEX",
-        #   "PAK",
-        #   "RWA",
+        "PAK",
+        "RWA",
         "SDN",
-        #    "TLS",
+        "TLS",
         "ZWE",
     ]
     geo_extrapolation = [True]
@@ -211,16 +211,30 @@ def generate_learn_run_2021_povertyline():
 
 def generate_hparam_run():
     countries = [
-        "IND",
+        "BDI",
+        "BGD",
+        "CAF",
+        "COD",
+        "GHA",
         "IDN",
+        "IND",
+        "LBR",
+        "MDG",
+        "MEX",
+        "PAK",
+        "RWA",
+        "SDN",
+        "TLS",
+        "ZWE",
     ]
 
     geo_extrapolation = [True]
     configs = [
-        "gt_continuous_rate.yaml",
-        # "gt_binary_rate.yaml",
-        # "gt_binary_gap.yaml",
-        "gt_continuous_gap.yaml",
+        "gt_welfare.yaml"
+        # "gt_continuous_rate.yaml",
+        # # "gt_binary_rate.yaml",
+        # # "gt_binary_gap.yaml",
+        # "gt_continuous_gap.yaml",
     ]
 
     for country in countries:
