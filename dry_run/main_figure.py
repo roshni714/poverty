@@ -9,7 +9,7 @@ from learn import (
     get_table_policy_cost_gdp,
     plot_bar_chart_ubi_ratio,
     plot_bar_chart_oracle_ratio,
-    get_table_wpc,
+    get_table_share_world_poor,
     get_extrapolation,
     get_table_survey_info,
     make_macro_file,
@@ -24,7 +24,8 @@ import argh
 METHODS_ALL = [
     # "welfare",
     "ubi",
-    "modern_pmt",
+    # "modern_pmt",
+    "pmt_gap",
     "pmt",
     "binary_gap",
     "continuous_gap",
@@ -36,6 +37,7 @@ METHODS_HEADLINE = [
     "ubi",
     # "modern_pmt",
     "pmt",
+    # "pmt_gap",
     "binary_gap",
     "continuous_gap",
     "oracle_gap",
@@ -49,9 +51,10 @@ COUNTRIES = [
     "BEN",
     "BFA",
     "BGD",
+    "CAF",
     "CIV",
-    "COL",
     "COD",
+    "COL",
     "ETH",
     "GHA",
     "GNB",
@@ -63,16 +66,15 @@ COUNTRIES = [
     "MLI",
     "MEX",
     "MWI",
+    "NGA",
     "NER",
     "PAK",
-    "NGA",
     "RWA",
     "SDN",
     "SEN",
     "TGO",
     "TLS",
     "TZA",
-    "ZAF",
     "UGA",
     "YEM",
     "ZAF",
@@ -168,8 +170,8 @@ def get_appendix_table_survey(metadata):
     )
 
 
-def get_appendix_table_wpc(metadata):
-    get_table_wpc(
+def get_appendix_table_share_world_poor(metadata):
+    get_table_share_world_poor(
         COUNTRIES,
         metadata=metadata,
         save_as="exhibits/year={}/tables/appendix-table-2-wpc".format(metadata.year),
@@ -244,14 +246,14 @@ def get_headline_figure_3_dollar(metadata):
     )
 
 
-def get_table_extrapolation(metadata):
-    total_cost, _, _, _, _, _, _, _ = get_extrapolation(
-        COUNTRIES,
-        metadata=metadata,
-        save_as="exhibits/year={}/tables/appendix-table-4-extrapolation".format(
-            metadata.year
-        ),
-    )
+# def get_table_extrapolation(metadata):
+#     extrapolation_results = get_extrapolation(
+#         COUNTRIES,
+#         metadata=metadata,
+#         save_as="exhibits/year={}/tables/appendix-table-4-extrapolation-wb".format(
+#             metadata.year
+#         ),
+#     )
 
 
 def get_rate_vs_gap_dimension_figure_8(metadata):
@@ -554,26 +556,24 @@ def main(
 
     # get_pop_targeted_aux_data(metadata)
 
-    # get_togo_rate_vs_gap_figure_1(metadata)
-    # get_headline_figure_2(metadata)
-    # get_rate_vs_gap_headline_figure_3(metadata)
-    # get_oracle_ratio_figure_4(metadata)
-    # get_ubi_ratio_figure_5(metadata)
-    # get_gdp_plot_figure_6(metadata)
-    # get_headline_figure_3_dollar(metadata)
-    # get_scatter_figure_7(metadata)
-    # get_rate_vs_gap_dimension_figure_8(metadata)
-    # get_table_extrapolation(metadata)
-    # # get_appendix_table_out_of_sample_rmse()
-    # get_appendix_table_survey(metadata)
-    # get_appendix_table_wpc(metadata)
-    # get_appendix_table_policy_cost_insample(metadata)
+    get_togo_rate_vs_gap_figure_1(metadata)
+    get_headline_figure_2(metadata)
+    get_rate_vs_gap_headline_figure_3(metadata)
+    get_oracle_ratio_figure_4(metadata)
+    get_ubi_ratio_figure_5(metadata)
+    get_gdp_plot_figure_6(metadata)
+    get_headline_figure_3_dollar(metadata)
+    get_scatter_figure_7(metadata)
+    get_rate_vs_gap_dimension_figure_8(metadata)
+    get_appendix_table_survey(metadata)
+    get_appendix_table_share_world_poor(metadata)
+    get_appendix_table_policy_cost_insample(metadata)
     get_country_level_analysis(metadata)
-    # make_macro_file(
-    #     COUNTRIES,
-    #     metadata=metadata,
-    #     save_as="exhibits/empirical_macros",
-    # )
+    make_macro_file(
+        COUNTRIES,
+        metadata=metadata,
+        save_as="exhibits/empirical_macros",
+    )
     # make_presentation_figures(metadata)
 
 

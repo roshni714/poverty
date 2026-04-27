@@ -9,6 +9,7 @@ from opt_targeted_transfers import (
     get_conditional_marginal_utility_estimator,
     get_pmt_lasso_regressor,
     get_mse_loss,
+    get_mse_marginal_utility,
 )
 import pandas as pd
 import numpy as np
@@ -154,8 +155,11 @@ def get_optimal_nn_welfare_parameters(
                         lr=lr,
                         device=device,
                     )
-                    loss = get_mse_loss(
-                        predictor=model, validation_dataset=big_val_dataset
+                    loss = get_mse_marginal_utility(
+                        predictor=model,
+                        utility_deriv_func=lambda x: 1 / x,
+                        transfer=1.0,
+                        validation_dataset=big_val_dataset,
                     ).item()
                     results.append(
                         {

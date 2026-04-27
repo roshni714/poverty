@@ -191,7 +191,7 @@ class WelfareTargetedTransfers(TargetedTransfers):
                 )
             )
 
-    def run_opt(self, test_covariate_dataset, tol=1e-3):
+    def run_opt(self, test_covariate_dataset, tol=1e-2):
         X_test, _ = test_covariate_dataset.get_data()
 
         res = []
@@ -232,11 +232,13 @@ class WelfareTargetedTransfers(TargetedTransfers):
         high = lambda_max
         lambda_value = lambda_mid
         i = 0
-        while np.abs(lamb_cost - self.budget) > 1e-3:
+        while np.abs(lamb_cost - self.budget) > 1e-2:
             if lamb_cost > self.budget:
                 low = lambda_value
             else:
                 high = lambda_value
+            if np.abs(low - high) < 1e-5:
+                break
             next_lambda_value = (high + low) / 2
             assignments = self._get_assignments_for_lambda(
                 X_test, interpolators, ranges, next_lambda_value
@@ -245,6 +247,10 @@ class WelfareTargetedTransfers(TargetedTransfers):
             lambda_value = next_lambda_value
             lamb_cost = next_lamb_cost
             i += 1
-            print(i, f"lambda: {lambda_value}, cost: {lamb_cost}", high, low)
+            print(i, f"lambda: {lambda_value}, budget: {self.budget}, cost: {lamb_cost}", high, low)
+        
+        if np.abs(lamb_cost - self.budget) > 1e-2:
+            import pdb
+            pdb.set_trace()
         self.assignments = assignments
         return assignments

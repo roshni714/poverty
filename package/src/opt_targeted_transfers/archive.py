@@ -1,3 +1,40 @@
+# def _get_threshold_to_receive_transfers(
+#     self,
+#     validation_dataset,
+#     estimated_benefits,
+#     household_idx_ranked_by_benefit,
+#     t,
+#     budget,
+# ):
+#     _, _, r_val = validation_dataset.get_data()
+
+#     pop_weight_receive_transfers = budget / t
+#     weights_ranked_by_benefit = r_val[household_idx_ranked_by_benefit]
+#     cumsum_weights = np.cumsum(weights_ranked_by_benefit)
+#     indicator_receive_transfers = cumsum_weights < pop_weight_receive_transfers
+#     idx_receive_transfers = household_idx_ranked_by_benefit[
+#         indicator_receive_transfers
+#     ]
+#     if len(idx_receive_transfers) == 0:
+#         threshold = np.inf
+#     else:
+#         threshold = estimated_benefits[idx_receive_transfers[-1]]
+#     return threshold
+
+# def _get_indices_to_receive_transfers_threshold(
+#     self, validation_dataset, t, threshold
+# ):
+#     if self.t_to_household_estimator_map is None:
+#         raise ValueError("Need to run fit before a policy can be computed")
+
+#     X_val, _, _ = validation_dataset.get_data()
+
+#     regressor = self.t_to_household_estimator_map[t]
+#     estimated_benefits = regressor(X_val)
+#     idx_receive_transfers = np.where(estimated_benefits > threshold)[0]
+#     return idx_receive_transfers
+
+
 class HybridTargetedTransfers(TargetedTransfers):
     """
     Computes the optimal unconditional targeted transfer policy.

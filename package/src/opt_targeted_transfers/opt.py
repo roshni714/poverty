@@ -866,3 +866,89 @@ class PMTTargetedTransfers(BinaryTargetedTransfers):
             assignments[i] = [(self.transfer_value, 1.0)]
         self.assignments = assignments
         return assignments
+
+class PMTGapTargetedTransfers(BinaryTargetedTransfers):
+    """
+    PMT style targeting with gap-based loss to select transfer amount
+    """
+
+    def __init__(self, c_bar=3.0, budget=None):
+        """
+        :param c_bar: The minimum threshold value (poverty line). Defaults to 3.0.
+        :type c_bar: float
+        """
+
+        super().__init__(c_bar=c_bar, budget=budget)
+        self.name = "pmt_gap"
+        self.candidate_t_values = np.linspace(0.01, self.c_bar, 10)
+
+    def fit(self, train_dataset, validation_dataset, alpha=0.1):
+        """
+        Fitting linear regression
+        """
+
+        self.consumption_predictor = get_pmt_lasso_regressor(
+            train_dataset, validation_dataset, alpha=alpha
+        )
+
+    def get_opt_transfer_sizes_given_budget_grid(self, validation_dataset, budgets):
+        """
+        Computes transfer size for each budget in the list of budgets. Enables calling
+        run_opt for each budget in the list.
+        """
+
+        if self.consumption_predictor is None:
+            raise ValueError("Need to run fit before a policy can be computed")
+        
+        X_val, _, r_val = validation_dataset.get_data()
+        estimated_consumption = self.consumption_predictor(X_val)
+        ordered_households = np.argsort(estimated_consumption)
+
+        # For each budget, select optimal transfer value on the test set
+        self.budget_to_t_map = dict()
+        for budget in budgets:
+            best_t = None
+            poverty_gap = float("inf")
+            candidates_given_budget = reversed(
+                self.candidate_t_values[self.candidate_t_values >= budget]
+            )
+            for t in candidates_given_budget:
+                idx_to_receive_transfers = self._get_indices_to_receive_transfers_exact(
+                    r_val, ordered_households, t, budget
+                )
+                assignments = {i: [(0.0, 1.0)] for i in range(len(validation_dataset))}
+                for i in idx_to_receive_transfers:
+                    assignments[i] = [(t, 1.0)]
+                result = post_transfer_metrics(validation_dataset, assignments, self.c_bar)
+                if result["post_transfer_poverty_gap"] < poverty_gap:
+                    poverty_gap = result["post_transfer_poverty_gap"]
+                    best_t = t
+            assert best_t is not None
+            self.budget_to_t_map[budget] = best_t
+                    
+    def run_opt(self, test_covariate_dataset):
+        if self.budget_to_t_map is None:
+            raise ValueError("Run get_opt_transfer_sizes_given_budget_grid first")
+
+        assert self.budget is not None
+
+        if self.budget not in self.budget_to_t_map.keys():
+            raise ValueError(
+                f"budget {self.budget} was not included provided to get_opt_transfer_sizes_given_budget_grid"
+            )
+
+        X_test, r_test = test_covariate_dataset.get_data()
+
+        best_t = self.budget_to_t_map[self.budget]
+        estimated_consumption = self.consumption_predictor(X_test)
+        ordered_households = np.argsort(estimated_consumption)
+        indices_to_receive_transfers = self._get_indices_to_receive_transfers_exact(
+            r_test, ordered_households, best_t, self.budget
+        )
+
+        assignments = {i: [(0.0, 1.0)] for i in range(len(test_covariate_dataset))}
+        for i in indices_to_receive_transfers:
+            assignments[i] = [(best_t, 1.0)]
+        self.assignments = assignments
+        return assignments
+    

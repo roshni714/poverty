@@ -70,6 +70,10 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
         "lasso": {"alpha": [0, 0.01, 0.1, 1.0]},
     }
 
+    pmt_gap_config = pmt_config.copy()
+    pmt_gap_config["pmt_gap"] = pmt_gap_config.pop("pmt")
+    del pmt_gap_config["pmt_gap"]["transfer_value"]
+
     oracle_config = {
         "oracle_gap": {},
         "data": {
@@ -104,6 +108,7 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
         "gt_modern_pmt",
         "gt_pmt",
         "gt_welfare",
+        "gt_pmt_gap",
     ]
     configs = [
         continuous_rate_config,
@@ -113,6 +118,7 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
         modern_pmt_config,
         pmt_config,
         welfare_config,
+        pmt_gap_config,
     ]
 
     for i, name in enumerate(names):
@@ -131,6 +137,7 @@ countries = [
     "BEN",
     "BFA",
     "BGD",
+    "COL",
     "CIV",
     "GHA",
     "ETH",
@@ -162,6 +169,8 @@ countries = [
     "SDN",
     "TLS",
     "ZWE",
+    "YEM",
+    "ZAF",
 ]
 geo_extrapolation = [True]
 for country in countries:

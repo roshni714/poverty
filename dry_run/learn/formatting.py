@@ -58,4 +58,10 @@ METHODS = {
         "color": "cyan",
         "linestyle": "-",
     },
+    "pmt_gap": {
+        "csv": "output_gt_pmt_gap",
+        "name": "PMT (Lasso) + Gap-Learned Transfer",
+        "color": "brown",
+        "linestyle": "-",
+    },
 }

@@ -236,7 +236,9 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
             savepath=f"{savedir}/nn_{name}.csv",
         )
         print(opt_nn_hparams)
-        opt_hparams["welfare"]["neural_network"] = opt_nn_hparams
+        opt_hparams["welfare"][
+            "neural_network"
+        ] = opt_nn_hparams  # hardcoding the optimal nn hparams for now since the search takes a long time - opt_nn_hparams
 
         opt_n_regressors = get_optimal_n_regressors(
             welfare["n_regressors"],
@@ -271,6 +273,24 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         print(opt_lasso_hparams)
         opt_hparams["pmt"]["lasso"] = opt_lasso_hparams
         opt_hparams["pmt"]["transfer_value"] = data_config_params["povertyline"]
+
+    if "pmt_gap" in config_hparams:
+        opt_hparams["pmt_gap"] = {}
+        pmt_gap = config_hparams["pmt_gap"]
+        opt_lasso_hparams = get_optimal_lasso_parameters(
+            lasso_hparam_ranges=pmt_gap["lasso"],
+            data_generator=train_data_generator,
+            device=device,
+            original_cols=original_cols,
+            ntrain=ntrain,
+            val_df=val_df,
+            outcome=outcome,
+            weight=weight,
+            savepath=f"{savedir}/lasso_{name}.csv",
+        )
+        print(opt_lasso_hparams)
+        opt_hparams["pmt_gap"]["lasso"] = opt_lasso_hparams
+        opt_hparams["pmt_gap"]["transfer_value"] = data_config_params["povertyline"]
 
     with open(f"{savedir}/output_{name}.yaml", "w") as file:
         yaml.dump(opt_hparams, file, default_flow_style=False)

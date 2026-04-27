@@ -6,7 +6,7 @@ from learn.plotting import (
     plot_bar_chart_ubi_ratio,
     plot_bar_chart_oracle_ratio,
     get_table_survey_info,
-    get_table_wpc,
+    get_table_share_world_poor,
     get_extrapolation,
     make_macro_file,
     plot_scatter_poverty_countries,

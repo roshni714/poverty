@@ -13,26 +13,28 @@ from sklearn.preprocessing import PolynomialFeatures
 def get_national_poverty_rate_target(metadata):
     """
     Give a global poverty rate target, compute the corresponding national poverty rate target
-    using WPC 2023 data.
+    using WB 2023 data.
 
     Args:
         metadata: Metadata object containing globalPovertyRate attribute.
     Returns:
         national_poverty_rate_target: float, national poverty rate target corresponding to the global poverty rate
     """
-    df = metadata.preprocess_wpc_data()
-    df = df[df["year"] == 2023]
+    df = metadata.preprocess_country_aux_data()
 
     def global_poverty_rate(national_ceiling):
         national_poverty_rates = np.minimum(
-            df["wpc_poverty_rate"], national_ceiling
+            df["wb_poverty_rate_2023_povertyline_{}".format(metadata.year)],
+            national_ceiling,
         ).to_numpy()
         global_poverty_rate = (
             national_poverty_rates * df["total_population_2023"]
         ).sum() / df["total_population_2023"].sum()
         return global_poverty_rate.item() * 100
 
-    ceilings = np.linspace(0, df["wpc_poverty_rate"].max(), 100)
+    ceilings = np.linspace(
+        0, df["wb_poverty_rate_2023_povertyline_{}".format(metadata.year)].max(), 100
+    )
     global_poverty_rates = [global_poverty_rate(c) for c in ceilings]
     national_poverty_rate_target = interp1d(global_poverty_rates, ceilings)(
         metadata.globalPovertyRate
@@ -49,7 +51,7 @@ class ExtrapolationResults:
         insample_data_source="survey",
         outofsample_data_source="wb",
     ):
-        self.in_sample_countries = countries
+
         self.povertyline = metadata.povertyline
         self.year = metadata.year
         self.globalPovertyRate = metadata.globalPovertyRate
@@ -59,6 +61,19 @@ class ExtrapolationResults:
         self.insample_data_source = insample_data_source
         self.outofsample_data_source = outofsample_data_source
         self.poly_features = PolynomialFeatures(degree=degree, include_bias=True)
+
+        l = []
+        cont_gap_results = [
+            CountryMethodPovertyResults(
+                country, "continuous_gap", metadata=self.metadata
+            )
+            for country in countries
+        ]
+        for i in range(len(countries)):
+            if cont_gap_results[i].initial_rate > self.nationalPovertyRate:
+                l.append(countries[i])
+
+        self.in_sample_countries = l
 
     def get_true_feasible_oracle_costs(self):
         """
@@ -128,7 +143,6 @@ class ExtrapolationResults:
         y = []
 
         aux_data = self.metadata.preprocess_country_aux_data()
-        wpc_df = self.metadata.preprocess_wpc_data()
         for i, country in enumerate(self.in_sample_countries):
             # X.append(wpc_df[
             #    (wpc_df["country_code"] == country) & (wpc_df["year"] == aux_data[aux_data["country_code"] == country]["survey_year"].values[0])
@@ -147,7 +161,7 @@ class ExtrapolationResults:
         self.score = model.score(new_X, y)
         return X, y, model
 
-    def plot_figure(self, save_as):
+    def plot_wb_figure(self, save_as):
         X_insample, y, model = self.fit_regression_model()
         fig, ax = plt.subplots(1, 2, figsize=(20, 8))
         fontsize = 20
@@ -157,34 +171,38 @@ class ExtrapolationResults:
         ax[0].plot(X * 100, model.predict(new_X), "-", color="black")
         ax[0].set_xlabel("Survey Poverty Rate (%)", fontsize=fontsize)
         ax[0].set_ylabel("Feasible/Oracle Ratio", fontsize=fontsize)
-        wpc_data = self.metadata.preprocess_wpc_data()
-        wpc_data = wpc_data[wpc_data["year"] == 2023]
+
+        wb_data = self.metadata.preprocess_country_aux_data()
         nationalPovertyRate = get_national_poverty_rate_target(self.metadata) / 100
-        in_sample_wpc = wpc_data[
-            wpc_data["country_code"].isin(self.in_sample_countries)
+        in_sample_wb = wb_data[wb_data["country_code"].isin(self.in_sample_countries)]
+        out_of_sample_wb = wb_data[
+            ~wb_data["country_code"].isin(self.in_sample_countries)
         ]
-        out_of_sample_wpc = wpc_data[
-            ~wpc_data["country_code"].isin(self.in_sample_countries)
-        ]
-        out_of_sample_wpc = out_of_sample_wpc[
-            out_of_sample_wpc["wpc_poverty_rate"] > nationalPovertyRate
+        out_of_sample_wb = out_of_sample_wb[
+            out_of_sample_wb["wb_poverty_rate_2023_povertyline_{}".format(self.year)]
+            > nationalPovertyRate
         ]
         ax[1].scatter(
-            out_of_sample_wpc["wpc_poverty_rate"] * 100,
-            out_of_sample_wpc["wpc_poverty_gap_index"] * 100,
+            out_of_sample_wb["wb_poverty_rate_2023_povertyline_{}".format(self.year)]
+            * 100,
+            out_of_sample_wb[
+                "wb_poverty_gap_index_2023_povertyline_{}".format(self.year)
+            ]
+            * 100,
             label="Out of Sample Countries",
             s=100,
             alpha=0.5,
         )
         ax[1].scatter(
-            in_sample_wpc["wpc_poverty_rate"] * 100,
-            in_sample_wpc["wpc_poverty_gap_index"] * 100,
+            in_sample_wb["wb_poverty_rate_2023_povertyline_{}".format(self.year)] * 100,
+            in_sample_wb["wb_poverty_gap_index_2023_povertyline_{}".format(self.year)]
+            * 100,
             label="In Sample Countries",
             s=100,
             alpha=0.5,
         )
-        ax[1].set_xlabel("WPC (2023) Poverty Rate (%)", fontsize=fontsize)
-        ax[1].set_ylabel("WPC (2023) Poverty Gap Index (%)", fontsize=fontsize)
+        ax[1].set_xlabel("WB (2023) Poverty Rate (%)", fontsize=fontsize)
+        ax[1].set_ylabel("WB (2023) Poverty Gap Index (%)", fontsize=fontsize)
         for i in range(2):
             ax[i].set_xticklabels(ax[i].get_xticks(), fontsize=fontsize * 0.75)
             ax[i].set_yticklabels(ax[i].get_yticks(), fontsize=fontsize * 0.75)
@@ -446,32 +464,63 @@ class ExtrapolationResults:
         return out_of_sample_cost_df
 
     def get_global_poverty_gap(self):
-        oracle_costs = []
-        wpc_df = self.metadata.preprocess_wpc_data()
-        all_countries = wpc_df["country_code"].unique().tolist()
-        countries_not_included = []
-        for i, country in enumerate(all_countries):
-            conversion_factor = self.get_conversion_factor(country)
-            gap_index_df = wpc_df[
-                (wpc_df["country_code"] == country) & (wpc_df["year"] == 2023)
-            ]
-            if np.isnan(conversion_factor):
-                countries_not_included.append(country)
-                print(
-                    wpc_df[wpc_df["country_code"] == country]["country_name"].values[0],
-                    "invalid conversion factor from WB PIP aux data",
-                )
-                continue
 
-            gap_index = gap_index_df["wpc_poverty_gap_index"].item()
-            oracle_costs.append(gap_index * conversion_factor)
+        if self.insample_data_source == "wb":
+            oracle_costs = []
+            wb_df = self.metadata.preprocess_country_aux_data()
+            all_countries = wb_df["country_code"].unique().tolist()
+            countries_not_included = []
+            for i, country in enumerate(all_countries):
+                conversion_factor = self.get_conversion_factor(country)
+                country_df = wb_df[wb_df["country_code"] == country]
+                gap_index = country_df[
+                    "wb_poverty_gap_index_2023_povertyline_{}".format(self.year)
+                ].item()
+                if np.isnan(conversion_factor):
+                    countries_not_included.append(country)
+                    print(
+                        country_df["country"].values[0],
+                        "invalid conversion factor from WB PIP aux data",
+                    )
+                    continue
 
-        print(
-            "Countries w/ poverty rate > 1% not included in global poverty gap calculation:",
-            countries_not_included,
-        )
-        total_global_poverty_gap = np.sum(oracle_costs)
-        return total_global_poverty_gap, countries_not_included
+                oracle_costs.append(gap_index * conversion_factor)
+
+            print(
+                "Countries w/ poverty rate > 1% not included in global poverty gap calculation:",
+                countries_not_included,
+            )
+            total_global_poverty_gap = np.sum(oracle_costs)
+            return total_global_poverty_gap, countries_not_included
+        elif self.insample_data_source == "wpc":
+            oracle_costs = []
+            wpc_df = self.metadata.preprocess_wpc_data()
+            all_countries = wpc_df["country_code"].unique().tolist()
+            countries_not_included = []
+            for i, country in enumerate(all_countries):
+                conversion_factor = self.get_conversion_factor(country)
+                gap_index_df = wpc_df[
+                    (wpc_df["country_code"] == country) & (wpc_df["year"] == 2023)
+                ]
+                if np.isnan(conversion_factor):
+                    countries_not_included.append(country)
+                    print(
+                        wpc_df[wpc_df["country_code"] == country][
+                            "country_name"
+                        ].values[0],
+                        "invalid conversion factor from WB PIP aux data",
+                    )
+                    continue
+
+                gap_index = gap_index_df["wpc_poverty_gap_index"].item()
+                oracle_costs.append(gap_index * conversion_factor)
+
+            print(
+                "Countries w/ poverty rate > 1% not included in global poverty gap calculation:",
+                countries_not_included,
+            )
+            total_global_poverty_gap = np.sum(oracle_costs)
+            return total_global_poverty_gap, countries_not_included
 
 
 # COUNTRIES = [

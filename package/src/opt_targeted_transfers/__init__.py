@@ -8,6 +8,7 @@ from opt_targeted_transfers.opt import (
     PMTTargetedTransfers,
     UBITargetedTransfers,
     ModernPMTTargetedTransfers,
+    PMTGapTargetedTransfers,
 )
 from opt_targeted_transfers.welfare import (
     WelfareTargetedTransfers,
@@ -31,5 +32,6 @@ from opt_targeted_transfers.prediction import (
     get_pmt_nn_regressor,
     get_pmt_lasso_regressor,
     get_mse_loss,
+    get_mse_marginal_utility
 )
 from opt_targeted_transfers.evaluate import post_transfer_metrics

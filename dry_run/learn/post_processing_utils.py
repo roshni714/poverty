@@ -1,3 +1,4 @@
+import string
 import pandas as pd
 
 
@@ -51,11 +52,17 @@ def get_country_name(code, metadata):
     """
     wpc_aux_data = metadata.preprocess_wpc_data()
     refugee_data = metadata.preprocess_refugee_data()
+    wb_aux_data = metadata.preprocess_country_aux_data()
+
+    wb_aux_data["country_name"] = wb_aux_data["country"].apply(
+        lambda x: string.capwords(x)
+    )
 
     df = pd.concat(
         [
             wpc_aux_data[["country_code", "country_name"]],
             refugee_data[["country_code", "country_name"]],
+            wb_aux_data[["country_code", "country_name"]],
         ]
     ).drop_duplicates()
     df = df[df["country_code"] == code]

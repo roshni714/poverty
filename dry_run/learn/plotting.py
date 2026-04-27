@@ -288,20 +288,22 @@ def get_global_poverty_rate_target(metadata):
 
     :param metadata: Metadata object containing result-specific information
     """
-    df = metadata.preprocess_wpc_data()
-    df = df[df["year"] == 2023]
+    df = metadata.preprocess_country_aux_data()
     national_poverty_rate_target = metadata.nationalPovertyRate / 100
 
     def global_poverty_rate(national_ceiling):
         national_poverty_rates = np.minimum(
-            df["wpc_poverty_rate"], national_ceiling
+            df["wb_poverty_rate_2023_povertyline_{}".format(metadata.year)],
+            national_ceiling,
         ).to_numpy()
         global_poverty_rate = (
             national_poverty_rates * df["total_population_2023"]
         ).sum() / df["total_population_2023"].sum()
         return global_poverty_rate.item() * 100
 
-    ceilings = np.linspace(0, df["wpc_poverty_rate"].max(), 100)
+    ceilings = np.linspace(
+        0, df["wb_poverty_rate_2023_povertyline_{}".format(metadata.year)].max(), 100
+    )
     global_poverty_rates = [global_poverty_rate(c) for c in ceilings]
     global_poverty_rate_target = interp1d(ceilings, global_poverty_rates)(
         national_poverty_rate_target
@@ -488,15 +490,12 @@ def get_table_policy_cost_gdp(countries, metadata, save_as):
     )
 
 
-def get_macros_relative_cost(
-    policy_cost, extrapolated_quadratic_cost, oracle_cost, metadata
-):
+def get_macros_relative_cost(extrapolation_results, metadata):
     """
     Get relative cost compared to OECD GDP, OECD + China GDP and OECD govt revenue, OECD + China govt revenue,
     global GDP.
 
-    :param policy_cost:
-    :param oracle_cost: Description
+    :param extrapolation_results: Dictionary containing insample policy cost, outofsample policy cost, oracle cost and extrapolated quadratic cost for each extrapolation method
     :param metadata: Description
     """
     df = metadata.preprocess_secondary_aux_data()
@@ -515,32 +514,39 @@ def get_macros_relative_cost(
     )
     global_gdp = df[df["indicator"] == "global_GDP_2023"]["value"].item()
 
-    percentage_oecd_gdp = 100 * policy_cost / oecd_gdp
-    percentage_oecd_plus_china_gdp = 100 * policy_cost / (oecd_gdp + china_gdp)
-    percentage_oecd_govt_revenue = 100 * policy_cost / (oecd_govt_revenue)
+    relative_cost_results = {"wb": {}, "wpc": {}}
 
-    percentage_oecd_plus_china_govt_revenue = (
-        100 * policy_cost / (oecd_govt_revenue + china_govt_revenue)
-    )
+    for key in extrapolation_results:
+        policy_cost = extrapolation_results[key]["extrapolated_cost"]
+        oracle_cost = extrapolation_results[key]["oracle_cost"]
+        extrapolated_quadratic_cost = extrapolation_results[key][
+            "quadratic_extrapolated_cost"
+        ]
+        percentage_oecd_gdp = 100 * policy_cost / oecd_gdp
+        percentage_oecd_plus_china_gdp = 100 * policy_cost / (oecd_gdp + china_gdp)
+        percentage_oecd_govt_revenue = 100 * policy_cost / (oecd_govt_revenue)
 
-    percentage_feasible_global_gdp = 100 * policy_cost / global_gdp
-    percentage_oracle_global_gdp = 100 * oracle_cost / global_gdp
-    import pdb
+        percentage_oecd_plus_china_govt_revenue = (
+            100 * policy_cost / (oecd_govt_revenue + china_govt_revenue)
+        )
 
-    pdb.set_trace()
-    percentage_feasible_quadratic_global_gdp = (
-        100 * extrapolated_quadratic_cost / global_gdp
-    )
+        percentage_feasible_global_gdp = 100 * policy_cost / global_gdp
+        percentage_oracle_global_gdp = 100 * oracle_cost / global_gdp
+        percentage_feasible_quadratic_global_gdp = (
+            100 * extrapolated_quadratic_cost / global_gdp
+        )
 
-    return (
-        percentage_oecd_gdp,
-        percentage_oecd_plus_china_gdp,
-        percentage_oecd_govt_revenue,
-        percentage_oecd_plus_china_govt_revenue,
-        percentage_feasible_global_gdp,
-        percentage_feasible_quadratic_global_gdp,
-        percentage_oracle_global_gdp,
-    )
+        relative_cost_results[key] = {
+            "percentage_oecd_gdp": percentage_oecd_gdp,
+            "percentage_oecd_plus_china_gdp": percentage_oecd_plus_china_gdp,
+            "percentage_oecd_govt_revenue": percentage_oecd_govt_revenue,
+            "percentage_oecd_plus_china_govt_revenue": percentage_oecd_plus_china_govt_revenue,
+            "percentage_feasible_global_gdp": percentage_feasible_global_gdp,
+            "percentage_feasible_quadratic_global_gdp": percentage_feasible_quadratic_global_gdp,
+            "percentage_oracle_global_gdp": percentage_oracle_global_gdp,
+        }
+
+    return relative_cost_results
 
 
 def get_table_survey_info(countries, metadata, save_as, slides=False):
@@ -662,17 +668,32 @@ def get_table_survey_info(countries, metadata, save_as, slides=False):
     return df
 
 
-def get_table_wpc(countries, metadata, save_as):
-    df = metadata.preprocess_wpc_data(countries=countries)
-    df = df[df["year"] == 2023]
-    df = df[["country_code", "wpc_poverty_rate", "wpc_share_world_poor"]]
-    df["wpc_poverty_rate"] *= 100
-    df["wpc_share_world_poor"] *= 100
+def get_table_share_world_poor(countries, metadata, save_as):
+    df = metadata.preprocess_country_aux_data()
+    df = df[
+        [
+            "country_code",
+            "wb_poverty_rate_2023_povertyline_{}".format(metadata.year),
+            "total_population_2023",
+        ]
+    ]
+    total_population_poor = (
+        df["wb_poverty_rate_2023_povertyline_{}".format(metadata.year)]
+        * df["total_population_2023"]
+    ).sum()
+    df["wb_share_world_poor"] = (
+        df["wb_poverty_rate_2023_povertyline_{}".format(metadata.year)]
+        * df["total_population_2023"]
+        / total_population_poor
+    )
+    df["wb_poverty_rate_2023_povertyline_{}".format(metadata.year)] *= 100
+    df["wb_share_world_poor"] *= 100
+    df = df[df["country_code"].isin(countries)]
     df.rename(
         columns={
             "country_code": "Country Code",
-            "wpc_poverty_rate": "Poverty Rate",
-            "wpc_share_world_poor": "Share of World's Poor",
+            "wb_poverty_rate_2023_povertyline_{}".format(metadata.year): "Poverty Rate",
+            "wb_share_world_poor": "Share of World's Poor",
         },
         inplace=True,
     )
@@ -794,16 +815,29 @@ def plot_bar_chart_oracle_ratio(countries, metadata, save_as):
 
 
 def get_macros_share_world_poor(countries, metadata):
-    wpc_data = metadata.preprocess_wpc_data(countries=countries)
-    wpc_data = wpc_data[wpc_data["year"] == 2023]
-    total_world_poor = wpc_data["wpc_share_world_poor"].sum() * 100
+    df = metadata.preprocess_country_aux_data()
+    df = df[
+        [
+            "country_code",
+            "wb_poverty_rate_2023_povertyline_{}".format(metadata.year),
+            "total_population_2023",
+        ]
+    ]
+    total_population_poor = (
+        df["wb_poverty_rate_2023_povertyline_{}".format(metadata.year)]
+        * df["total_population_2023"]
+    ).sum()
+    df["wb_share_world_poor"] = (
+        df["wb_poverty_rate_2023_povertyline_{}".format(metadata.year)]
+        * df["total_population_2023"]
+        / total_population_poor
+    )
+    total_world_poor = round(
+        df[df["country_code"].isin(countries)]["wb_share_world_poor"].sum() * 100, 2
+    )
+
     togo_world_poor = round(
-        (
-            wpc_data[(wpc_data["country_code"] == "TGO")][
-                "wpc_share_world_poor"
-            ].values[0]
-            * 100
-        ),
+        (df[(df["country_code"] == "TGO")]["wb_share_world_poor"].values[0] * 100),
         2,
     )
     return total_world_poor, togo_world_poor
@@ -1109,68 +1143,76 @@ def get_extrapolation_comparison(countries, metadata):
     )
 
 
-def get_extrapolation(countries, metadata, save_as=None):
+def get_extrapolation(countries, metadata):
 
-    extrapolation = ExtrapolationResults(
-        countries,
-        insample_data_source="wpc",
-        outofsample_data_source="wpc",
-        metadata=metadata,
-        degree=1,
-    )
-    extrapolation.fit_regression_model()
-    regression_r2 = extrapolation.score
-    insample_df = extrapolation.get_in_sample_costs(survey_year=False, use_reg=True)
-    insample_policy_cost = insample_df["Policy Cost"].loc["Total"]
-    outofsample_df = extrapolation.get_out_of_sample_costs()
-    outofsample_policy_cost = outofsample_df["Policy Cost"].loc["Total"]
+    data_sources = ["wb", "wpc"]
 
-    oracle_cost, dropped_countries_gap = extrapolation.get_global_poverty_gap()
+    extrapolation_results = {}
 
-    dropped_countries = extrapolation.dropped_countries
-    extrapolated_cost = insample_policy_cost + outofsample_policy_cost
+    for data_source in data_sources:
+        extrapolation = ExtrapolationResults(
+            countries,
+            insample_data_source=data_source,
+            outofsample_data_source=data_source,
+            metadata=metadata,
+            degree=1,
+        )
+        extrapolation.fit_regression_model()
+        regression_r2 = extrapolation.score
+        insample_df = extrapolation.get_in_sample_costs(survey_year=False, use_reg=True)
+        insample_policy_cost = insample_df["Policy Cost"].loc["Total"]
+        outofsample_df = extrapolation.get_out_of_sample_costs()
+        outofsample_policy_cost = outofsample_df["Policy Cost"].loc["Total"]
+        oracle_cost, dropped_countries_gap = extrapolation.get_global_poverty_gap()
+        dropped_countries = extrapolation.dropped_countries
+        extrapolated_cost = insample_policy_cost + outofsample_policy_cost
+        extrapolation_quadratic = ExtrapolationResults(
+            countries,
+            insample_data_source=data_source,
+            outofsample_data_source=data_source,
+            metadata=metadata,
+            degree=2,
+        )
+        extrapolation_quadratic.fit_regression_model()
+        insample_quadratic_df = extrapolation_quadratic.get_in_sample_costs(
+            survey_year=False, use_reg=True
+        )
+        insample_quadratic_policy_cost = insample_quadratic_df["Policy Cost"].loc[
+            "Total"
+        ]
+        outofsample_quadratic_df = extrapolation_quadratic.get_out_of_sample_costs()
+        outofsample_quadratic_policy_cost = outofsample_quadratic_df["Policy Cost"].loc[
+            "Total"
+        ]
+        quadratic_extrapolated_cost = (
+            insample_quadratic_policy_cost + outofsample_quadratic_policy_cost
+        )
 
-    extrapolation_quadratic = ExtrapolationResults(
-        countries,
-        insample_data_source="wpc",
-        outofsample_data_source="wpc",
-        metadata=metadata,
-        degree=2,
-    )
-    extrapolation_quadratic.fit_regression_model()
-    insample_quadratic_df = extrapolation_quadratic.get_in_sample_costs(
-        survey_year=False, use_reg=True
-    )
-    insample_quadratic_policy_cost = insample_quadratic_df["Policy Cost"].loc["Total"]
-    outofsample_quadratic_df = extrapolation_quadratic.get_out_of_sample_costs()
-    outofsample_quadratic_policy_cost = outofsample_quadratic_df["Policy Cost"].loc[
-        "Total"
-    ]
-    quadratic_extrapolated_cost = (
-        insample_quadratic_policy_cost + outofsample_quadratic_policy_cost
-    )
+        results = {
+            "extrapolated_cost": extrapolated_cost,
+            "oracle_cost": oracle_cost,
+            "in_sample_policy_cost": insample_policy_cost,
+            "out_of_sample_policy_cost": outofsample_policy_cost,
+            "dropped_countries": dropped_countries,
+            "dropped_countries_gap": dropped_countries_gap,
+            "regression_r2": regression_r2,
+            "quadratic_extrapolated_cost": quadratic_extrapolated_cost,
+        }
 
-    return (
-        extrapolated_cost,
-        insample_policy_cost,
-        outofsample_policy_cost,
-        oracle_cost,
-        dropped_countries,
-        dropped_countries_gap,
-        regression_r2,
-        quadratic_extrapolated_cost,
-    )
+        extrapolation_results[data_source] = results
+
+    return extrapolation_results
 
 
 def plot_scatter_poverty_countries(countries, metadata, save_as):
 
     extrapolation = ExtrapolationResults(
         countries,
-        insample_data_source="wpc",
-        outofsample_data_source="wpc",
+        insample_data_source="wb",
+        outofsample_data_source="wb",
         metadata=metadata,
     )
-    extrapolation.plot_figure(save_as=save_as)
+    extrapolation.plot_wb_figure(save_as=save_as)
 
 
 def get_number_of_people_targeted(countries, metadata, save_as):
@@ -1257,28 +1299,9 @@ def make_macro_file(countries, metadata, save_as):
     min_ratio, max_ratio = get_macros_oracle_ratios(countries, metadata=metadata)
 
     # GET EXTRAPOLATION
-    (
-        extrapolated_cost,
-        _,
-        total_cost_out_of_sample_costs,
-        global_poverty_gap,
-        dropped_countries,
-        dropped_countries_gap,
-        regression_r2,
-        extrapolated_quadratic_cost,
-    ) = get_extrapolation(countries, metadata=metadata, save_as=None)
-    (
-        percentage_oecd_gdp,
-        percentage_oecd_plus_china_gdp,
-        percentage_oecd_govt_revenue,
-        percentage_oecd_plus_china_govt_revenue,
-        percentage_feasible_global_gdp,
-        percentage_feasible_quadratic_global_gdp,
-        percentage_oracle_global_gdp,
-    ) = get_macros_relative_cost(
-        extrapolated_cost,
-        extrapolated_quadratic_cost,
-        oracle_cost=global_poverty_gap,
+    extrapolation_results = get_extrapolation(countries, metadata=metadata)
+    relative_cost_results = get_macros_relative_cost(
+        extrapolation_results=extrapolation_results,
         metadata=metadata,
     )
 
@@ -1289,10 +1312,10 @@ def make_macro_file(countries, metadata, save_as):
     ) = get_macro_povertyline_comparison(countries, metadata)
 
     dropped_countries_string = make_string_country_list(
-        dropped_countries, metadata=metadata
+        extrapolation_results["wb"]["dropped_countries"], metadata=metadata
     )
     dropped_countries_gap_string = make_string_country_list(
-        dropped_countries_gap, metadata=metadata
+        extrapolation_results["wb"]["dropped_countries_gap"], metadata=metadata
     )
 
     togo_n, togo_d = get_data_dimension("TGO")
@@ -1481,52 +1504,100 @@ def make_macro_file(countries, metadata, save_as):
             )
         )
         f.write(
-            "\\newcommand{\\extrapolationCost}"
-            + "{{{}}}\n".format(round(extrapolated_cost))
+            "\\newcommand{\\extrapolationWBCost}"
+            + "{{{}}}\n".format(round(extrapolation_results["wb"]["extrapolated_cost"]))
         )
         f.write(
-            "\\newcommand{\\extrapolationRSquared}"
-            + "{{{}}}\n".format(round(regression_r2, 2))
+            "\\newcommand{\\extrapolationWPCCost}"
+            + "{{{}}}\n".format(
+                round(extrapolation_results["wpc"]["extrapolated_cost"])
+            )
         )
         f.write(
-            "\\newcommand{\\extrapolationOECDGDPPercent}"
-            + "{{{}}}\n".format(round(percentage_oecd_gdp, 2))
+            "\\newcommand{\\extrapolationWBRSquared}"
+            + "{{{}}}\n".format(round(extrapolation_results["wb"]["regression_r2"], 2))
         )
         f.write(
-            "\\newcommand{\\extrapolationOECDGovtRevPercent}"
-            + "{{{}}}\n".format(round(percentage_oecd_govt_revenue, 2))
+            "\\newcommand{\\extrapolationWPCRSquared}"
+            + "{{{}}}\n".format(round(extrapolation_results["wpc"]["regression_r2"], 2))
         )
         f.write(
-            "\\newcommand{\\extrapolationOECDPlusChinaGDPPercent}"
-            + "{{{}}}\n".format(round(percentage_oecd_plus_china_gdp, 2))
+            "\\newcommand{\\extrapolationWBOECDGDPPercent}"
+            + "{{{}}}\n".format(
+                round(relative_cost_results["wb"]["percentage_oecd_gdp"], 2)
+            )
         )
         f.write(
-            "\\newcommand{\\extrapolationOECDPlusChinaGovtRevPercent}"
-            + "{{{}}}\n".format(round(percentage_oecd_plus_china_govt_revenue, 2))
+            "\\newcommand{\\extrapolationWPCOECDGDPPercent}"
+            + "{{{}}}\n".format(
+                round(relative_cost_results["wpc"]["percentage_oecd_gdp"], 2)
+            )
         )
         f.write(
-            "\\newcommand{\\extrapolationDroppedCountries}"
+            "\\newcommand{\\extrapolationWBOECDGovtRevPercent}"
+            + "{{{}}}\n".format(
+                round(relative_cost_results["wb"]["percentage_oecd_govt_revenue"], 2)
+            )
+        )
+        f.write(
+            "\\newcommand{\\extrapolationWBOECDPlusChinaGDPPercent}"
+            + "{{{}}}\n".format(
+                round(relative_cost_results["wb"]["percentage_oecd_plus_china_gdp"], 2)
+            )
+        )
+        f.write(
+            "\\newcommand{\\extrapolationWBOECDPlusChinaGovtRevPercent}"
+            + "{{{}}}\n".format(
+                round(
+                    relative_cost_results["wb"][
+                        "percentage_oecd_plus_china_govt_revenue"
+                    ],
+                    2,
+                )
+            )
+        )
+        f.write(
+            "\\newcommand{\\extrapolationWBDroppedCountries}"
             + "{{{}}}\n".format(dropped_countries_string)
         )
         f.write(
-            "\\newcommand{\\extrapolationDroppedCountriesGap}"
+            "\\newcommand{\\extrapolationWBDroppedCountriesGap}"
             + "{{{}}}\n".format(dropped_countries_gap_string)
         )
         f.write(
-            "\\newcommand{\\extrapolationOutOfSampleCost}"
-            + "{{{}}}\n".format(round(total_cost_out_of_sample_costs))
+            "\\newcommand{\\extrapolationWBOutOfSampleCost}"
+            + "{{{}}}\n".format(
+                round(extrapolation_results["wb"]["out_of_sample_policy_cost"])
+            )
         )
         f.write(
-            "\\newcommand{\\extrapolationGlobalGDP}"
-            + "{{{}}}\n".format(round(percentage_feasible_global_gdp, 2))
+            "\\newcommand{\\extrapolationWBGlobalGDP}"
+            + "{{{}}}\n".format(
+                round(relative_cost_results["wb"]["percentage_feasible_global_gdp"], 2)
+            )
         )
         f.write(
-            "\\newcommand{\\extrapolationQuadraticGlobalGDP}"
-            + "{{{}}}\n".format(round(percentage_feasible_quadratic_global_gdp, 2))
+            "\\newcommand{\\extrapolationWPCGlobalGDP}"
+            + "{{{}}}\n".format(
+                round(relative_cost_results["wpc"]["percentage_feasible_global_gdp"], 2)
+            )
         )
         f.write(
-            "\\newcommand{\\oracleGlobalGDP}"
-            + "{{{}}}\n".format(round(percentage_oracle_global_gdp, 2))
+            "\\newcommand{\\extrapolationWBQuadraticGlobalGDP}"
+            + "{{{}}}\n".format(
+                round(
+                    relative_cost_results["wb"][
+                        "percentage_feasible_quadratic_global_gdp"
+                    ],
+                    2,
+                )
+            )
+        )
+        f.write(
+            "\\newcommand{\\oracleWBGlobalGDP}"
+            + "{{{}}}\n".format(
+                round(relative_cost_results["wb"]["percentage_oracle_global_gdp"], 2)
+            )
         )
         f.write(
             "\\newcommand{\\togoShareWorldsPoor}" + "{{{}}}\n".format(togo_world_poor)
@@ -1591,7 +1662,11 @@ def make_macro_file(countries, metadata, save_as):
         f.write(
             "\\newcommand{\\refugeePlusExtrapolationGlobalGDP}"
             + "{{{}}}\n".format(
-                round(refugee_cost_percentage + percentage_feasible_global_gdp, 2)
+                round(
+                    refugee_cost_percentage
+                    + relative_cost_results["wb"]["percentage_feasible_global_gdp"],
+                    2,
+                )
             )
         )
         f.write(

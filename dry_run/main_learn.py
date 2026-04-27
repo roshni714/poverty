@@ -12,7 +12,9 @@ from opt_targeted_transfers import (
     PMTTargetedTransfers,
     ModernPMTTargetedTransfers,
     WelfareTargetedTransfers,
+    PMTGapTargetedTransfers,
     write_result,
+    split,
 )
 from learn.data_loader import load_datasets
 import os
@@ -244,6 +246,31 @@ def learn_pmt(
     run_evaluation(tt, test_covariate_dataset, test_dataset, budgets, savepath)
 
 
+def learn_pmt_gap(
+    train_dataset,
+    validation_dataset,
+    test_covariate_dataset,
+    test_dataset,
+    pmt_params,
+    povertyline,
+    budgets,
+    device,
+    savepath,
+):
+    """
+    Learn PMT targeted transfers
+    """
+    print("Learning PMT targeted transfers...")
+    tt = PMTGapTargetedTransfers(c_bar=povertyline)
+    tt.fit(
+        train_dataset,
+        validation_dataset,
+        alpha=pmt_params["lasso"]["alpha"],
+    )
+    tt.get_opt_transfer_sizes_given_budget_grid(validation_dataset, budgets)
+    run_evaluation(tt, test_covariate_dataset, test_dataset, budgets, savepath)
+
+
 def learn_ubi(test_covariate_dataset, test_dataset, povertyline, budgets, savepath):
     """
     Learn UBI targeted transfers
@@ -339,6 +366,7 @@ def main(
                 "data",
                 "savedir",
                 "pmt",
+                "pmt_gap",
                 "ubi",
                 "modern_pmt",
             ]
@@ -391,6 +419,140 @@ def main(
         "pmt": learn_pmt,
         "modern_pmt": learn_modern_pmt,
         "welfare": learn_welfare,
+        "pmt_gap": learn_pmt_gap,
+    }
+
+    NONLEARNING_METHODS = {"oracle_gap": learn_oracle_gap, "ubi": learn_ubi}
+
+    _, y_test, r_test = test_dataset.get_data()
+    pov_gap = np.sum(np.maximum(povertyline - y_test, 0) * r_test)
+    oracle_budgets = np.linspace(0.0, pov_gap, 15)
+    budgets = np.linspace(0.05, povertyline, 15)
+
+    for key in config_keys:
+        if key in LEARNING_METHODS:
+            method = LEARNING_METHODS[key]
+            method(
+                train_dataset,
+                validation_dataset,
+                test_covariate_dataset,
+                test_dataset,
+                config_hparam[key],
+                povertyline=povertyline,
+                budgets=budgets,
+                device=device,
+                savepath=savepath,
+            )
+        elif key in NONLEARNING_METHODS:
+            if "oracle" in key:
+                learn_budgets = oracle_budgets
+            else:
+                learn_budgets = budgets
+            method = NONLEARNING_METHODS[key]
+            method(
+                test_covariate_dataset,
+                test_dataset,
+                povertyline=povertyline,
+                budgets=learn_budgets,
+                savepath=savepath,
+            )
+        else:
+            continue
+
+
+@argh.arg("--config", default="hparam_results/output_gan_continuous_rate.yaml")
+@argh.arg("--povertyline", default=3.0)
+@argh.arg("--year", default=2021)
+@argh.arg("--trainfraction", default=1.0, type=float)
+@argh.arg("--country", default="malawi")
+@argh.arg("--trainpath", default=None)
+@argh.arg("--testpath", default=None)
+@argh.arg("--auxpath", default="data/auxiliary_data/auxiliary_data_20260409.csv")
+@argh.arg("--summarypath", default="data/summary_2019.parquet")
+@argh.arg("--device", default="cpu")
+def main_sample_size(
+    config="hparam_results/output_gan_continuous_rate.yaml",
+    povertyline=3.0,
+    year=2021,
+    trainfraction=1.0,
+    auxpath="data/auxiliary_data/auxiliary_data_20251207.csv",
+    country="malawi",
+    trainpath=None,
+    testpath=None,
+    summarypath=None,
+    device="cpu",
+):
+    """
+    Main function to learn and evaluate targeted transfers.
+    """
+    with open(config) as stream:
+        try:
+            config_hparam = yaml.safe_load(stream)
+        except yaml.YAMLError as exc:
+            print(exc)
+
+    config_keys = list(config_hparam.keys())
+    assert "data" in config_keys
+    assert all(
+        [
+            key
+            in [
+                "continuous_rate",
+                "binary_rate",
+                "continuous_gap",
+                "binary_gap",
+                "oracle_gap",
+                "welfare",
+                "data",
+                "savedir",
+                "pmt",
+                "pmt_gap",
+                "ubi",
+                "modern_pmt",
+            ]
+            for key in config_keys
+        ]
+    )
+
+    data_config = config_hparam["data"]
+    savedir = config_hparam["savedir"]
+
+    train_dataset, validation_dataset, test_covariate_dataset, test_dataset = (
+        load_datasets(
+            trainpath,
+            testpath,
+            summarypath,
+            auxpath,
+            geo_extrapolation=data_config["geo_extrapolation"],
+            outcome=data_config["outcome"],
+            weight=data_config["weight"],
+            country=country,
+            year=year,
+        )
+    )
+    name = config.split("/")[-1].split(".yaml")[0]
+    savepath = (
+        savedir
+        + "/"
+        + "year="
+        + str(year)
+        + "_sample_size"
+        + "/"
+        + name
+        + "_nprop="
+        + str(trainfraction)
+    )
+    train_dataset, _ = split(train_dataset, frac=trainfraction, seed=42)
+
+    LEARNING_METHODS = {
+        "continuous_rate": learn_continuous_rate,
+        "binary_rate": learn_binary_rate,
+        "continuous_gap": learn_continuous_gap,
+        "binary_gap": learn_binary_gap,
+        "pmt": learn_pmt,
+        "modern_pmt": learn_modern_pmt,
+        "welfare": learn_welfare,
+        "pmt_gap": learn_pmt_gap,
     }
 
     NONLEARNING_METHODS = {"oracle_gap": learn_oracle_gap, "ubi": learn_ubi}
@@ -433,5 +595,5 @@ def main(
 
 if __name__ == "__main__":
     _parser = argh.ArghParser()
-    _parser.add_commands([main])
+    _parser.add_commands([main, main_sample_size])
     _parser.dispatch()

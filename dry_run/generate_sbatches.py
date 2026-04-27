@@ -19,7 +19,7 @@ GPU_SBATCH_PREFACE = """#!/bin/bash
 
 
 SBATCH_PREFACE = """#!/bin/bash
-#SBATCH -t 10:00:00             # limit of 1 day runtime
+#SBATCH -t 2:00:00             # limit of 1 day runtime
 #SBATCH -c 1
 #SBATCH --mem 10GB
 #SBATCH -p normal
@@ -31,7 +31,7 @@ SBATCH_PREFACE = """#!/bin/bash
 """
 
 OUTPUT_PATH = (
-    "/home/users/rsahoo/zfs/projects/faculty/swager-poverty/poverty/dry_run/scripts2"
+    "/home/users/rsahoo/zfs/projects/faculty/swager-poverty/poverty/dry_run/scripts"
 )
 
 
@@ -66,21 +66,23 @@ def generate_rate_vs_gap_comparison():
 
 def generate_learn_run_2017_restricted_features_povertyline():
     countries = [
-        "BDI",
-        "BGD",
-        "CAF",
-        "COD",
-        "GHA",
         "IDN",
         "IND",
-        "LBR",
-        "MDG",
-        "MEX",
-        "PAK",
-        "RWA",
-        "SDN",
-        "TLS",
-        "ZWE",
+        # "BDI",
+        # "BGD",
+        # "CAF",
+        # "COD",
+        # "GHA",
+        # "IDN",
+        # "IND",
+        # "LBR",
+        # "MDG",
+        # "MEX",
+        # "PAK",
+        # "RWA",
+        # "SDN",
+        # "TLS",
+        # "ZWE",
     ]
     geo_extrapolation = [True]
     configs = ["output_gt_continuous_gap.yaml"]
@@ -106,35 +108,119 @@ def generate_learn_run_2017_restricted_features_povertyline():
                     print("sleep 1", file=f)
 
 
-def generate_learn_run_2017_povertyline():
-
+def generate_sample_size_run_2017_povertyline():
     countries = [
         "BDI",
+        "BEN",
+        "BFA",
         "BGD",
         "CAF",
+        "CIV",
         "COD",
+        "COL",
+        "ETH",
         "GHA",
-        "IDN",
-        "IND",
+        "GNB",
+        "KEN",
         "LBR",
         "MDG",
         "MEX",
+        "MLI",
+        "MWI",
+        "NER",
+        "NGA",
         "PAK",
         "RWA",
         "SDN",
+        "SEN",
+        "TGO",
         "TLS",
+        "TZA",
+        "UGA",
+        "YEM",
+        "ZAF",
+        "ZWE",
+    ]
+    geo_extrapolation = [True]
+    train_fractions = [0.1, 0.2, 0.5, 0.7, 1.0]
+
+    for country in countries:
+        for geo in geo_extrapolation:
+            if geo:
+                subfolder = "geo_extrapolation"
+            else:
+                subfolder = "geo_interpolation"
+            config = "output_gt_continuous_gap.yaml"
+            for frac in train_fractions:
+                exp_id = (
+                    country
+                    + "_"
+                    + "sample_size_"
+                    + str(frac)
+                    + "_"
+                    + subfolder
+                    + "_"
+                    + "_2017_"
+                    + config
+                )
+                script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
+                with open(script_fn, "w") as f:
+                    print(
+                        SBATCH_PREFACE.format(
+                            exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
+                        ),
+                        file=f,
+                    )
+                    base_cmd = f"python main_learn.py main-sample-size --config hparam/results/{country}/{subfolder}/{config} --trainpath data/{country}/train.parquet --testpath data/{country}/test.parquet --summarypath data/{country}/summary.parquet --device cpu --country {country} --povertyline 2.15 --year 2017 --trainfraction {frac}"
+                    print(base_cmd, file=f)
+                    print("sleep 1", file=f)
+
+
+def generate_learn_run_2017_povertyline():
+    countries = [
+        "BDI",
+        "BEN",
+        "BFA",
+        "BGD",
+        "CAF",
+        "CIV",
+        "COD",
+        "COL",
+        "ETH",
+        "GHA",
+        "GNB",
+        "KEN",
+        "LBR",
+        "MDG",
+        "MEX",
+        "MLI",
+        "MWI",
+        "NER",
+        "NGA",
+        "NGA",
+        "PAK",
+        "RWA",
+        "SDN",
+        "SEN",
+        "TGO",
+        "TLS",
+        "TZA",
+        "UGA",
+        "YEM",
+        "ZAF",
         "ZWE",
     ]
     geo_extrapolation = [True]
     configs = [
-        "output_gt_continuous_gap.yaml",
-        "output_gt_binary_rate.yaml",
-        "output_gt_binary_gap.yaml",
-        "output_gt_continuous_rate.yaml",
-        "output_gt_modern_pmt.yaml",
-        "oracle_gap.yaml",
-        "output_gt_pmt.yaml",
-        "ubi.yaml",
+        # "output_gt_continuous_gap.yaml",
+        # "output_gt_binary_rate.yaml",
+        # "output_gt_binary_gap.yaml",
+        # "output_gt_continuous_rate.yaml",
+        # "output_gt_modern_pmt.yaml",
+        # "oracle_gap.yaml",
+        "output_gt_pmt_gap.yaml",
+        # "ubi.yaml",
+        # "output_gt_welfare.yaml"
     ]
 
     for country in countries:
@@ -161,31 +247,49 @@ def generate_learn_run_2017_povertyline():
 def generate_learn_run_2021_povertyline():
     countries = [
         "BDI",
+        "BEN",
+        "BFA",
         "BGD",
         "CAF",
+        "CIV",
         "COD",
+        "COL",
+        "ETH",
         "GHA",
-        "IDN",
-        "IND",
+        "GNB",
+        "KEN",
         "LBR",
         "MDG",
         "MEX",
+        "MLI",
+        "MWI",
+        "NER",
+        "NGA",
+        "NGA",
         "PAK",
         "RWA",
         "SDN",
+        "SEN",
+        "TGO",
         "TLS",
+        "TZA",
+        "UGA",
+        "YEM",
+        "ZAF",
         "ZWE",
     ]
+
     geo_extrapolation = [True]
     configs = [
-        "output_gt_continuous_rate.yaml",
-        "output_gt_binary_rate.yaml",
-        "output_gt_binary_gap.yaml",
-        "output_gt_continuous_gap.yaml",
-        "output_gt_modern_pmt.yaml",
-        "oracle_gap.yaml",
-        "output_gt_pmt.yaml",
-        "ubi.yaml",
+        "output_gt_pmt_gap.yaml"
+        # "output_gt_continuous_rate.yaml",
+        # "output_gt_binary_rate.yaml",
+        # "output_gt_binary_gap.yaml",
+        # "output_gt_continuous_gap.yaml",
+        # "output_gt_modern_pmt.yaml",
+        # "oracle_gap.yaml",
+        # "output_gt_pmt.yaml",
+        # "ubi.yaml",
     ]
 
     for country in countries:
@@ -211,26 +315,43 @@ def generate_learn_run_2021_povertyline():
 
 def generate_hparam_run():
     countries = [
-        "BDI",
-        "BGD",
-        "CAF",
-        "COD",
-        "GHA",
-        "IDN",
-        "IND",
-        "LBR",
-        "MDG",
-        "MEX",
-        "PAK",
-        "RWA",
-        "SDN",
-        "TLS",
-        "ZWE",
+        # "BDI",
+        # "BEN",
+        # "BFA",
+        # "BGD",
+        # "CAF",
+        # "CIV",
+        # "COD",
+        # "COL",
+        # "ETH",
+        # "GHA",
+        # "GNB",
+        # "KEN",
+        # "LBR",
+        # "MDG",
+        # "MEX",
+        # "MLI",
+        # "MWI",
+        # "NER",
+        # "NGA",
+        # "NGA",
+        # "PAK",
+        # "RWA",
+        # "SDN",
+        # "SEN",
+        # "TGO",
+        # "TLS",
+        # "TZA",
+        # "UGA",
+        "YEM",
+        # "ZAF",
+        # "ZWE",
     ]
 
     geo_extrapolation = [True]
     configs = [
-        "gt_welfare.yaml"
+        "gt_pmt_gap.yaml"
+        # "gt_welfare.yaml"
         # "gt_continuous_rate.yaml",
         # # "gt_binary_rate.yaml",
         # # "gt_binary_gap.yaml",
@@ -298,34 +419,47 @@ def generate_hparam_run():
                                 f"mkdir learn/results/{country}/{subfolder}/year={year}_d=20",
                                 file=f,
                             )
+                            print(
+                                f"mkdir learn/results/{country}/{subfolder}/year={year}_sample_size",
+                                file=f,
+                            )
+
                         print("sleep 1", file=f)
 
 
 def make_learnsavedir():
     countries = [
-        "BGD",
+        "BDI",
         "BEN",
         "BFA",
+        "BGD",
+        "CAF",
         "CIV",
+        "COD",
+        "COL",
         "ETH",
-        "GNB",
         "GHA",
+        "GNB",
         "KEN",
+        "LBR",
         "MDG",
-        "MWI",
+        "MEX",
         "MLI",
+        "MWI",
         "NER",
         "NGA",
+        "NGA",
+        "PAK",
         "RWA",
+        "SDN",
         "SEN",
-        "TZA",
-        "ZAF",
         "TGO",
+        "TLS",
+        "TZA",
         "UGA",
         "YEM",
-        "IND",
-        "IDN",
-        "COL",
+        "ZAF",
+        "ZWE",
     ]
 
     geo_extrapolation = [True]
@@ -371,6 +505,16 @@ def make_learnsavedir():
                     ):
                         print(
                             f"mkdir learn/results/{country}/{subfolder}/year={year}_d=20",
+                            file=f,
+                        )
+                        print("sleep 1", file=f)
+
+                    if year == 2017 and not os.path.exists(
+                        f"learn/results/{country}/{subfolder}/year={year}_sample_size"
+                    ):
+
+                        print(
+                            f"mkdir learn/results/{country}/{subfolder}/year={year}_sample_size",
                             file=f,
                         )
                         print("sleep 1", file=f)
@@ -481,8 +625,9 @@ def generate_gt_run():
 
 # generate_gt_run()
 # generate_rate_vs_gap_comparison()
-generate_hparam_run()
+# generate_hparam_run()
 # generate_learn_run_2017_restricted_features_povertyline()
+generate_sample_size_run_2017_povertyline()
 # generate_learn_run_2017_povertyline()
 # generate_learn_run_2021_povertyline()
 # generate_learn_run()

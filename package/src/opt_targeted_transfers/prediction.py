@@ -74,6 +74,14 @@ def get_mse_loss(predictor, validation_dataset):
     weighted_mse_loss = np.sum(mse_loss * r) / np.sum(r)
     return weighted_mse_loss
 
+def get_mse_marginal_utility(predictor, utility_deriv_func, transfer, validation_dataset):
+    X, y, r = validation_dataset.get_data()
+    res = predictor(X)
+    marginal_utility = utility_deriv_func(y + transfer)
+    mse_loss = (marginal_utility - res) ** 2
+    weighted_mse_loss = np.sum(mse_loss * r) / np.sum(r)
+    return weighted_mse_loss
+
 
 def get_pmt_nn_regressor(
     train_dataset,

@@ -116,9 +116,10 @@ class CountryMethodPovertyResults:
             df["initial_poverty_gap"].values[0] / self.povertyline
         ) * 100
         self.initial_rate = df["initial_poverty_rate"].values[0] * 100
-        self.initial_welfare = df["initial_welfare"].values[0] + np.log(
-            self.conversion_factor
-        )  # Replace "initial_welfare" with the actual column name
+
+    # self.initial_welfare = df["initial_welfare"].values[0] + np.log(
+    #     self.conversion_factor
+    # )  # Replace "initial_welfare" with the actual column name
 
     def get_poverty_gap(self):
         """
@@ -200,13 +201,13 @@ class CountryMethodPovertyResults:
         )
 
         # Build interpolator from cost to welfare
-        welfares = list(
-            df["post_transfer_welfare"] + np.log(country_conversion_factor)
-        )  # Replace "welfare_metric" with the actual column name
-        welfares.append(self.initial_welfare)
-        cost_to_welfare_interpolator = interp1d(costs, welfares, kind="linear")
-        self.cost_to_welfare_interpolator_domain = (min(costs), max(costs))
-        self.cost_to_welfare_interpolator = cost_to_welfare_interpolator
+        # welfares = list(
+        #     df["post_transfer_welfare"] + np.log(country_conversion_factor)
+        # )  # Replace "welfare_metric" with the actual column name
+        # welfares.append(self.initial_welfare)
+        # cost_to_welfare_interpolator = interp1d(costs, welfares, kind="linear")
+        # self.cost_to_welfare_interpolator_domain = (min(costs), max(costs))
+        # self.cost_to_welfare_interpolator = cost_to_welfare_interpolator
 
     def _load_transfer_data(self):
         """
