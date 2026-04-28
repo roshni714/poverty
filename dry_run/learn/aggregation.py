@@ -20,20 +20,21 @@ class CountryMethodPovertyResults:
     :param year: The year of the international poverty line (2017 or 2021).
     """
 
-    def __init__(self, country, method, metadata):
+    def __init__(self, country, method, metadata, train_frac=None):
         self.country = country
         self.method = method
         self.geo_extrapolation = metadata.geo_extrapolation
         self.restricted_feature_set = metadata.restricted_feature_set
         self.year = metadata.year
         self.povertyline = metadata.povertyline
+        self.train_frac = train_frac
         self.metadata = metadata
         self.conversion_factor = self._get_conversion_factor()
         self._get_min_poverty_gap_index_and_rate()
         self._get_initial_poverty_gap_index_and_rate()
         self._get_result_interpolators()
 
-    def _load_data(self, method):
+    def _load_data(self):
         """
         Load the data for a specific country and method.
 
@@ -49,25 +50,39 @@ class CountryMethodPovertyResults:
         else:
             subfolder = "geo_interpolation"
 
-        if method == "oracle_gap":
-            df = pd.read_csv(
-                "learn/results/{}/{}/year={}/{}.csv".format(
-                    self.country, subfolder, self.year, METHODS[method]["csv"]
+        if self.train_frac is None:
+
+            if self.method == "oracle_gap":
+                df = pd.read_csv(
+                    "learn/results/{}/{}/year={}/{}.csv".format(
+                        self.country, subfolder, self.year, METHODS[self.method]["csv"]
+                    )
                 )
-            )
-        elif method != "oracle_gap" and self.restricted_feature_set:
-            df = pd.read_csv(
-                "learn/results/{}/{}/year={}_d=20/{}.csv".format(
-                    self.country, subfolder, self.year, METHODS[method]["csv"]
+            elif self.method != "oracle_gap" and self.restricted_feature_set:
+                df = pd.read_csv(
+                    "learn/results/{}/{}/year={}_d=20/{}.csv".format(
+                        self.country, subfolder, self.year, METHODS[self.method]["csv"]
+                    )
                 )
-            )
+            else:
+                df = pd.read_csv(
+                    "learn/results/{}/{}/year={}/{}.csv".format(
+                        self.country, subfolder, self.year, METHODS[self.method]["csv"]
+                    )
+                )
+            return df
+
         else:
             df = pd.read_csv(
-                "learn/results/{}/{}/year={}/{}.csv".format(
-                    self.country, subfolder, self.year, METHODS[method]["csv"]
+                "learn/results/{}/{}/year={}_sample_size/{}_nprop={}.csv".format(
+                    self.country,
+                    subfolder,
+                    self.year,
+                    METHODS[self.method]["csv"],
+                    self.train_frac,
                 )
             )
-        return df
+            return df
 
     def _get_conversion_factor(self):
         """
@@ -111,7 +126,7 @@ class CountryMethodPovertyResults:
         """
         Set initial poverty gap index and rate.
         """
-        df = self._load_data("oracle_gap")
+        df = self._load_data()
         self.initial_gap_index = (
             df["initial_poverty_gap"].values[0] / self.povertyline
         ) * 100
@@ -144,7 +159,7 @@ class CountryMethodPovertyResults:
         Get minimum poverty gap index and rate achieved by method.
         Note this method is used so that we do not extrapolate beyond bounds of the results.
         """
-        df = self._load_data(self.method)
+        df = self._load_data()
         self.min_gap_index = (
             df["post_transfer_poverty_gap"].min() / self.povertyline
         ) * 100
@@ -154,7 +169,7 @@ class CountryMethodPovertyResults:
         """
         Set results interpolators for poverty gap index to cost, poverty rate to cost, and poverty rate to poverty gap index.
         """
-        df = self._load_data(self.method)
+        df = self._load_data()
         country_conversion_factor = self.conversion_factor
 
         # Build interpolator from poverty gap index to cost

@@ -64,7 +64,7 @@ def make_plot_for_country(
 
     for i, method in enumerate(method_list):
         dic = methods[method]
-        df = results[i]._load_data(method)
+        df = results[i]._load_data()
 
         rates = [results[0].initial_rate] + list(df["post_transfer_poverty_rate"] * 100)
         gaps = [results[0].initial_gap_index] + list(
@@ -1246,6 +1246,48 @@ def get_number_of_people_targeted(countries, metadata, save_as):
         df.to_csv(f"{save_as}.csv", index=False)
 
     return df
+
+
+def make_sample_size_plot(country, metadata, save_as):
+    fontsize = 30
+    n, d = get_data_dimension(country)
+    n_train = n * 0.6
+    n_samples = []
+    res = []
+    for train_frac in [0.1, 0.2, 0.5, 0.7, 1.0]:
+        results = CountryMethodPovertyResults(
+            country, method="continuous_gap", metadata=metadata, train_frac=train_frac
+        )
+        if train_frac is None:
+            train_frac = 1.0
+
+        n_samples.append(n_train * train_frac)
+        res.append(results)
+
+    fig, ax = plt.subplots(1, 1, figsize=(12, 8))
+    xlims = [0.0, n_train]
+    ax.set_xlim(xlims[0], xlims[1])
+    ax.set_ylim(-0.1, res[-1].get_ubi_cost() * 1.05)
+    ax.tick_params(axis="x", labelsize=fontsize * 0.75)
+    ax.tick_params(axis="y", labelsize=fontsize * 0.75)
+    ax.set_ylabel("Policy Cost ($ Billion Per Year)", fontsize=fontsize)
+    ax.grid(True)
+    ax.set_xlabel("Number of Training Samples", fontsize=fontsize)
+    dic = METHODS["continuous_gap"]
+    ax.plot(
+        n_samples,
+        [r.rate_to_cost_interpolator(1) for r in res],
+        marker="o",
+        label=dic["name"],
+        color=dic["color"],
+        linestyle=dic["linestyle"],
+        linewidth=3,
+    )
+
+    ax.legend(fontsize=fontsize * 0.75)
+    plt.tight_layout()
+    plt.savefig("{}.pdf".format(save_as), bbox_inches="tight")
+    plt.close()
 
 
 def make_macro_file(countries, metadata, save_as):

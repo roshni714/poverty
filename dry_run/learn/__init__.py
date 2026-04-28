@@ -13,6 +13,7 @@ from learn.plotting import (
     get_rate_vs_gap_restricted_feature_set,
     get_number_of_people_targeted,
     get_extrapolation_comparison,
+    make_sample_size_plot,
 )
 from learn.presentation_figures import (
     make_plot_for_country_presentation,

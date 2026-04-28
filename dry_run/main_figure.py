@@ -10,13 +10,12 @@ from learn import (
     plot_bar_chart_ubi_ratio,
     plot_bar_chart_oracle_ratio,
     get_table_share_world_poor,
-    get_extrapolation,
     get_table_survey_info,
     make_macro_file,
     plot_scatter_poverty_countries,
     get_rate_vs_gap_restricted_feature_set,
     get_number_of_people_targeted,
-    get_extrapolation_comparison,
+    make_sample_size_plot,
     Metadata,
 )
 import argh
@@ -220,6 +219,14 @@ def get_country_level_analysis(metadata):
                 metadata.year, country
             ),
             ubi_on=True,
+        )
+
+        make_sample_size_plot(
+            country,
+            metadata,
+            save_as="exhibits/year={}/figs/appendix-figure-sample_size-{}".format(
+                metadata.year, country
+            ),
         )
 
 
