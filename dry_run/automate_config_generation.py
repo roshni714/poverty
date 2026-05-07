@@ -1,6 +1,9 @@
 import pandas as pd
 import os
 import yaml
+import numpy as np
+from copy import deepcopy
+from learn.data_loader import load_datasets
 
 
 def generate_gt_hparam_config(country, geo_extrapolation, device):
@@ -36,17 +39,15 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
         },
     }
 
-    binary_gap_config = base_config.copy()
-    binary_gap_config["binary_gap"] = default_nn_config.copy()
+    binary_gap_config = deepcopy(base_config)
+    binary_gap_config["binary_gap"] = deepcopy(default_nn_config)
 
-    binary_rate_config = base_config.copy()
-    binary_rate_config["binary_rate"] = default_nn_config.copy()
+    binary_rate_config = deepcopy(base_config)
+    binary_rate_config["binary_rate"] = deepcopy(default_nn_config)
+    continuous_gap_config = deepcopy(base_config)
+    continuous_gap_config["continuous_gap"] = deepcopy(default_nn_config)
 
-    continuous_gap_config = base_config.copy()
-    continuous_gap_config["continuous_gap"] = default_nn_config.copy()
-
-    continuous_rate_config = base_config.copy()
-
+    continuous_rate_config = deepcopy(base_config)
     continuous_rate_config["continuous_rate"] = {
         "n_alpha": [50, 100, 200],  # if country != "IDN" else [50, 100],
         "density_estimation": {
@@ -57,20 +58,36 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
         },
     }
 
-    modern_pmt_config = base_config.copy()
-    modern_pmt_config["modern_pmt"] = default_nn_config.copy()
+    train_data, _, _, _ = load_datasets(
+        base_config["data"]["gt"]["trainpath"],
+        base_config["data"]["gt"]["trainpath"],
+        base_config["data"]["gt"]["summarypath"],
+        base_config["data"]["gt"]["auxpath"],
+        geo_extrapolation=True,
+        outcome=base_config["data"]["outcome"],
+        weight=base_config["data"]["weight"],
+        year=base_config["data"]["year"],
+    )
+
+    _, y_train, r_train = train_data.get_data()
+    weight = r_train[y_train <= 2.15]
+    z = round((y_train[y_train <= 2.15] * weight).sum() / weight.sum() * 0.2, 2).item()
+
+    modern_pmt_config = deepcopy(base_config)
+    modern_pmt_config["modern_pmt"] = deepcopy(default_nn_config)
+    modern_pmt_config["modern_pmt"]["transfer_value"] = z
     del modern_pmt_config["modern_pmt"]["n_regressors"]
 
-    welfare_config = base_config.copy()
-    welfare_config["welfare"] = default_nn_config.copy()
-
-    pmt_config = base_config.copy()
+    pmt_config = deepcopy(base_config)
     pmt_config["pmt"] = {
-        "transfer_value": 2.15,
         "lasso": {"alpha": [0, 0.01, 0.1, 1.0]},
     }
+    pmt_config["pmt"]["transfer_value"] = z
 
-    pmt_gap_config = pmt_config.copy()
+    welfare_config = deepcopy(base_config)
+    welfare_config["welfare"] = deepcopy(default_nn_config)
+
+    pmt_gap_config = deepcopy(pmt_config)
     pmt_gap_config["pmt_gap"] = pmt_gap_config.pop("pmt")
     del pmt_gap_config["pmt_gap"]["transfer_value"]
 
@@ -134,43 +151,42 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
 
 
 countries = [
+    "BDI",
+    "BGD",
     "BEN",
     "BFA",
     "BGD",
-    "COL",
+    "CAF",
     "CIV",
+    "COL",
+    "COD",
     "GHA",
     "ETH",
     "GNB",
+    "IDN",
+    "IND",
     "KEN",
+    "LBR",
     "MDG",
+    "MEX",
     "MWI",
     "MLI",
     "NER",
     "NGA",
+    "PAK",
     "RWA",
+    "SDN",
     "SEN",
     "TZA",
     "ZAF",
     "TGO",
     "UGA",
-    "BDI",
-    "BGD",
-    "CAF",
-    "COD",
-    "GHA",
-    "IDN",
-    "IND",
-    "LBR",
-    "MDG",
-    "MEX",
-    "PAK",
-    "RWA",
-    "SDN",
     "TLS",
     "ZWE",
     "YEM",
     "ZAF",
+    "TGO_alpha_earth",
+    "TGO_alpha_earth_and_survey",
 ]
 geo_extrapolation = [True]
 for country in countries:

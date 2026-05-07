@@ -55,7 +55,7 @@ METHODS = {
     "welfare": {
         "csv": "output_gt_welfare",
         "name": "Welfare Maximization",
-        "color": "cyan",
+        "color": "hotpink",
         "linestyle": "-",
     },
     "pmt_gap": {

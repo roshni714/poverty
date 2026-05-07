@@ -211,8 +211,12 @@ def learn_modern_pmt(
     """
     Learn the modern PMT targeted transfers
     """
+    _, y_train, r_train = train_dataset.get_data()
+    weight = r_train[y_train <= povertyline]
+    z = (y_train[y_train <= povertyline] * weight).sum() / weight.sum() * 0.2
+
     print("Learning modern PMT targeted transfers...")
-    tt = ModernPMTTargetedTransfers(c_bar=povertyline, transfer_value=povertyline)
+    tt = ModernPMTTargetedTransfers(c_bar=povertyline, transfer_value=z)
     tt.fit(
         train_dataset=train_dataset,
         validation_dataset=validation_dataset,
@@ -237,7 +241,10 @@ def learn_pmt(
     Learn PMT targeted transfers
     """
     print("Learning PMT targeted transfers...")
-    tt = PMTTargetedTransfers(c_bar=povertyline, transfer_value=povertyline)
+    _, y_train, r_train = train_dataset.get_data()
+    weight = r_train[y_train <= povertyline]
+    z = (y_train[y_train <= povertyline] * weight).sum() / weight.sum() * 0.2
+    tt = PMTTargetedTransfers(c_bar=povertyline, transfer_value=z)
     tt.fit(
         train_dataset,
         validation_dataset,
@@ -324,7 +331,6 @@ def learn_welfare(
 @argh.arg("--povertyline", default=3.0)
 @argh.arg("--year", default=2021)
 @argh.arg("--nfeatures", default=None, type=int)
-@argh.arg("--country", default="malawi")
 @argh.arg("--trainpath", default=None)
 @argh.arg("--testpath", default=None)
 @argh.arg("--auxpath", default="data/auxiliary_data/auxiliary_data_20260409.csv")
@@ -336,7 +342,6 @@ def main(
     year=2021,
     nfeatures=None,
     auxpath="data/auxiliary_data/auxiliary_data_20251207.csv",
-    country="malawi",
     trainpath=None,
     testpath=None,
     summarypath=None,
@@ -386,7 +391,6 @@ def main(
             geo_extrapolation=data_config["geo_extrapolation"],
             outcome=data_config["outcome"],
             weight=data_config["weight"],
-            country=country,
             year=year,
         )
     )
@@ -464,7 +468,7 @@ def main(
 @argh.arg("--povertyline", default=3.0)
 @argh.arg("--year", default=2021)
 @argh.arg("--trainfraction", default=1.0, type=float)
-@argh.arg("--country", default="malawi")
+@argh.arg("--seed", default=42, type=int)
 @argh.arg("--trainpath", default=None)
 @argh.arg("--testpath", default=None)
 @argh.arg("--auxpath", default="data/auxiliary_data/auxiliary_data_20260409.csv")
@@ -476,11 +480,11 @@ def main_sample_size(
     year=2021,
     trainfraction=1.0,
     auxpath="data/auxiliary_data/auxiliary_data_20251207.csv",
-    country="malawi",
     trainpath=None,
     testpath=None,
     summarypath=None,
     device="cpu",
+    seed=42,
 ):
     """
     Main function to learn and evaluate targeted transfers.
@@ -526,7 +530,6 @@ def main_sample_size(
             geo_extrapolation=data_config["geo_extrapolation"],
             outcome=data_config["outcome"],
             weight=data_config["weight"],
-            country=country,
             year=year,
         )
     )
@@ -541,8 +544,10 @@ def main_sample_size(
         + name
         + "_nprop="
         + str(trainfraction)
+        + "_seed="
+        + str(seed)
     )
-    train_dataset, _ = split(train_dataset, frac=trainfraction, seed=42)
+    train_dataset, _ = split(train_dataset, frac=trainfraction, seed=seed)
 
     LEARNING_METHODS = {
         "continuous_rate": learn_continuous_rate,

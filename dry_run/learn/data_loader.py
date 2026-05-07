@@ -45,7 +45,6 @@ def load_datasets(
     summarypath,
     auxpath,
     geo_extrapolation,
-    country,
     outcome,
     weight,
     year,
@@ -67,6 +66,7 @@ def load_datasets(
         conversion_factor = 1.0
     else:
         df = pd.read_csv(auxpath)
+        country = trainpath.split("/")[-2][:3]
         conversion_factor = df[df.country_code == country][
             "overall_conversion_factor_ratio_from_2021_to_{}".format(year)
         ].values[0]
@@ -144,11 +144,14 @@ def convert_to_onehot(df, summary):
     ].tolist()
 
     categorical_columns = [col for col in categorical_columns if col in df.columns]
+    if len(categorical_columns) == 0:
+        return df.astype("float32")
 
-    one_hot = pd.get_dummies(df[categorical_columns]).astype(np.float32)
-    df.drop(columns=categorical_columns, inplace=True)
-    new_df = pd.concat([df, one_hot], axis=1)
-    return new_df
+    else:
+        one_hot = pd.get_dummies(df[categorical_columns]).astype(np.float32)
+        df.drop(columns=categorical_columns, inplace=True)
+        new_df = pd.concat([df, one_hot], axis=1)
+        return new_df.astype("float32")
 
 
 def _load_data(path):

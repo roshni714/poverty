@@ -99,7 +99,10 @@ def get_optimal_n_regressors(
     df = pd.DataFrame.from_records(results)
     df.to_csv(savepath, index=False)
     df = df.groupby(["n_regressors"]).mean().reset_index()
-    optimal_params = df.loc[df["auc"].idxmin()].to_dict()
+    if loss_type in ["binary_rate", "binary_gap", "continuous_gap"]:
+        optimal_params = df.loc[df["auc"].idxmin()].to_dict()
+    else:
+        optimal_params = df.loc[df["auc"].idxmax()].to_dict()
     for hparam in optimal_params:
         optimal_params[hparam] = int(optimal_params[hparam])
     return optimal_params["n_regressors"]

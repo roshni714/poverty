@@ -56,8 +56,8 @@ def get_conditional_marginal_utility_estimator(
     benefits_train = utility_deriv_func(y_train + t)
     benefits_val = utility_deriv_func(y_val + t)
 
-    assert np.min(benefits_train) >= 0
-    assert np.min(benefits_val) >= 0
+    z_train, z_mean, z_std = standardize(benefits_train)
+    z_val = (benefits_val - z_mean) / z_std
 
     if X_train.shape[1] == 0:
         # TODO fill in
@@ -71,9 +71,9 @@ def get_conditional_marginal_utility_estimator(
         model_list.append(torch.nn.Linear(n_hidden_units, 1))
         predictor = torch.nn.Sequential(*model_list).to(device)
 
-        def loss_function(predictor, X, benefits):
+        def loss_function(predictor, X, z):
             predicted_benefits = predictor(torch.Tensor(X).to(device)).squeeze()
-            actual_benefits = torch.Tensor(benefits).to(device)
+            actual_benefits = torch.Tensor(z).to(device)
             return (predicted_benefits - actual_benefits) ** 2
 
         optimizer = torch.optim.Adam(predictor.parameters(), lr=lr)
@@ -88,7 +88,7 @@ def get_conditional_marginal_utility_estimator(
             if epoch % 10 == 0:
                 predictor.eval()
                 val_loss = torch.sum(
-                    loss_function(predictor, X_val, benefits_val)
+                    loss_function(predictor, X_val, z_val)
                     * torch.Tensor(r_val).to(device)
                 )
                 val_losses.append(val_loss.detach().item())
@@ -99,7 +99,7 @@ def get_conditional_marginal_utility_estimator(
             optimizer.zero_grad()
 
             unweighted_loss = loss_function(
-                predictor, X_train[idx, :], benefits_train[idx]
+                predictor, X_train[idx, :], z_train[idx]
             )
             weights = torch.Tensor(r_train[idx]).to(device)
             loss = torch.sum(unweighted_loss * weights)
@@ -123,7 +123,7 @@ def get_conditional_marginal_utility_estimator(
                 .detach()
                 .numpy()
                 .flatten()
-            )
+            ) * z_std + z_mean
         if t != 0:
             return np.maximum(np.minimum(predicted_benefits, 1 / t), 0)
         else:
@@ -142,9 +142,8 @@ class WelfareTargetedTransfers(TargetedTransfers):
         self.name = "welfare"
         self.n_regressors = n_regressors
         self.max_transfer_size = 32
-        self.candidate_t_values = np.logspace(
-            -2, 5, base=2, num=self.n_regressors
-        )  # np.concatenate((np.array([0.]), np.logspace(-2, 5, base=2, num=self.n_regressors - 1)))
+        self.candidate_t_values = np.logspace(-2, np.log10(self.max_transfer_size), num=self.n_regressors)
+        # np.concatenate((np.array([0.]), np.logspace(-2, 5, base=2, num=self.n_regressors - 1)))
 
     def _get_assignments_for_lambda(self, X, interpolators, ranges, lambda_):
 

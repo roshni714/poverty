@@ -1,6 +1,7 @@
 from learn.plotting import (
     make_plot_for_country,
     aggregate_plot,
+    make_transfer_plot,
     plot_bar_chart_policy_amt_as_percent_of_gdp,
     get_table_policy_cost_gdp,
     plot_bar_chart_ubi_ratio,
@@ -14,6 +15,11 @@ from learn.plotting import (
     get_number_of_people_targeted,
     get_extrapolation_comparison,
     make_sample_size_plot,
+    make_sample_size_aggregate_plot,
+    make_sample_size_aggregate_plot_alternative,
+    plot_country_welfare,
+    plot_targeting_efficiency,
+    plot_satellite_image,
 )
 from learn.presentation_figures import (
     make_plot_for_country_presentation,

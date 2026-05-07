@@ -219,7 +219,9 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         )
         print(opt_nn_hparams)
         opt_hparams["modern_pmt"]["neural_network"] = opt_nn_hparams
-        opt_hparams["modern_pmt"]["transfer_value"] = data_config_params["povertyline"]
+        opt_hparams["modern_pmt"]["transfer_value"] = config_hparams["modern_pmt"][
+            "transfer_value"
+        ]
 
     if "welfare" in config_hparams:
         opt_hparams["welfare"] = {}

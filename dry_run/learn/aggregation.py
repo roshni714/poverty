@@ -5,9 +5,9 @@ from learn.formatting import METHODS
 import os
 
 
-class CountryMethodPovertyResults:
+class AveragedCountryMethodPovertyResults:
     """
-    Class to report poverty results for a specific country and method.
+    Class to report poverty results averaged across multiple runs for a specific country and method.
 
     :param country: The name of the country.
     :type country: str
@@ -29,9 +29,204 @@ class CountryMethodPovertyResults:
         self.povertyline = metadata.povertyline
         self.train_frac = train_frac
         self.metadata = metadata
+        self.n_seeds = 10
+
+        self.country_seed_results = [
+            CountryMethodPovertyResults(
+                country,
+                method,
+                metadata,
+                train_frac=train_frac,
+                seed=seed,
+            )
+            for seed in range(self.n_seeds)
+        ]
+        self._get_initial()
+        self._get_min_poverty_gap_index_and_rate()
+        self._get_averaged_result_interpolators()
+        self._get_std_dev_result_interpolators()
+
+    def get_ubi_cost(self):
+        """
+        Get the cost of a universal basic income at the poverty line in billion USD (nominal 2023).
+        :return: UBI cost.
+        :rtype: float
+        """
+        return self.country_seed_results[0].get_ubi_cost()
+
+    def _get_initial(self):
+        """
+        Set initial poverty gap index and rate by averaging across seeds.
+        """
+
+        self.initial_gap_index = self.country_seed_results[0].initial_gap_index
+        self.initial_rate = self.country_seed_results[0].initial_rate
+        self.initial_welfare = self.country_seed_results[0].initial_welfare
+
+    def _get_min_poverty_gap_index_and_rate(self):
+        """
+        Get minimum poverty gap index and rate achieved by method.
+        Note this method is used so that we do not extrapolate beyond bounds of the results.
+        """
+        self.min_gap_index = max(
+            self.country_seed_results[seed].min_gap_index
+            for seed in range(self.n_seeds)
+        )
+        self.min_rate = max(
+            self.country_seed_results[seed].min_rate for seed in range(self.n_seeds)
+        )
+
+    def _get_averaged_result_interpolators(self):
+        """
+        Set averaged result interpolators for poverty gap index to cost, poverty rate to cost, and poverty rate to poverty gap index by averaging across seeds.
+        """
+        gap_to_cost_interpolators = [
+            result.gap_to_cost_interpolator for result in self.country_seed_results
+        ]
+        rate_to_cost_interpolators = [
+            result.rate_to_cost_interpolator for result in self.country_seed_results
+        ]
+        rate_to_gap_interpolators = [
+            result.rate_to_gap_interpolator for result in self.country_seed_results
+        ]
+        welfare_to_cost_interpolators = [
+            result.welfare_to_cost_interpolator for result in self.country_seed_results
+        ]
+        rate_to_welfare_interpolators = [
+            result.rate_to_welfare_interpolator for result in self.country_seed_results
+        ]
+
+        def averaged_gap_to_cost_interpolator(gap):
+            return np.mean(
+                [interpolator(gap) for interpolator in gap_to_cost_interpolators],
+                axis=0,
+            )
+
+        def averaged_rate_to_cost_interpolator(rate):
+            return np.mean(
+                [interpolator(rate) for interpolator in rate_to_cost_interpolators],
+                axis=0,
+            )
+
+        def averaged_rate_to_gap_interpolator(rate):
+            return np.mean(
+                [interpolator(rate) for interpolator in rate_to_gap_interpolators],
+                axis=0,
+            )
+
+        def averaged_welfare_to_cost_interpolator(welfare):
+            return np.mean(
+                [
+                    interpolator(welfare)
+                    for interpolator in welfare_to_cost_interpolators
+                ],
+                axis=0,
+            )
+
+        def averaged_rate_to_welfare_interpolator(rate):
+            return np.mean(
+                [interpolator(rate) for interpolator in rate_to_welfare_interpolators],
+                axis=0,
+            )
+
+        self.gap_to_cost_interpolator = averaged_gap_to_cost_interpolator
+        self.rate_to_cost_interpolator = averaged_rate_to_cost_interpolator
+        self.rate_to_gap_interpolator = averaged_rate_to_gap_interpolator
+        self.welfare_to_cost_interpolator = averaged_welfare_to_cost_interpolator
+        self.rate_to_welfare_interpolator = averaged_rate_to_welfare_interpolator
+
+    def _get_std_dev_result_interpolators(self):
+        """
+        Set standard deviation result interpolators for poverty gap index to cost, poverty rate to cost, and poverty rate to poverty gap index by computing standard deviation across seeds.
+        """
+        gap_to_cost_interpolators = [
+            result.gap_to_cost_interpolator for result in self.country_seed_results
+        ]
+        rate_to_cost_interpolators = [
+            result.rate_to_cost_interpolator for result in self.country_seed_results
+        ]
+        rate_to_gap_interpolators = [
+            result.rate_to_gap_interpolator for result in self.country_seed_results
+        ]
+        welfare_to_cost_interpolators = [
+            result.welfare_to_cost_interpolator for result in self.country_seed_results
+        ]
+        rate_to_welfare_interpolators = [
+            result.rate_to_welfare_interpolator for result in self.country_seed_results
+        ]
+
+        def std_error_gap_to_cost_interpolator(gap):
+            return np.std(
+                [interpolator(gap) for interpolator in gap_to_cost_interpolators],
+                axis=0,
+            )
+
+        def std_error_rate_to_cost_interpolator(rate):
+            return np.std(
+                [interpolator(rate) for interpolator in rate_to_cost_interpolators],
+                axis=0,
+            )
+
+        def std_error_rate_to_gap_interpolator(rate):
+            return np.std(
+                [interpolator(rate) for interpolator in rate_to_gap_interpolators],
+                axis=0,
+            )
+
+        def std_error_welfare_to_cost_interpolator(welfare):
+            return np.std(
+                [
+                    interpolator(welfare)
+                    for interpolator in welfare_to_cost_interpolators
+                ],
+                axis=0,
+            )
+
+        def std_error_rate_to_welfare_interpolator(rate):
+            return np.std(
+                [interpolator(rate) for interpolator in rate_to_welfare_interpolators],
+                axis=0,
+            )
+
+        self.std_dev_gap_to_cost_interpolator = std_error_gap_to_cost_interpolator
+        self.std_dev_rate_to_cost_interpolator = std_error_rate_to_cost_interpolator
+        self.std_dev_rate_to_gap_interpolator = std_error_rate_to_gap_interpolator
+        self.std_dev_welfare_to_cost_interpolator = (
+            std_error_welfare_to_cost_interpolator
+        )
+        self.std_dev_rate_to_welfare_interpolator = (
+            std_error_rate_to_welfare_interpolator
+        )
+
+
+class CountryMethodPovertyResults:
+    """
+    Class to report poverty results for a specific country and method.
+
+    :param country: The name of the country.
+    :type country: str
+    :param method: The method to report results for.
+    :type method: str
+    :param geo_extrapolation: Whether to use geo-extrapolation or geo-interpolation.
+    :type geo_extrapolation: bool
+    :param povertyline: The international poverty line in PPP (e.g. 2.15, 3.0)
+    :type povertyline: float
+    :param year: The year of the international poverty line (2017 or 2021).
+    """
+
+    def __init__(self, country, method, metadata, train_frac=None, seed=None):
+        self.country = country
+        self.method = method
+        self.geo_extrapolation = metadata.geo_extrapolation
+        self.restricted_feature_set = metadata.restricted_feature_set
+        self.year = metadata.year
+        self.povertyline = metadata.povertyline
+        self.train_frac = train_frac
+        self.metadata = metadata
+        self.seed = seed
         self.conversion_factor = self._get_conversion_factor()
         self._get_min_poverty_gap_index_and_rate()
-        self._get_initial_poverty_gap_index_and_rate()
+        self._get_initial()
         self._get_result_interpolators()
 
     def _load_data(self):
@@ -74,12 +269,13 @@ class CountryMethodPovertyResults:
 
         else:
             df = pd.read_csv(
-                "learn/results/{}/{}/year={}_sample_size/{}_nprop={}.csv".format(
+                "learn/results/{}/{}/year={}_sample_size/{}_nprop={}_seed={}.csv".format(
                     self.country,
                     subfolder,
                     self.year,
                     METHODS[self.method]["csv"],
                     self.train_frac,
+                    self.seed,
                 )
             )
             return df
@@ -105,10 +301,12 @@ class CountryMethodPovertyResults:
             .item()
         )
 
-        country_df = df[df["country_code"] == self.country]
+        country_code = self.country[:3]
+
+        country_df = df[df["country_code"] == country_code]
         if country_df.shape[0] == 0:
             raise ValueError(
-                "Country {} not found in auxiliary data.".format(self.country)
+                "Country {} not found in auxiliary data.".format(country_code)
             )
 
         factor = (
@@ -122,7 +320,7 @@ class CountryMethodPovertyResults:
         ) / 1000000000  # to billion USD
         return factor
 
-    def _get_initial_poverty_gap_index_and_rate(self):
+    def _get_initial(self):
         """
         Set initial poverty gap index and rate.
         """
@@ -132,9 +330,17 @@ class CountryMethodPovertyResults:
         ) * 100
         self.initial_rate = df["initial_poverty_rate"].values[0] * 100
 
-    # self.initial_welfare = df["initial_welfare"].values[0] + np.log(
-    #     self.conversion_factor
-    # )  # Replace "initial_welfare" with the actual column name
+        if "initial_welfare" not in df.columns:
+            print(
+                "WARNING: initial welfare not found in data for country {}, method {}. Setting initial welfare to 0.".format(
+                    self.country, self.method
+                )
+            )
+            self.initial_welfare = np.log(self.conversion_factor)
+        else:
+            self.initial_welfare = df["initial_welfare"].values[0] + np.log(
+                self.conversion_factor
+            )
 
     def get_poverty_gap(self):
         """
@@ -216,13 +422,23 @@ class CountryMethodPovertyResults:
         )
 
         # Build interpolator from cost to welfare
-        # welfares = list(
-        #     df["post_transfer_welfare"] + np.log(country_conversion_factor)
-        # )  # Replace "welfare_metric" with the actual column name
-        # welfares.append(self.initial_welfare)
-        # cost_to_welfare_interpolator = interp1d(costs, welfares, kind="linear")
-        # self.cost_to_welfare_interpolator_domain = (min(costs), max(costs))
-        # self.cost_to_welfare_interpolator = cost_to_welfare_interpolator
+        if "post_transfer_welfare" not in df.columns:
+            df["post_transfer_welfare"] = 0.0
+
+        welfares = list(
+            df["post_transfer_welfare"] + np.log(country_conversion_factor)
+        )  # Replace "welfare_metric" with the actual column name
+        welfares.append(self.initial_welfare)
+        welfare_to_cost_interpolator = interp1d(welfares, costs, kind="linear")
+        self.welfare_to_cost_interpolator_domain = (min(welfares), max(welfares))
+        self.welfare_to_cost_interpolator = welfare_to_cost_interpolator
+
+        rate_to_welfare_interpolator = interp1d(rates, welfares, kind="linear")
+        self.rate_to_welfare_interpolator = rate_to_welfare_interpolator
+        self.rate_to_welfare_interpolator_domain = (
+            min(rates),
+            max(rates),
+        )
 
     def _load_transfer_data(self):
         """
@@ -259,10 +475,13 @@ class CountryMethodPovertyResults:
                 files_with_prefix.append(filename)
 
         transfer_dfs = []
+        budgets = []
 
         for filename in files_with_prefix:
             if filename.startswith(prefix):
                 transfer_df = pd.read_csv(os.path.join(directory_path, filename))
+                budget = filename.split("_budget=")[1].split(".csv")[0]
+                budgets.append(float(budget))
                 test_data = pd.read_parquet(
                     "data/{}/test.parquet".format(self.country)
                 ).reset_index(drop=True)
@@ -273,7 +492,7 @@ class CountryMethodPovertyResults:
                 )
                 transfer_dfs.append(transfer_df)
 
-        return transfer_dfs
+        return budgets, transfer_dfs
 
     def get_number_of_people_targeted(self):
         """
@@ -325,21 +544,34 @@ class AggregatePovertyResults:
     :type povertyline: float
     """
 
-    def __init__(self, countries, method, metadata):
+    def __init__(self, countries, method, metadata, train_frac=None):
         self.countries = countries
         self.method = method
         self.geo_extrapolation = metadata.geo_extrapolation
         self.year = metadata.year
         self.povertyline = metadata.povertyline
         self.metadata = metadata
-        self.country_results = {
-            country: CountryMethodPovertyResults(
-                country,
-                method,
-                metadata,
-            )
-            for country in countries
-        }
+        self.train_frac = train_frac
+        if self.train_frac is not None:
+            self.country_results = {
+                country: AveragedCountryMethodPovertyResults(
+                    country,
+                    method,
+                    metadata,
+                    train_frac=train_frac,
+                )
+                for country in countries
+            }
+        else:
+            self.country_results = {
+                country: CountryMethodPovertyResults(
+                    country,
+                    method,
+                    metadata,
+                    train_frac=train_frac,
+                )
+                for country in countries
+            }
         self._get_country_weights_and_pop()
         self._get_aggregate_interpolators()
 
@@ -385,7 +617,7 @@ class AggregatePovertyResults:
 
         return np.sum(gaps)
 
-    def get_initial_aggregate_gap_index_and_rate(self):
+    def get_initial(self):
         """
         Get initial population-weighted poverty gap index and rate.
         :return: Tuple of (initial aggregate poverty gap index, initial aggregate poverty rate).
@@ -398,6 +630,10 @@ class AggregatePovertyResults:
         initial_rates = [
             self.country_results[country].initial_rate for country in self.countries
         ]
+
+        initial_welfare = [
+            self.country_results[country].initial_welfare for country in self.countries
+        ]
         weights = np.array(
             [self.country_weights["weight"][country] for country in self.countries]
         )
@@ -405,7 +641,14 @@ class AggregatePovertyResults:
             np.array(initial_gaps) * weights
         ).sum()
         pop_weighted_initial_poverty_rate = (np.array(initial_rates) * weights).sum()
-        return pop_weighted_initial_poverty_gap_index, pop_weighted_initial_poverty_rate
+
+        pop_weighted_initial_welfare = (np.array(initial_welfare) * weights).sum()
+
+        return (
+            pop_weighted_initial_poverty_gap_index,
+            pop_weighted_initial_poverty_rate,
+            pop_weighted_initial_welfare,
+        )
 
     def get_min_aggregate_gap_index_and_rate(self):
         """
@@ -463,6 +706,7 @@ class AggregatePovertyResults:
 
         agg_gaps = 0.0
         agg_rates = 0.0
+        agg_welfare = 0.0
         for i, country in enumerate(self.countries):
             country_result = self.country_results[country]
             country_actual_rates = np.clip(
@@ -473,6 +717,12 @@ class AggregatePovertyResults:
                 country_result.rate_to_gap_interpolator(country_actual_rates)
                 * weights[i]
             )
+            weighted_country_actual_welfare = (
+                country_result.rate_to_welfare_interpolator(country_actual_rates)
+                * weights[i]
+            )
+            agg_welfare += weighted_country_actual_welfare
+
             agg_rates += weighted_country_actual_rates
             agg_gaps += weighted_country_actual_gaps
 
@@ -481,6 +731,9 @@ class AggregatePovertyResults:
         )
         aggregate_interpolator_wc_rate_to_actual_rate = interp1d(
             wc_rates, agg_rates, kind="linear"
+        )
+        aggregate_interpolator_wc_rate_to_actual_welfare = interp1d(
+            wc_rates, agg_welfare, kind="linear"
         )
 
         # Build an interpolator from wc_rate to aggregate cost by
@@ -505,6 +758,7 @@ class AggregatePovertyResults:
         actual_rates = aggregate_interpolator_wc_rate_to_actual_rate(wc_rates)
         actual_gaps = aggregate_interpolator_wc_rate_to_actual_gap(wc_rates)
         actual_costs = aggregate_interpolator_wc_rate_to_costs(wc_rates)
+        actual_welfares = aggregate_interpolator_wc_rate_to_actual_welfare(wc_rates)
 
         self.aggregate_interpolator_rate_to_cost = interp1d(
             actual_rates, actual_costs, kind="linear"
@@ -516,5 +770,17 @@ class AggregatePovertyResults:
         self.aggregate_interpolator_rate_to_gap = interp1d(
             actual_rates, actual_gaps, kind="linear"
         )
+
+        self.aggregate_interpolator_rate_to_welfare = interp1d(
+            actual_rates, actual_welfares, kind="linear"
+        )
+
+        self.aggregate_interpolator_welfare_to_cost = interp1d(
+            actual_welfares, actual_costs, kind="linear"
+        )
         self.aggregate_interpolator_rate_domain = (min(actual_rates), max(actual_rates))
         self.aggregate_interpolator_gap_domain = (min(actual_gaps), max(actual_gaps))
+        self.aggregate_interpolator_welfare_domain = (
+            min(actual_welfares),
+            max(actual_welfares),
+        )

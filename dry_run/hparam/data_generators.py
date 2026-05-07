@@ -70,11 +70,13 @@ def convert_to_onehot(df, summary):
     ].tolist()
 
     categorical_columns = [col for col in categorical_columns if col in df.columns]
-
-    one_hot = pd.get_dummies(df[categorical_columns]).astype(np.float32)
-    df.drop(columns=categorical_columns, inplace=True)
-    new_df = pd.concat([df, one_hot], axis=1).astype("float32")
-    return new_df
+    if len(categorical_columns) == 0:
+        return df.astype("float32")
+    else:
+        one_hot = pd.get_dummies(df[categorical_columns]).astype(np.float32)
+        df.drop(columns=categorical_columns, inplace=True)
+        new_df = pd.concat([df, one_hot], axis=1).astype("float32")
+        return new_df
 
 
 def add_missing_columns(df_synthetic, categorical_mapping):
@@ -209,7 +211,7 @@ def get_gt_train_data_generator(
         conversion_factor = 1.0
     else:
         df = pd.read_csv(auxpath)
-        country = trainpath.split("/")[-2]
+        country = trainpath.split("/")[-2][:3]
         conversion_factor = df[df.country_code == country][
             "overall_conversion_factor_ratio_from_2021_to_{}".format(year)
         ].values[0]

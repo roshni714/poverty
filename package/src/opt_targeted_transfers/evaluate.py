@@ -51,7 +51,7 @@ def post_transfer_metrics(test_dataset, assignments, c_bar):
 
     dic["initial_poverty_gap"] = np.sum(np.maximum(c_bar - y_test, 0) * r_test).item()
     dic["initial_poverty_rate"] = np.sum(r_test * (y_test < c_bar))
-    dic["initial_welfare"] = np.sum(np.log(y_test) * r_test).item()
+    dic["initial_welfare"] = np.sum(np.log(np.clip(y_test, a_min=1e-5, a_max=None)) * r_test).item()
 
     for i in assignments:
         pov_gap = 0.0
