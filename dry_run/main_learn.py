@@ -433,8 +433,16 @@ def main(
     oracle_budgets = np.linspace(0.0, pov_gap, 15)
     budgets = np.linspace(0.05, povertyline, 15)
 
+    _, y_train, r_train = train_dataset.get_data()
+    weight = r_train[y_train <= povertyline]
+    z = (y_train[y_train <= povertyline] * weight).sum() / weight.sum() * 0.2
+    pmt_budgets = np.linspace(0.05, z, 15)
+
     for key in config_keys:
         if key in LEARNING_METHODS:
+            learn_budgets = budgets
+            if key in ["pmt", "modern_pmt"]:
+                learn_budgets = pmt_budgets
             method = LEARNING_METHODS[key]
             method(
                 train_dataset,
@@ -443,7 +451,7 @@ def main(
                 test_dataset,
                 config_hparam[key],
                 povertyline=povertyline,
-                budgets=budgets,
+                budgets=learn_budgets,
                 device=device,
                 savepath=savepath,
             )
@@ -569,6 +577,7 @@ def main_sample_size(
 
     for key in config_keys:
         if key in LEARNING_METHODS:
+
             method = LEARNING_METHODS[key]
             method(
                 train_dataset,
@@ -577,7 +586,7 @@ def main_sample_size(
                 test_dataset,
                 config_hparam[key],
                 povertyline=povertyline,
-                budgets=budgets,
+                budgets=learn_budgets,
                 device=device,
                 savepath=savepath,
             )

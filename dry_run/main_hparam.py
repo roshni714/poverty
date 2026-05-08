@@ -219,9 +219,6 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         )
         print(opt_nn_hparams)
         opt_hparams["modern_pmt"]["neural_network"] = opt_nn_hparams
-        opt_hparams["modern_pmt"]["transfer_value"] = config_hparams["modern_pmt"][
-            "transfer_value"
-        ]
 
     if "welfare" in config_hparams:
         opt_hparams["welfare"] = {}
@@ -274,7 +271,6 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         )
         print(opt_lasso_hparams)
         opt_hparams["pmt"]["lasso"] = opt_lasso_hparams
-        opt_hparams["pmt"]["transfer_value"] = data_config_params["povertyline"]
 
     if "pmt_gap" in config_hparams:
         opt_hparams["pmt_gap"] = {}
@@ -292,7 +288,6 @@ def main(config="hparam_config.yaml", learnsavedir="learn/results"):
         )
         print(opt_lasso_hparams)
         opt_hparams["pmt_gap"]["lasso"] = opt_lasso_hparams
-        opt_hparams["pmt_gap"]["transfer_value"] = data_config_params["povertyline"]
 
     with open(f"{savedir}/output_{name}.yaml", "w") as file:
         yaml.dump(opt_hparams, file, default_flow_style=False)

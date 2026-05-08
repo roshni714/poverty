@@ -69,20 +69,14 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
         year=base_config["data"]["year"],
     )
 
-    _, y_train, r_train = train_data.get_data()
-    weight = r_train[y_train <= 2.15]
-    z = round((y_train[y_train <= 2.15] * weight).sum() / weight.sum() * 0.2, 2).item()
-
     modern_pmt_config = deepcopy(base_config)
     modern_pmt_config["modern_pmt"] = deepcopy(default_nn_config)
-    modern_pmt_config["modern_pmt"]["transfer_value"] = z
     del modern_pmt_config["modern_pmt"]["n_regressors"]
 
     pmt_config = deepcopy(base_config)
     pmt_config["pmt"] = {
         "lasso": {"alpha": [0, 0.01, 0.1, 1.0]},
     }
-    pmt_config["pmt"]["transfer_value"] = z
 
     welfare_config = deepcopy(base_config)
     welfare_config["welfare"] = deepcopy(default_nn_config)

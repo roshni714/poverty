@@ -1079,29 +1079,69 @@ def get_percentages(countries, metadata):
 # plt.show()
 
 
-def get_welfare_comparison(countries, metadata):
+def get_welfare_comparison(countries, metadata, save_as):
 
     # take the amount it would cost to get a 1% poverty rate in each country
     # how much could welfare be maximized.
     res = AggregatePovertyResults(countries, method="continuous_gap", metadata=metadata)
-    weights = res.country_weights
-    weighted_avg_ratio = 0.0
-    for country in countries:
+    weights = res.country_weights["weight"]
+    fontsize = 30
+    initial_rates = [
+        res.country_results[country].initial_rate for country in res.countries
+    ]
+    rates = np.linspace(1, max(initial_rates), 100)
+    costs = np.zeros(rates.shape)
+    gap_welfares = np.zeros(rates.shape)
+    welfare_welfares = np.zeros(rates.shape)
+    fig, ax = plt.subplots(figsize=(12, 8))
+    for i, country in enumerate(countries):
         cont_gap = CountryMethodPovertyResults(
             country=country, method="continuous_gap", metadata=metadata
         )
         welfare_max = CountryMethodPovertyResults(
             country=country, method="welfare", metadata=metadata
         )
-        initial_welfare = cont_gap.initial_welfare
-        gap_policy_cost = cont_gap.rate_to_cost_interpolator(
-            metadata.nationalPovertyRate
-        ).item()
-        gap_welfare = cont_gap.cost_to_welfare_interpolator(gap_policy_cost)
-        welfare_welfare = welfare_max.cost_to_welfare_interpolator(gap_policy_cost)
-        ratio = (gap_welfare - initial_welfare) / (welfare_welfare - initial_welfare)
-        weighted_avg_ratio += ratio * weights[country]
-    return weighted_avg_ratio
+        new_rates = np.clip(
+            rates,
+            cont_gap.rate_to_cost_interpolator_domain[0],
+            cont_gap.rate_to_cost_interpolator_domain[1],
+        )
+        gap_policy_costs = cont_gap.rate_to_cost_interpolator(new_rates)
+        gap_welfares += (
+            cont_gap.cost_to_welfare_interpolator(gap_policy_costs) * weights[country]
+        )
+
+        welfare_welfares += (
+            welfare_max.cost_to_welfare_interpolator(gap_policy_costs)
+            * weights[country]
+        )
+        costs += gap_policy_costs
+
+    ax.plot(
+        costs,
+        gap_welfares,
+        label=METHODS["continuous_gap"]["name"],
+        color=METHODS["continuous_gap"]["color"],
+        linestyle=METHODS["continuous_gap"]["linestyle"],
+        linewidth=3,
+    )
+    ax.plot(
+        costs,
+        welfare_welfares,
+        label=METHODS["welfare"]["name"],
+        color=METHODS["welfare"]["color"],
+        linestyle=METHODS["welfare"]["linestyle"],
+        linewidth=3,
+    )
+    ax.set_xlabel("Policy Cost ($ Billion Per Year)", fontsize=fontsize)
+    ax.set_ylabel("Post-Transfer Welfare\n (Log Nominal 2023 USD)", fontsize=fontsize)
+    ax.grid(True)
+    ax.legend(fontsize=fontsize * 0.75)
+    ax.tick_params(axis="x", labelsize=fontsize * 0.75)
+    ax.tick_params(axis="y", labelsize=fontsize * 0.75)
+    plt.tight_layout()
+    plt.savefig("{}.pdf".format(save_as), dpi=300, bbox_inches="tight")
+    plt.close()
 
 
 def plot_country_welfare(country, metadata, save_as):
@@ -1112,7 +1152,7 @@ def plot_country_welfare(country, metadata, save_as):
         country=country, method="welfare", metadata=metadata
     )
 
-    fig, ax = plt.subplots(figsize=(12, 8))
+    fig, ax = plt.subplots(1, 2, figsize=(30, 8))
     fontsize = 30
     cont_gap_df = cont_gap._load_data()
     welfare_df = welfare._load_data()
@@ -1120,9 +1160,9 @@ def plot_country_welfare(country, metadata, save_as):
     for method in ["continuous_gap", "welfare"]:
         dic = METHODS[method]
         df = cont_gap_df if method == "continuous_gap" else welfare_df
-        ax.plot(
-            df["policy_cost_per_capita"],
-            df["post_transfer_welfare"],
+        ax[0].plot(
+            df["policy_cost_per_capita"] * cont_gap.conversion_factor,
+            df["post_transfer_welfare"] + np.log(welfare.nominal_conversion_factor),
             marker="o",
             label=dic["name"],
             color=dic["color"],
@@ -1130,16 +1170,54 @@ def plot_country_welfare(country, metadata, save_as):
             linewidth=3,
         )
 
-    ax.set_xlabel("Policy Cost ($ Billion Per Year)", fontsize=fontsize)
-    ax.set_ylabel("Welfare (Utility Units)", fontsize=fontsize)
-    ax.grid(True)
-    ax.tick_params(axis="x", labelsize=fontsize * 0.75)
-    ax.tick_params(axis="y", labelsize=fontsize * 0.75)
-    ax.legend(fontsize=fontsize * 0.75)
+    ax[0].set_xlabel("Policy Cost ($ Billion Per Year)", fontsize=fontsize)
+    ax[0].set_ylabel(
+        "Post-Transfer Welfare \n (Log Nominal 2023 USD)", fontsize=fontsize
+    )
+    ax[0].grid(True)
+    ax[0].tick_params(axis="x", labelsize=fontsize * 0.75)
+    ax[0].tick_params(axis="y", labelsize=fontsize * 0.75)
+    ax[0].legend(fontsize=fontsize * 0.75)
+
+    budgets, welfare_transfers = welfare._load_transfer_data()
+    budgets, gap_transfers = cont_gap._load_transfer_data()
+    
+
+    budget_idx = len(budgets) // 2  # use last budget level
+    welfare_t = welfare_transfers[budget_idx]
+    gap_t = gap_transfers[budget_idx]
+
+    for i, (method, transfers_df) in enumerate(
+        [("continuous_gap", gap_t), ("welfare", welfare_t)]
+    ):
+        
+        ax[1].hist(
+            transfers_df["ev_transfer"],
+            weights=transfers_df["headcount_adjusted_hh_wgt"]
+            / transfers_df["headcount_adjusted_hh_wgt"].sum(),
+            bins=50,
+            color=METHODS[method]["color"],
+            alpha=0.6,
+            edgecolor=METHODS[method]["color"],
+            linewidth=0.8,
+            label=METHODS[method]["name"],
+            density=True,
+        )
+
+    ax[1].set_xlabel("Transfer Amount (Dollars/Day)", fontsize=fontsize)
+    ax[1].set_ylabel("Density", fontsize=fontsize)
+    ax[1].tick_params(axis="x", labelsize=fontsize * 0.75)
+    ax[1].tick_params(axis="y", labelsize=fontsize * 0.75)
+    ax[1].legend(fontsize=fontsize * 0.75)
+    ax[1].grid(True)
+    ax[1].set_title(
+        f"Policy Cost: {budgets[budget_idx] * cont_gap.conversion_factor:.2f}B",
+        fontsize=fontsize * 0.75,
+    )
+
     plt.tight_layout()
     plt.savefig("{}.pdf".format(save_as), dpi=300, bbox_inches="tight")
     plt.close()
-
 
 def plot_aggregate_welfare(countries, metadata, save_as):
     fig, ax = plt.subplots(1, 2, figsize=(24, 8))
@@ -1710,8 +1788,12 @@ def plot_targeting_efficiency(country, metadata, save_as):
             }
         )
 
+    efficiencies.append(
+        {"excess_transfers_perc": 0.0, "post_transfer_poverty_rate_perc": 100.0}
+    )
+
     efficiency_df = pd.DataFrame(efficiencies).sort_values(
-        ["post_transfer_poverty_rate_perc", "excess_transfers_perc"]
+        ["post_transfer_poverty_rate_perc"]
     )
 
     fig, ax = plt.subplots(figsize=(12, 8))
@@ -1721,17 +1803,20 @@ def plot_targeting_efficiency(country, metadata, save_as):
         color=METHODS["continuous_gap"]["color"],
         linestyle=METHODS["continuous_gap"]["linestyle"],
         linewidth=3,
+        marker="o",
         clip_on=False,
         zorder=5,
     )
-    ax.set_xlabel("Share Still Poor (% of Pre-Transfer Poor)", fontsize=fontsize)
+    ax.set_xlabel(
+        "Share Still Poor \n (% of Pre-Transfer Poverty Poor)", fontsize=fontsize
+    )
     ax.set_ylabel("Share Excess Transfer\n (% of Total Transfer)", fontsize=fontsize)
 
     ax.tick_params(axis="x", labelsize=fontsize * 0.75)
     ax.tick_params(axis="y", labelsize=fontsize * 0.75)
-    ax.set_xlim(0, 100)
-    ax.set_ylim(0, 100)
     ax.grid(True)
+    ax.set_xlim(-5, 105)
+    ax.set_ylim(-5, 105)
     plt.tight_layout()
     plt.savefig("{}.pdf".format(save_as), dpi=300, bbox_inches="tight")
     plt.close()
@@ -1747,7 +1832,11 @@ def make_transfer_plot(country, metadata, save_as):
             country=country, method=method, metadata=metadata
         )
         budgets, transfers = results._load_transfer_data()
-        cost = results.rate_to_cost_interpolator(metadata.nationalPovertyRate)
+        cost = (
+            results.rate_to_cost_interpolator(metadata.nationalPovertyRate)
+            / results.conversion_factor
+        )
+
         idx = bisect.bisect_left(budgets, cost)
         if method == "oracle_gap":
             return transfers[-1]
@@ -1758,7 +1847,7 @@ def make_transfer_plot(country, metadata, save_as):
                 return transfers[idx]
 
     gap_transfers = get_transfer_data(country, "continuous_gap", metadata)
-    pmt_transfers = get_transfer_data(country, "pmt", metadata)
+    pmt_transfers = get_transfer_data(country, "binary_gap", metadata)
     oracle_transfers = get_transfer_data(country, "oracle_gap", metadata)
 
     usi_res = CountryMethodPovertyResults(
@@ -1770,8 +1859,8 @@ def make_transfer_plot(country, metadata, save_as):
         / usi_res.conversion_factor
     )
 
-    methods = ["continuous_gap", "pmt", "oracle_gap"]
-    transfers = [gap_transfers, pmt_transfers, oracle_transfers]
+    methods = ["binary_gap", "continuous_gap", "oracle_gap"]
+    transfers = [pmt_transfers, gap_transfers, oracle_transfers]
 
     all_vals = np.concatenate([t["ev_transfer"] for t in transfers])
     _, bin_edges = np.histogram(all_vals, bins=30)
@@ -1789,12 +1878,16 @@ def make_transfer_plot(country, metadata, save_as):
         pct, _ = np.histogram(
             vals, bins=bin_edges, weights=weights / total_weight * 100
         )
+        if method == "binary_gap":
+            factor = 2
+        else:
+            factor = 1
         ax[0].bar(
             centers + offsets[i],
             pct,
             width=bar_width,
             color=METHODS[method]["color"],
-            alpha=0.6,
+            alpha=0.6 / factor,
             edgecolor=METHODS[method]["color"],
             linewidth=0.8,
             label=METHODS[method]["name"],

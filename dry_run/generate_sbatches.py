@@ -19,7 +19,7 @@ GPU_SBATCH_PREFACE = """#!/bin/bash
 
 
 SBATCH_PREFACE = """#!/bin/bash
-#SBATCH -t 2:00:00             # limit of 1 day runtime
+#SBATCH -t 1:00:00             # limit of 1 day runtime
 #SBATCH -c 1
 #SBATCH --mem 10GB
 #SBATCH -p normal
@@ -31,7 +31,7 @@ SBATCH_PREFACE = """#!/bin/bash
 """
 
 SBATCH_ARRAY_PREFACE = """#!/bin/bash
-#SBATCH -t 2:00:00             # limit of 1 day runtime
+#SBATCH -t 1:00:00             # limit of 1 day runtime
 #SBATCH -c 1
 #SBATCH --mem 10GB
 #SBATCH -p normal
@@ -44,7 +44,7 @@ SBATCH_ARRAY_PREFACE = """#!/bin/bash
 """
 
 OUTPUT_PATH = (
-    "/home/users/rsahoo/zfs/projects/faculty/swager-poverty/poverty/dry_run/scripts6"
+    "/home/users/rsahoo/zfs/projects/faculty/swager-poverty/poverty/dry_run/scripts5"
 )
 
 
@@ -261,8 +261,8 @@ def generate_learn_run_2017_povertyline():
         "ETH",
         "GHA",
         "GNB",
-        # "IDN",
-        # "IND",
+        "IDN",
+        "IND",
         "KEN",
         "LBR",
         "MDG",
@@ -286,12 +286,13 @@ def generate_learn_run_2017_povertyline():
     geo_extrapolation = [True]
     configs = [
         # "output_gt_continuous_gap.yaml",
-        "output_gt_welfare.yaml",
+        # "output_gt_welfare.yaml",
         # "output_gt_continuous_gap.yaml",
         # "output_gt_binary_rate.yaml",
         # "output_gt_binary_gap.yaml",
         # "output_gt_continuous_rate.yaml",
-        # "output_gt_modern_pmt.yaml",
+        "output_gt_pmt.yaml",
+        "output_gt_modern_pmt.yaml",
         # "oracle_gap.yaml",
         # "output_gt_pmt_gap.yaml",
         # "ubi.yaml",
@@ -426,8 +427,8 @@ def generate_hparam_run():
     configs = [
         # "gt_pmt_gap.yaml"
         # "gt_welfare.yaml"
-        "gt_pmt.yaml",
-        "gt_modern_pmt.yaml",
+        # "gt_pmt.yaml",
+        # "gt_modern_pmt.yaml",
         # "gt_continuous_rate.yaml",
         # # "gt_binary_rate.yaml",
         # # "gt_binary_gap.yaml",
@@ -701,12 +702,12 @@ def generate_gt_run():
 
 # generate_gt_run()
 # generate_rate_vs_gap_comparison()
-generate_hparam_run()
+# generate_hparam_run()
 # generate_learn_run_2017_restricted_features_povertyline()
 # generate_satellite_run()
 # generate_sample_size_run_2017_povertyline()
-# generate_satellite_learn_run()
-# generate_learn_run_2017_povertyline()
+# generate_satellite_learn_run().
+generate_learn_run_2017_povertyline()
 # generate_learn_run_2021_povertyline()
 # generate_learn_run()
 # make_learnsavedir()

@@ -20,6 +20,7 @@ from learn.plotting import (
     plot_country_welfare,
     plot_targeting_efficiency,
     plot_satellite_image,
+    get_welfare_comparison,
 )
 from learn.presentation_figures import (
     make_plot_for_country_presentation,

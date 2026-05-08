@@ -1,11 +1,11 @@
 #!/bin/bash
 
-rm -rf /home/users/rsahoo/zfs/projects/faculty/swager-poverty/poverty/dry_run/scripts6
-mkdir /home/users/rsahoo/zfs/projects/faculty/swager-poverty/poverty/dry_run/scripts6
+rm -rf /home/users/rsahoo/zfs/projects/faculty/swager-poverty/poverty/dry_run/scripts5
+mkdir /home/users/rsahoo/zfs/projects/faculty/swager-poverty/poverty/dry_run/scripts5
 python generate_sbatches.py
 
 
-for experiment in /home/users/rsahoo/zfs/projects/faculty/swager-poverty/poverty/dry_run/scripts6/*.sh
+for experiment in /home/users/rsahoo/zfs/projects/faculty/swager-poverty/poverty/dry_run/scripts5/*.sh
 do
     echo $experiment
     chmod u+x $experiment

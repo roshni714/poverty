@@ -23,6 +23,7 @@ from learn import (
     plot_targeting_efficiency,
     Metadata,
     plot_satellite_image,
+    get_welfare_comparison,
 )
 import argh
 
@@ -308,14 +309,13 @@ def get_headline_3_dollar_figure_8(metadata):
 
 
 def get_welfare_figure(metadata):
-    pass
-    # plot_aggregate_welfare(
-    #     COUNTRIES,
-    #     metadata=metadata,
-    #     save_as="exhibits/year={}/figs/paper-figure-10-welfare_comparison".format(
-    #         metadata.year
-    #     ),
-    # )
+    get_welfare_comparison(
+        COUNTRIES,
+        metadata=metadata,
+        save_as="exhibits/year={}/figs/paper-figure-10-welfare_comparison".format(
+            metadata.year
+        ),
+    )
 
 
 # def get_table_extrapolation(metadata):
@@ -627,31 +627,31 @@ def main(
     # get_extrapolation_comparison(COUNTRIES, metadata)
 
     # get_pop_targeted_aux_data(metadata)
-    plot_satellite_image(
-        metadata,
-        save_as="exhibits/year={}/figs/paper-figure-9_satellite".format(metadata.year),
-    )
+    get_welfare_figure(metadata)
+    # plot_satellite_image(
+    #     metadata,
+    #     save_as="exhibits/year={}/figs/paper-figure-9_satellite".format(metadata.year),
+    # )
 
     get_togo(metadata)
     get_headline_figure_4(metadata)
-    get_rate_vs_gap_headline_figure_5(metadata)
-    get_oracle_ratio_figure_6(metadata)
-    get_ubi_ratio_figure_7(metadata)
-    get_gdp_plot_figure_10(metadata)
-    get_headline_3_dollar_figure_8(metadata)
-    get_scatter_figure_11(metadata)
-    get_sample_size_figure_12(metadata)
-    get_rate_vs_gap_dimension_figure_13(metadata)
-    get_welfare_figure(metadata)
-    get_appendix_table_survey(metadata)
-    get_appendix_table_share_world_poor(metadata)
-    get_appendix_table_policy_cost_insample(metadata)
+    # get_rate_vs_gap_headline_figure_5(metadata)
+    # get_oracle_ratio_figure_6(metadata)
+    # get_ubi_ratio_figure_7(metadata)
+    # get_gdp_plot_figure_10(metadata)
+    # get_headline_3_dollar_figure_8(metadata)
+    # get_scatter_figure_11(metadata)
+    # get_sample_size_figure_12(metadata)
+    # get_rate_vs_gap_dimension_figure_13(metadata)
+    # get_appendix_table_survey(metadata)
+    # get_appendix_table_share_world_poor(metadata)
+    # get_appendix_table_policy_cost_insample(metadata)
     get_country_level_analysis(metadata)
-    make_macro_file(
-        COUNTRIES,
-        metadata=metadata,
-        save_as="exhibits/empirical_macros",
-    )
+    # make_macro_file(
+    #     COUNTRIES,
+    #     metadata=metadata,
+    #     save_as="exhibits/empirical_macros",
+    # )
     # make_presentation_figures(metadata)
 
 
