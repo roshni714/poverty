@@ -43,7 +43,7 @@ METHODS_HEADLINE = [
     "ubi",
     # "modern_pmt",
     "pmt",
-    # "pmt_gap",
+    "pmt_gap",
     "binary_gap",
     "continuous_gap",
     "oracle_gap",
@@ -60,31 +60,31 @@ COUNTRIES = [
     "CAF",
     "CIV",
     "COD",
-    "COL",
-    "ETH",
-    "GHA",
-    "GNB",
+    # "COL",
+    # "ETH",
+    # "GHA",
+    # "GNB",
     # "IND",
     # "IDN",
-    "LBR",
-    "KEN",
-    "MDG",
-    "MLI",
-    "MEX",
-    "MWI",
-    "NGA",
-    "NER",
-    "PAK",
-    "RWA",
-    "SDN",
-    "SEN",
-    "TGO",
-    "TLS",
-    "TZA",
-    "UGA",
-    "YEM",
-    "ZAF",
-    "ZWE",
+    # "LBR",
+    # "KEN",
+    # "MDG",
+    # "MLI",
+    # "MEX",
+    # "MWI",
+    # "NGA",
+    # "NER",
+    # "PAK",
+    # "RWA",
+    # "SDN",
+    # "SEN",
+    # "TGO",
+    # "TLS",
+    # "TZA",
+    # "UGA",
+    # "YEM",
+    # "ZAF",
+    # "ZWE",
 ]
 
 
@@ -276,13 +276,13 @@ def get_country_level_analysis(metadata):
             ubi_on=True,
         )
 
-        # make_sample_size_plot(
-        #     country,
-        #     metadata,
-        #     save_as="exhibits/year={}/figs/appendix-figure-sample_size-{}".format(
-        #         metadata.year, country
-        #     ),
-        # )
+        make_sample_size_plot(
+            country,
+            metadata,
+            save_as="exhibits/year={}/figs/appendix-figure-sample_size-{}".format(
+                metadata.year, country
+            ),
+        )
 
 
 def get_headline_3_dollar_figure_8(metadata):
@@ -634,7 +634,7 @@ def main(
     # )
 
     get_togo(metadata)
-    get_headline_figure_4(metadata)
+    # get_headline_figure_4(metadata)
     # get_rate_vs_gap_headline_figure_5(metadata)
     # get_oracle_ratio_figure_6(metadata)
     # get_ubi_ratio_figure_7(metadata)

@@ -1162,7 +1162,7 @@ def plot_country_welfare(country, metadata, save_as):
         df = cont_gap_df if method == "continuous_gap" else welfare_df
         ax[0].plot(
             df["policy_cost_per_capita"] * cont_gap.conversion_factor,
-            df["post_transfer_welfare"] + np.log(welfare.nominal_conversion_factor),
+            df["post_transfer_welfare"] + np.log(cont_gap.nominal_conversion_factor),
             marker="o",
             label=dic["name"],
             color=dic["color"],
@@ -1181,7 +1181,6 @@ def plot_country_welfare(country, metadata, save_as):
 
     budgets, welfare_transfers = welfare._load_transfer_data()
     budgets, gap_transfers = cont_gap._load_transfer_data()
-    
 
     budget_idx = len(budgets) // 2  # use last budget level
     welfare_t = welfare_transfers[budget_idx]
@@ -1190,7 +1189,7 @@ def plot_country_welfare(country, metadata, save_as):
     for i, (method, transfers_df) in enumerate(
         [("continuous_gap", gap_t), ("welfare", welfare_t)]
     ):
-        
+
         ax[1].hist(
             transfers_df["ev_transfer"],
             weights=transfers_df["headcount_adjusted_hh_wgt"]
@@ -1218,6 +1217,7 @@ def plot_country_welfare(country, metadata, save_as):
     plt.tight_layout()
     plt.savefig("{}.pdf".format(save_as), dpi=300, bbox_inches="tight")
     plt.close()
+
 
 def plot_aggregate_welfare(countries, metadata, save_as):
     fig, ax = plt.subplots(1, 2, figsize=(24, 8))
@@ -1475,7 +1475,7 @@ def make_sample_size_aggregate_plot_alternative(countries, metadata, save_as):
     fontsize = 30
     gap_res = []
 
-    train_fracs = [0.05, 0.1, 0.2, 0.5, 0.7, 0.9, None]
+    train_fracs = [0.05, 0.1, 0.2, 0.5, 0.7, 0.9, 1.0]
     for train_frac in train_fracs:
         gap_results = AggregatePovertyResults(
             countries=countries,
@@ -1483,9 +1483,6 @@ def make_sample_size_aggregate_plot_alternative(countries, metadata, save_as):
             metadata=metadata,
             train_frac=train_frac,
         )
-
-        if train_frac is None:
-            train_frac = 1.0
 
         gap_res.append(gap_results)
 
@@ -1670,7 +1667,7 @@ def make_sample_size_aggregate_plot(countries, metadata, save_as):
     fontsize = 30
     gap_res = []
 
-    train_fracs = [0.05, 0.1, 0.2, 0.5, 0.7, 0.9, None]
+    train_fracs = [0.05, 0.1, 0.2, 0.5, 0.7, 0.9, 1.0]
     for train_frac in train_fracs:
         gap_results = AggregatePovertyResults(
             countries=countries,
@@ -1678,13 +1675,7 @@ def make_sample_size_aggregate_plot(countries, metadata, save_as):
             metadata=metadata,
             train_frac=train_frac,
         )
-
-        if train_frac is None:
-            train_frac = 1.0
-
         gap_res.append(gap_results)
-
-    train_fracs[-1] = 1.0
 
     fig, ax = plt.subplots(1, 1, figsize=(12, 8))  # sharex=True, height_ratios=[1, 3])
     ax.tick_params(axis="x", labelsize=fontsize * 0.75)
@@ -1847,7 +1838,8 @@ def make_transfer_plot(country, metadata, save_as):
                 return transfers[idx]
 
     gap_transfers = get_transfer_data(country, "continuous_gap", metadata)
-    pmt_transfers = get_transfer_data(country, "binary_gap", metadata)
+    binary_gap_transfers = get_transfer_data(country, "binary_gap", metadata)
+    pmt_gap_transfers = get_transfer_data(country, "pmt_gap", metadata)
     oracle_transfers = get_transfer_data(country, "oracle_gap", metadata)
 
     usi_res = CountryMethodPovertyResults(
@@ -1859,8 +1851,13 @@ def make_transfer_plot(country, metadata, save_as):
         / usi_res.conversion_factor
     )
 
-    methods = ["binary_gap", "continuous_gap", "oracle_gap"]
-    transfers = [pmt_transfers, gap_transfers, oracle_transfers]
+    methods = ["pmt_gap", "binary_gap", "continuous_gap", "oracle_gap"]
+    transfers = [
+        pmt_gap_transfers,
+        binary_gap_transfers,
+        gap_transfers,
+        oracle_transfers,
+    ]
 
     all_vals = np.concatenate([t["ev_transfer"] for t in transfers])
     _, bin_edges = np.histogram(all_vals, bins=30)
@@ -1900,7 +1897,7 @@ def make_transfer_plot(country, metadata, save_as):
         linestyle=METHODS["ubi"]["linestyle"],
     )
 
-    ax[0].legend(fontsize=fontsize * 0.75, loc="upper left", bbox_to_anchor=(0.08, 1))
+    ax[0].legend(fontsize=fontsize * 0.5, loc="upper left", bbox_to_anchor=(0.08, 1))
     ax[0].set_xlabel("Transfer Amount (Dollars/Day)", fontsize=fontsize)
     ax[0].set_ylabel("Share of Population (%)", fontsize=fontsize)
     ax[0].tick_params(axis="x", labelsize=fontsize * 0.75)
@@ -1933,7 +1930,7 @@ def make_transfer_plot(country, metadata, save_as):
     ax[1].legend(
         handles=handles + [vline],
         labels=labels + ["Poverty line ($2.15)"],
-        fontsize=fontsize * 0.75,
+        fontsize=fontsize * 0.5,
     )
 
     ax[1].set_xlabel("Consumption (Dollars/Day)", fontsize=fontsize)
@@ -1954,19 +1951,13 @@ def make_sample_size_plot(country, metadata, save_as):
     n_samples = []
     gap_res = []
 
-    for train_frac in [0.05, 0.1, 0.2, 0.5, 0.7, 0.9, None]:
-        if train_frac is not None:
-            gap_results = AveragedCountryMethodPovertyResults(
-                country,
-                method="continuous_gap",
-                metadata=metadata,
-                train_frac=train_frac,
-            )
-        else:
-            train_frac = 1.0
-            gap_results = CountryMethodPovertyResults(
-                country, method="continuous_gap", metadata=metadata
-            )
+    for train_frac in [0.05, 0.1, 0.2, 0.5, 0.7, 0.9, 1.0]:
+        gap_results = AveragedCountryMethodPovertyResults(
+            country,
+            method="continuous_gap",
+            metadata=metadata,
+            train_frac=train_frac,
+        )
 
         n_samples.append(n_train * train_frac)
         gap_res.append(gap_results)
@@ -1988,9 +1979,8 @@ def make_sample_size_plot(country, metadata, save_as):
         [0]
         + [
             r.std_dev_rate_to_cost_interpolator(metadata.nationalPovertyRate)
-            for r in gap_res[:-1]
+            for r in gap_res
         ]
-        + [0]
     )
     upper_policy_costs = policy_costs + std_dev
     lower_policy_costs = policy_costs - std_dev

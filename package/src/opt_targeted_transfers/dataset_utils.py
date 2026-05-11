@@ -56,6 +56,20 @@ def split(dataset, frac=0.7, seed=0):
 
     return train_dataset, test_dataset
 
+def bootstrap_subsample(dataset, frac=0.7, seed=0):
+    n = int(len(dataset) * frac)
+    np.random.seed(seed)
+    indices = np.random.choice(n, size=n, replace=True)
+    weight = dataset.weight
+    subsampled_dataset = Dataset(
+        dataset.df.iloc[indices].copy(deep=True).reset_index(drop=True),
+        outcome=dataset.outcome,
+        covs=dataset.covs,
+        weight=dataset.weight,
+    )
+    subsampled_dataset.df[weight] = subsampled_dataset.df[weight] / subsampled_dataset.df[weight].sum()
+    return subsampled_dataset
+
 
 class Dataset:
     def __init__(self, df, outcome=None, covs=None, weight=None):

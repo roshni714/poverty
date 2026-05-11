@@ -83,7 +83,6 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
 
     pmt_gap_config = deepcopy(pmt_config)
     pmt_gap_config["pmt_gap"] = pmt_gap_config.pop("pmt")
-    del pmt_gap_config["pmt_gap"]["transfer_value"]
 
     oracle_config = {
         "oracle_gap": {},
@@ -182,8 +181,9 @@ countries = [
     "TGO_alpha_earth",
     "TGO_alpha_earth_and_survey",
 ]
+new_countries = ["IND"]
 geo_extrapolation = [True]
-for country in countries:
+for country in new_countries:
     for geo in geo_extrapolation:
-        generate_gt_hparam_config(country, geo, "cpu")
+        generate_gt_hparam_config(country, geo, "cuda:0")
     # generate_default_hparam_config(country)

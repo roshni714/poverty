@@ -14,7 +14,7 @@ from opt_targeted_transfers import (
     WelfareTargetedTransfers,
     PMTGapTargetedTransfers,
     write_result,
-    split,
+    bootstrap_subsample,
 )
 from learn.data_loader import load_datasets
 import os
@@ -555,7 +555,7 @@ def main_sample_size(
         + "_seed="
         + str(seed)
     )
-    train_dataset, _ = split(train_dataset, frac=trainfraction, seed=seed)
+    train_dataset = bootstrap_subsample(train_dataset, frac=trainfraction, seed=seed)
 
     LEARNING_METHODS = {
         "continuous_rate": learn_continuous_rate,
@@ -586,7 +586,7 @@ def main_sample_size(
                 test_dataset,
                 config_hparam[key],
                 povertyline=povertyline,
-                budgets=learn_budgets,
+                budgets=budgets,
                 device=device,
                 savepath=savepath,
             )

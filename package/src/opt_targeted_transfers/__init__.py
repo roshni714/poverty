@@ -18,7 +18,7 @@ from opt_targeted_transfers.density_estimation import (
     get_cond_density_estimator,
     get_nll,
 )
-from opt_targeted_transfers.dataset_utils import Dataset, split, standardize
+from opt_targeted_transfers.dataset_utils import Dataset, split, standardize, bootstrap_subsample
 from opt_targeted_transfers.quantile_regression import (
     get_quantile_regressor,
     get_quantile_loss,
