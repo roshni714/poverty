@@ -60,31 +60,28 @@ COUNTRIES = [
     "CAF",
     "CIV",
     "COD",
-    # "COL",
-    # "ETH",
-    # "GHA",
-    # "GNB",
-    # "IND",
-    # "IDN",
-    # "LBR",
-    # "KEN",
-    # "MDG",
-    # "MLI",
-    # "MEX",
-    # "MWI",
-    # "NGA",
-    # "NER",
-    # "PAK",
-    # "RWA",
-    # "SDN",
-    # "SEN",
-    # "TGO",
-    # "TLS",
-    # "TZA",
-    # "UGA",
-    # "YEM",
-    # "ZAF",
-    # "ZWE",
+    "COL",
+    "ETH",
+    "GHA",
+    "GNB",
+    "IND",
+    "IDN",
+    "LBR",
+    "KEN",
+    "MDG",
+    "MLI",
+    "MEX",
+    "MWI",
+    "NGA",
+    "NER",
+    "PAK",
+    "RWA",
+    "SDN",
+    "SEN",
+    "TGO",
+    "TLS",
+    "TZA",
+    "UGA",
 ]
 
 
@@ -114,13 +111,13 @@ def get_togo(metadata):
     )
 
     for country in COUNTRIES:
-        make_sample_size_plot(
-            country,
-            metadata,
-            save_as="exhibits/year={}/figs/appendix-figure-sample_size-{}".format(
-                metadata.year, country
-            ),
-        )
+        # make_sample_size_plot(
+        #     country,
+        #     metadata,
+        #     save_as="exhibits/year={}/figs/appendix-figure-sample_size-{}".format(
+        #         metadata.year, country
+        #     ),
+        # )
         plot_country_welfare(
             country,
             metadata,
@@ -188,22 +185,22 @@ def get_scatter_figure_11(metadata):
     )
 
 
-def get_sample_size_figure_12(metadata):
-    make_sample_size_aggregate_plot(
-        COUNTRIES,
-        metadata,
-        save_as="exhibits/year={}/figs/paper-figure-12a-sample_size".format(
-            metadata.year
-        ),
-    )
+# def get_sample_size_figure_12(metadata):
+#     make_sample_size_aggregate_plot(
+#         COUNTRIES,
+#         metadata,
+#         save_as="exhibits/year={}/figs/paper-figure-12a-sample_size".format(
+#             metadata.year
+#         ),
+#     )
 
-    make_sample_size_aggregate_plot_alternative(
-        COUNTRIES,
-        metadata,
-        save_as="exhibits/year={}/figs/paper-figure-12b-sample_size".format(
-            metadata.year
-        ),
-    )
+#     make_sample_size_aggregate_plot_alternative(
+#         COUNTRIES,
+#         metadata,
+#         save_as="exhibits/year={}/figs/paper-figure-12b-sample_size".format(
+#             metadata.year
+#         ),
+#     )
 
 
 def get_appendix_table_survey(metadata):
@@ -276,13 +273,13 @@ def get_country_level_analysis(metadata):
             ubi_on=True,
         )
 
-        make_sample_size_plot(
-            country,
-            metadata,
-            save_as="exhibits/year={}/figs/appendix-figure-sample_size-{}".format(
-                metadata.year, country
-            ),
-        )
+        # make_sample_size_plot(
+        #     country,
+        #     metadata,
+        #     save_as="exhibits/year={}/figs/appendix-figure-sample_size-{}".format(
+        #         metadata.year, country
+        #     ),
+        # )
 
 
 def get_headline_3_dollar_figure_8(metadata):
@@ -627,14 +624,14 @@ def main(
     # get_extrapolation_comparison(COUNTRIES, metadata)
 
     # get_pop_targeted_aux_data(metadata)
-    get_welfare_figure(metadata)
+    # get_welfare_figure(metadata)
     # plot_satellite_image(
     #     metadata,
     #     save_as="exhibits/year={}/figs/paper-figure-9_satellite".format(metadata.year),
     # )
 
-    get_togo(metadata)
-    # get_headline_figure_4(metadata)
+    # get_togo(metadata)
+    get_headline_figure_4(metadata)
     # get_rate_vs_gap_headline_figure_5(metadata)
     # get_oracle_ratio_figure_6(metadata)
     # get_ubi_ratio_figure_7(metadata)
@@ -646,12 +643,12 @@ def main(
     # get_appendix_table_survey(metadata)
     # get_appendix_table_share_world_poor(metadata)
     # get_appendix_table_policy_cost_insample(metadata)
-    get_country_level_analysis(metadata)
-    # make_macro_file(
-    #     COUNTRIES,
-    #     metadata=metadata,
-    #     save_as="exhibits/empirical_macros",
-    # )
+    # get_country_level_analysis(metadata)
+    make_macro_file(
+        COUNTRIES,
+        metadata=metadata,
+        save_as="exhibits/empirical_macros",
+    )
     # make_presentation_figures(metadata)
 
 

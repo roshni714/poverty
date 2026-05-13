@@ -29,7 +29,7 @@ class AveragedCountryMethodPovertyResults:
         self.povertyline = metadata.povertyline
         self.train_frac = train_frac
         self.metadata = metadata
-        self.n_seeds = 10
+        self.n_seeds = 15
 
         self.country_seed_results = [
             CountryMethodPovertyResults(

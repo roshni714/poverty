@@ -50,7 +50,7 @@ def get_country_name(code, metadata):
     Returns:
         str: Country name.
     """
-    wpc_aux_data = metadata.preprocess_wpc_data()
+    wpc_aux_data = metadata.preprocess_wpc_data(forecast_year=2023)
     refugee_data = metadata.preprocess_refugee_data()
     wb_aux_data = metadata.preprocess_country_aux_data()
 

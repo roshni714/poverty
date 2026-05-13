@@ -517,7 +517,7 @@ def get_macros_relative_cost(extrapolation_results, metadata):
     )
     global_gdp = df[df["indicator"] == "global_GDP_2023"]["value"].item()
 
-    relative_cost_results = {"wb": {}, "wpc": {}}
+    relative_cost_results = {"wb_2023": {}, "wpc_2023": {}, "wpc_2030": {}}
 
     for key in extrapolation_results:
         policy_cost = extrapolation_results[key]["extrapolated_cost"]
@@ -930,7 +930,7 @@ def get_headline_numbers(countries, metadata, global_rate=False):
     else:
         national_poverty_rate = metadata.nationalPovertyRate
     agg_results = []
-    methods = ["continuous_gap", "binary_gap", "oracle_gap", "pmt", "ubi"]
+    methods = ["continuous_gap", "binary_gap", "oracle_gap", "ubi"]
     for method in methods:
         agg_results.append(
             AggregatePovertyResults(
@@ -1369,60 +1369,68 @@ def get_extrapolation_comparison(countries, metadata):
 def get_extrapolation(countries, metadata):
 
     data_sources = ["wb", "wpc"]
+    forecast_year = [2023, 2030]
 
     extrapolation_results = {}
 
     for data_source in data_sources:
-        extrapolation = ExtrapolationResults(
-            countries,
-            insample_data_source=data_source,
-            outofsample_data_source=data_source,
-            metadata=metadata,
-            degree=1,
-        )
-        extrapolation.fit_regression_model()
-        regression_r2 = extrapolation.score
-        insample_df = extrapolation.get_in_sample_costs(survey_year=False, use_reg=True)
-        insample_policy_cost = insample_df["Policy Cost"].loc["Total"]
-        outofsample_df = extrapolation.get_out_of_sample_costs()
-        outofsample_policy_cost = outofsample_df["Policy Cost"].loc["Total"]
-        oracle_cost, dropped_countries_gap = extrapolation.get_global_poverty_gap()
-        dropped_countries = extrapolation.dropped_countries
-        extrapolated_cost = insample_policy_cost + outofsample_policy_cost
-        extrapolation_quadratic = ExtrapolationResults(
-            countries,
-            insample_data_source=data_source,
-            outofsample_data_source=data_source,
-            metadata=metadata,
-            degree=2,
-        )
-        extrapolation_quadratic.fit_regression_model()
-        insample_quadratic_df = extrapolation_quadratic.get_in_sample_costs(
-            survey_year=False, use_reg=True
-        )
-        insample_quadratic_policy_cost = insample_quadratic_df["Policy Cost"].loc[
-            "Total"
-        ]
-        outofsample_quadratic_df = extrapolation_quadratic.get_out_of_sample_costs()
-        outofsample_quadratic_policy_cost = outofsample_quadratic_df["Policy Cost"].loc[
-            "Total"
-        ]
-        quadratic_extrapolated_cost = (
-            insample_quadratic_policy_cost + outofsample_quadratic_policy_cost
-        )
+        for year in forecast_year:
+            if year == 2030 and data_source == "wb":
+                continue  # wb doesn't have 2030 forecasts, so skip this case
+            extrapolation = ExtrapolationResults(
+                countries,
+                forecast_year=year,
+                insample_data_source=data_source,
+                outofsample_data_source=data_source,
+                metadata=metadata,
+                degree=1,
+            )
+            extrapolation.fit_regression_model()
+            regression_r2 = extrapolation.score
+            insample_df = extrapolation.get_in_sample_costs(
+                survey_year=False, use_reg=True
+            )
+            insample_policy_cost = insample_df["Policy Cost"].loc["Total"]
+            outofsample_df = extrapolation.get_out_of_sample_costs()
+            outofsample_policy_cost = outofsample_df["Policy Cost"].loc["Total"]
+            oracle_cost, dropped_countries_gap = extrapolation.get_global_poverty_gap()
+            dropped_countries = extrapolation.dropped_countries
+            extrapolated_cost = insample_policy_cost + outofsample_policy_cost
+            extrapolation_quadratic = ExtrapolationResults(
+                countries,
+                insample_data_source=data_source,
+                outofsample_data_source=data_source,
+                metadata=metadata,
+                forecast_year=year,
+                degree=2,
+            )
+            extrapolation_quadratic.fit_regression_model()
+            insample_quadratic_df = extrapolation_quadratic.get_in_sample_costs(
+                survey_year=False, use_reg=True
+            )
+            insample_quadratic_policy_cost = insample_quadratic_df["Policy Cost"].loc[
+                "Total"
+            ]
+            outofsample_quadratic_df = extrapolation_quadratic.get_out_of_sample_costs()
+            outofsample_quadratic_policy_cost = outofsample_quadratic_df[
+                "Policy Cost"
+            ].loc["Total"]
+            quadratic_extrapolated_cost = (
+                insample_quadratic_policy_cost + outofsample_quadratic_policy_cost
+            )
 
-        results = {
-            "extrapolated_cost": extrapolated_cost,
-            "oracle_cost": oracle_cost,
-            "in_sample_policy_cost": insample_policy_cost,
-            "out_of_sample_policy_cost": outofsample_policy_cost,
-            "dropped_countries": dropped_countries,
-            "dropped_countries_gap": dropped_countries_gap,
-            "regression_r2": regression_r2,
-            "quadratic_extrapolated_cost": quadratic_extrapolated_cost,
-        }
+            results = {
+                "extrapolated_cost": extrapolated_cost,
+                "oracle_cost": oracle_cost,
+                "in_sample_policy_cost": insample_policy_cost,
+                "out_of_sample_policy_cost": outofsample_policy_cost,
+                "dropped_countries": dropped_countries,
+                "dropped_countries_gap": dropped_countries_gap,
+                "regression_r2": regression_r2,
+                "quadratic_extrapolated_cost": quadratic_extrapolated_cost,
+            }
 
-        extrapolation_results[data_source] = results
+            extrapolation_results[f"{data_source}_{year}"] = results
 
     return extrapolation_results
 
@@ -1526,8 +1534,8 @@ def make_sample_size_aggregate_plot_alternative(countries, metadata, save_as):
     train_fracs = [0.0] + train_fracs
     percent_inc_agg = ((np.array(costs) - min(costs)) / min(costs)) * 100
 
-    agg_max = 100
-    axs[1].set_ylim(-0.01 * agg_max, agg_max * 1.1)
+    agg_max = max(percent_inc_agg)
+    axs[1].set_ylim(-0.01 * agg_max, 100)
 
     country_max = 0
     for country in countries:
@@ -1558,7 +1566,7 @@ def make_sample_size_aggregate_plot_alternative(countries, metadata, save_as):
                 percent_inc,
                 marker="o",
                 color="gray",
-                alpha=0.2,
+                alpha=0.1,
                 linestyle=dic["linestyle"],
                 linewidth=3,
             )
@@ -1574,7 +1582,7 @@ def make_sample_size_aggregate_plot_alternative(countries, metadata, save_as):
             linewidth=3,
         )
 
-    axs[0].set_ylim(agg_max * 1.2, 2000)
+    axs[0].set_ylim(100, agg_max * 1.1)
 
     axs[0].legend(fontsize=fontsize * 0.75)
     plt.tight_layout()
@@ -1839,7 +1847,6 @@ def make_transfer_plot(country, metadata, save_as):
 
     gap_transfers = get_transfer_data(country, "continuous_gap", metadata)
     binary_gap_transfers = get_transfer_data(country, "binary_gap", metadata)
-    pmt_gap_transfers = get_transfer_data(country, "pmt_gap", metadata)
     oracle_transfers = get_transfer_data(country, "oracle_gap", metadata)
 
     usi_res = CountryMethodPovertyResults(
@@ -1851,9 +1858,8 @@ def make_transfer_plot(country, metadata, save_as):
         / usi_res.conversion_factor
     )
 
-    methods = ["pmt_gap", "binary_gap", "continuous_gap", "oracle_gap"]
+    methods = ["binary_gap", "continuous_gap", "oracle_gap"]
     transfers = [
-        pmt_gap_transfers,
         binary_gap_transfers,
         gap_transfers,
         oracle_transfers,
@@ -2080,10 +2086,10 @@ def make_macro_file(countries, metadata, save_as):
     ) = get_macro_povertyline_comparison(countries, metadata)
 
     dropped_countries_string = make_string_country_list(
-        extrapolation_results["wb"]["dropped_countries"], metadata=metadata
+        extrapolation_results["wb_2023"]["dropped_countries"], metadata=metadata
     )
     dropped_countries_gap_string = make_string_country_list(
-        extrapolation_results["wb"]["dropped_countries_gap"], metadata=metadata
+        extrapolation_results["wb_2023"]["dropped_countries_gap"], metadata=metadata
     )
 
     togo_n, togo_d = get_data_dimension("TGO")
@@ -2134,10 +2140,6 @@ def make_macro_file(countries, metadata, save_as):
             + "{{{}}}\n".format(round(national_cost["ubi"]))
         )
         f.write(
-            "\\newcommand{\\headlinePMTNationalTarget}"
-            + "{{{}}}\n".format(round(national_cost["pmt"]))
-        )
-        f.write(
             "\\newcommand{\\headlineGapNationalTarget}"
             + "{{{}}}\n".format(round(national_cost["continuous_gap"]))
         )
@@ -2170,12 +2172,6 @@ def make_macro_file(countries, metadata, save_as):
             )
         )
         f.write(
-            "\\newcommand{\\headlineGapPMTPercentNationalTarget}"
-            + "{{{}}}\n".format(
-                round((national_cost["continuous_gap"] / national_cost["pmt"]) * 100)
-            )
-        )
-        f.write(
             "\\newcommand{\\headlineGapOracleRatioNationalTarget}"
             + "{{{}}}\n".format(
                 round(
@@ -2200,10 +2196,6 @@ def make_macro_file(countries, metadata, save_as):
         f.write(
             "\\newcommand{\\headlineUBIGlobalTarget}"
             + "{{{}}}\n".format(round(global_cost["ubi"]))
-        )
-        f.write(
-            "\\newcommand{\\headlinePMTGlobalTarget}"
-            + "{{{}}}\n".format(round(global_cost["pmt"]))
         )
         f.write(
             "\\newcommand{\\headlineGapGlobalTarget}"
@@ -2237,12 +2229,6 @@ def make_macro_file(countries, metadata, save_as):
             )
         )
         f.write(
-            "\\newcommand{\\headlineGapPMTPercentGlobalTarget}"
-            + "{{{}}}\n".format(
-                round((global_cost["continuous_gap"] / global_cost["pmt"]) * 100)
-            )
-        )
-        f.write(
             "\\newcommand{\\headlineGapOracleRatioGlobalTarget}"
             + "{{{}}}\n".format(
                 round((global_cost["continuous_gap"] / global_cost["oracle_gap"]))
@@ -2273,51 +2259,68 @@ def make_macro_file(countries, metadata, save_as):
         )
         f.write(
             "\\newcommand{\\extrapolationWBCost}"
-            + "{{{}}}\n".format(round(extrapolation_results["wb"]["extrapolated_cost"]))
+            + "{{{}}}\n".format(
+                round(extrapolation_results["wb_2023"]["extrapolated_cost"])
+            )
         )
         f.write(
             "\\newcommand{\\extrapolationWPCCost}"
             + "{{{}}}\n".format(
-                round(extrapolation_results["wpc"]["extrapolated_cost"])
+                round(extrapolation_results["wpc_2023"]["extrapolated_cost"])
+            )
+        )
+        f.write(
+            "\\newcommand{\\extrapolationWPCFutureCost}"
+            + "{{{}}}\n".format(
+                round(extrapolation_results["wpc_2030"]["extrapolated_cost"])
             )
         )
         f.write(
             "\\newcommand{\\extrapolationWBRSquared}"
-            + "{{{}}}\n".format(round(extrapolation_results["wb"]["regression_r2"], 2))
+            + "{{{}}}\n".format(
+                round(extrapolation_results["wb_2023"]["regression_r2"], 2)
+            )
         )
         f.write(
             "\\newcommand{\\extrapolationWPCRSquared}"
-            + "{{{}}}\n".format(round(extrapolation_results["wpc"]["regression_r2"], 2))
+            + "{{{}}}\n".format(
+                round(extrapolation_results["wpc_2023"]["regression_r2"], 2)
+            )
         )
         f.write(
             "\\newcommand{\\extrapolationWBOECDGDPPercent}"
             + "{{{}}}\n".format(
-                round(relative_cost_results["wb"]["percentage_oecd_gdp"], 2)
+                round(relative_cost_results["wb_2023"]["percentage_oecd_gdp"], 2)
             )
         )
         f.write(
             "\\newcommand{\\extrapolationWPCOECDGDPPercent}"
             + "{{{}}}\n".format(
-                round(relative_cost_results["wpc"]["percentage_oecd_gdp"], 2)
+                round(relative_cost_results["wpc_2023"]["percentage_oecd_gdp"], 2)
             )
         )
         f.write(
             "\\newcommand{\\extrapolationWBOECDGovtRevPercent}"
             + "{{{}}}\n".format(
-                round(relative_cost_results["wb"]["percentage_oecd_govt_revenue"], 2)
+                round(
+                    relative_cost_results["wb_2023"]["percentage_oecd_govt_revenue"], 2
+                )
             )
         )
         f.write(
             "\\newcommand{\\extrapolationWBOECDPlusChinaGDPPercent}"
             + "{{{}}}\n".format(
-                round(relative_cost_results["wb"]["percentage_oecd_plus_china_gdp"], 2)
+                round(
+                    relative_cost_results["wb_2023"]["percentage_oecd_plus_china_gdp"],
+                    2,
+                )
             )
         )
         f.write(
             "\\newcommand{\\extrapolationWBOECDPlusChinaGovtRevPercent}"
             + "{{{}}}\n".format(
                 round(
-                    relative_cost_results["wb"][
+                    relative_cost_results["wb_2023"][
                         "percentage_oecd_plus_china_govt_revenue"
                     ],
                     2,
@@ -2335,26 +2338,32 @@ def make_macro_file(countries, metadata, save_as):
         f.write(
             "\\newcommand{\\extrapolationWBOutOfSampleCost}"
             + "{{{}}}\n".format(
-                round(extrapolation_results["wb"]["out_of_sample_policy_cost"])
+                round(extrapolation_results["wb_2023"]["out_of_sample_policy_cost"])
             )
         )
         f.write(
             "\\newcommand{\\extrapolationWBGlobalGDP}"
             + "{{{}}}\n".format(
-                round(relative_cost_results["wb"]["percentage_feasible_global_gdp"], 2)
+                round(
+                    relative_cost_results["wb_2023"]["percentage_feasible_global_gdp"],
+                    2,
+                )
             )
         )
         f.write(
             "\\newcommand{\\extrapolationWPCGlobalGDP}"
             + "{{{}}}\n".format(
-                round(relative_cost_results["wpc"]["percentage_feasible_global_gdp"], 2)
+                round(
+                    relative_cost_results["wpc_2023"]["percentage_feasible_global_gdp"],
+                    2,
+                )
             )
         )
         f.write(
             "\\newcommand{\\extrapolationWBQuadraticGlobalGDP}"
             + "{{{}}}\n".format(
                 round(
-                    relative_cost_results["wb"][
+                    relative_cost_results["wb_2023"][
                         "percentage_feasible_quadratic_global_gdp"
                     ],
                     2,
@@ -2364,7 +2373,9 @@ def make_macro_file(countries, metadata, save_as):
         f.write(
             "\\newcommand{\\oracleWBGlobalGDP}"
             + "{{{}}}\n".format(
-                round(relative_cost_results["wb"]["percentage_oracle_global_gdp"], 2)
+                round(
+                    relative_cost_results["wb_2023"]["percentage_oracle_global_gdp"], 2
+                )
             )
         )
         f.write(
@@ -2391,12 +2402,6 @@ def make_macro_file(countries, metadata, save_as):
             + "{{{}}}\n".format(
                 round((togo_cost["continuous_gap"] * 100 / togo_cost["ubi_variable"])),
                 1,
-            )
-        )
-        f.write(
-            "\\newcommand{\\togoGapPMTPercent}"
-            + "{{{}}}\n".format(
-                round(togo_cost["continuous_gap"] * 100 / togo_cost["pmt"], 0)
             )
         )
         f.write(
@@ -2432,7 +2437,9 @@ def make_macro_file(countries, metadata, save_as):
             + "{{{}}}\n".format(
                 round(
                     refugee_cost_percentage
-                    + relative_cost_results["wb"]["percentage_feasible_global_gdp"],
+                    + relative_cost_results["wb_2023"][
+                        "percentage_feasible_global_gdp"
+                    ],
                     2,
                 )
             )

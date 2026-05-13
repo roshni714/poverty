@@ -25,7 +25,7 @@ class Metadata:
         self.restricted_feature_set = restricted_feature_set
         self.refugeepath = refugeepath
 
-        wpc_aux_data = self.preprocess_wpc_data()
+        wpc_aux_data = self.preprocess_wpc_data(2023)
         refugee_data = self.preprocess_refugee_data()
 
         df = pd.concat(
@@ -36,7 +36,7 @@ class Metadata:
         ).drop_duplicates()
         self.codebook = df
 
-    def preprocess_wpc_data(self, countries=None):
+    def preprocess_wpc_data(self, forecast_year, countries=None):
         df = pd.read_csv(self.wpcpath)
         df.rename(
             columns={
@@ -61,10 +61,12 @@ class Metadata:
             how="left",
         )
 
-        # SHARE WORLD POOR ONLY VALID FOR 2023
+        # SHARE WORLD POOR ONLY VALID FOR
         df["wpc_share_world_poor"] = (
-            df[df["year"] == 2023]["hc_pov"] / df[df["year"] == 2023]["hc_pov"].sum()
+            df[df["year"] == forecast_year]["hc_pov"]
+            / df[df["year"] == forecast_year]["hc_pov"].sum()
         )
+        df = df[df["year"] == forecast_year]
 
         columns = [
             "country_name",

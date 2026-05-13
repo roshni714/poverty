@@ -31,13 +31,13 @@ METHODS = {
     },
     "pmt": {
         "csv": "output_gt_pmt",
-        "name": "PMT (Lasso)",
+        "name": "PMT (Lasso) + Default Transfer",
         "color": "red",
-        "linestyle": "-",
+        "linestyle": "--",
     },
     "modern_pmt": {
         "csv": "output_gt_modern_pmt",
-        "name": "PMT (NN)",
+        "name": "PMT (NN) + Default Transfer",
         "color": "red",
         "linestyle": "--",
     },
@@ -61,7 +61,7 @@ METHODS = {
     "pmt_gap": {
         "csv": "output_gt_pmt_gap",
         "name": "PMT (Lasso) + Gap-Learned Transfer",
-        "color": "brown",
+        "color": "red",
         "linestyle": "-",
     },
 }
