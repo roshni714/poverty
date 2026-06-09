@@ -4,7 +4,7 @@ import numpy as np
 from opt_targeted_transfers import Dataset, split
 
 
-def get_data_for_geo_extrapolation(data, summary, geo_extrapolation):
+def get_data_for_geo(data, summary, outcome, weight, geo_only=False):
     """
     Preprocess the testing data for geo-extrapolation.
 
@@ -31,10 +31,12 @@ def get_data_for_geo_extrapolation(data, summary, geo_extrapolation):
     # remove_for_fine = list(remove_for_fine)
     remove_for_coarse = list(remove_for_coarse)
 
-    if geo_extrapolation:
-        data = data.drop(columns=remove_for_coarse)
+    if geo_only:
+        columns = coarse_geo_cols + [outcome, weight]
+        data = data[columns]
     else:
-        assert False
+        data = data.drop(columns=remove_for_coarse)
+
         # data = data.drop(columns=remove_for_fine)
     return data
 
@@ -44,7 +46,7 @@ def load_datasets(
     testpath,
     summarypath,
     auxpath,
-    geo_extrapolation,
+    geo_only,
     outcome,
     weight,
     year,
@@ -75,16 +77,16 @@ def load_datasets(
     data2 = _load_data(testpath)
     summary = pd.read_parquet(summarypath)
 
-    data1 = get_data_for_geo_extrapolation(data1, summary, geo_extrapolation)
-    data2 = get_data_for_geo_extrapolation(data2, summary, geo_extrapolation)
+    data1 = get_data_for_geo(data1, summary, outcome, weight, geo_only=geo_only)
+    data2 = get_data_for_geo(data2, summary, outcome, weight, geo_only=geo_only)
 
     all_data = pd.concat([data1, data2], ignore_index=True)
     all_data = convert_to_onehot(all_data, summary)
 
     train_data = _load_data(trainpath)
     test_data = _load_data(testpath)
-    train_data = get_data_for_geo_extrapolation(train_data, summary, geo_extrapolation)
-    test_data = get_data_for_geo_extrapolation(test_data, summary, geo_extrapolation)
+    train_data = get_data_for_geo(train_data, summary, outcome, weight, geo_only=geo_only)
+    test_data = get_data_for_geo(test_data, summary, outcome, weight, geo_only=geo_only)
     covs = list(train_data.columns)
     covs.remove(outcome)
     covs.remove(weight)

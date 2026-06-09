@@ -330,18 +330,20 @@ def learn_welfare(
 @argh.arg("--config", default="hparam_results/output_gan_continuous_rate.yaml")
 @argh.arg("--povertyline", default=3.0)
 @argh.arg("--year", default=2021)
+@argh.arg("--geo", action='store_true', help="Whether to use geo only features")
 @argh.arg("--nfeatures", default=None, type=int)
 @argh.arg("--trainpath", default=None)
 @argh.arg("--testpath", default=None)
-@argh.arg("--auxpath", default="data/auxiliary_data/auxiliary_data_20260409.csv")
+@argh.arg("--auxpath", default="data/auxiliary_data/auxiliary_data_20260511.csv")
 @argh.arg("--summarypath", default="data/summary_2019.parquet")
 @argh.arg("--device", default="cpu")
 def main(
     config="hparam_results/output_gan_continuous_rate.yaml",
     povertyline=3.0,
     year=2021,
+    geo=False,
     nfeatures=None,
-    auxpath="data/auxiliary_data/auxiliary_data_20251207.csv",
+    auxpath="data/auxiliary_data/auxiliary_data_20260511.csv",
     trainpath=None,
     testpath=None,
     summarypath=None,
@@ -388,7 +390,7 @@ def main(
             testpath,
             summarypath,
             auxpath,
-            geo_extrapolation=data_config["geo_extrapolation"],
+            geo_only=geo,
             outcome=data_config["outcome"],
             weight=data_config["weight"],
             year=year,
@@ -412,6 +414,8 @@ def main(
         savepath = (
             savedir + "/" + "year=" + str(year) + "_d=" + str(nfeatures) + "/" + name
         )
+    elif geo:
+        savepath = savedir + "/" + "year=" + str(year) + "_geo_only" + "/" + name
     else:
         savepath = savedir + "/" + "year=" + str(year) + "/" + name
 
@@ -479,13 +483,14 @@ def main(
 @argh.arg("--seed", default=42, type=int)
 @argh.arg("--trainpath", default=None)
 @argh.arg("--testpath", default=None)
-@argh.arg("--auxpath", default="data/auxiliary_data/auxiliary_data_20260409.csv")
+@argh.arg("--auxpath", default="data/auxiliary_data/auxiliary_data_20260511.csv")
 @argh.arg("--summarypath", default="data/summary_2019.parquet")
 @argh.arg("--device", default="cpu")
 def main_sample_size(
     config="hparam_results/output_gan_continuous_rate.yaml",
     povertyline=3.0,
     year=2021,
+    geo=False,
     trainfraction=1.0,
     auxpath="data/auxiliary_data/auxiliary_data_20251207.csv",
     trainpath=None,
@@ -535,7 +540,7 @@ def main_sample_size(
             testpath,
             summarypath,
             auxpath,
-            geo_extrapolation=data_config["geo_extrapolation"],
+            geo_only=False,
             outcome=data_config["outcome"],
             weight=data_config["weight"],
             year=year,

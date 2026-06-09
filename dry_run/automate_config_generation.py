@@ -25,7 +25,7 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
             "gt": {
                 "trainpath": "data/{}/train.parquet".format(country),
                 "summarypath": "data/{}/summary.parquet".format(country),
-                "auxpath": "data/auxiliary_data/auxiliary_data_20260409.csv",
+                "auxpath": "data/auxiliary_data/auxiliary_data_20260511.csv",
             },
         },
     }
@@ -143,47 +143,51 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
         yaml.dump(ubi_config, file, default_flow_style=False)
 
 
-# countries = [
-#     "BDI",
-#     "BGD",
-#     "BEN",
-#     "BFA",
-#     "BGD",
-#     "CAF",
-#     "CIV",
-#     "COL",
-#     "COD",
-#     "GHA",
-#     "ETH",
-#     "GNB",
-#     "IDN",
-#     "IND",
-#     "KEN",
-#     "LBR",
-#     "MDG",
-#     "MEX",
-#     "MWI",
-#     "MLI",
-#     "NER",
-#     "NGA",
-#     "PAK",
-#     "RWA",
-#     "SDN",
-#     "SEN",
-#     "TZA",
-#     "ZAF",
-#     "TGO",
-#     "UGA",
-#     "TLS",
-#     "ZWE",
-#     "YEM",
-#     "ZAF",
-#     "TGO_alpha_earth",
-#     "TGO_alpha_earth_and_survey",
-# ]
-new_countries = ["IND", "IDN"]
+countries = [
+    "BDI",
+    "BGD",
+    "BEN",
+    "BFA",
+    "BGD",
+    "CAF",
+    "CIV",
+    "COL",
+    "COD",
+    "GHA",
+    "ETH",
+    "GNB",
+    "IDN",
+    "IND",
+    "KEN",
+    "LBR",
+    "MDG",
+    "MEX",
+    "MWI",
+    "MLI",
+    "NER",
+    "NGA",
+    "PAK",
+    "RWA",
+    "SDN",
+    "SEN",
+    "TZA",
+    "ZAF",
+    "TGO",
+    "UGA",
+    "TLS",
+    "ZWE",
+    "YEM",
+    "ZAF",
+    "TGO_alpha_earth",
+    "TGO_alpha_earth_and_survey",
+    "IND", 
+    "IDN",
+    "NAM",
+    "SLE"
+]
+new_countries = ["NAM", "SLE", "NGA", "TLS"]
 geo_extrapolation = [True]
 for country in new_countries:
     for geo in geo_extrapolation:
-        generate_gt_hparam_config(country, geo, "cuda:0")
+        generate_gt_hparam_config(country, geo, "cpu")
     # generate_default_hparam_config(country)

@@ -21,7 +21,7 @@ class Metadata:
         self.wpcpath = wpcpath
         self.nationalPovertyRate = nationalPovertyRate
         self.globalPovertyRate = globalPovertyRate
-        self.geo_extrapolation = True
+        self.geo = False
         self.restricted_feature_set = restricted_feature_set
         self.refugeepath = refugeepath
 

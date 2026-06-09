@@ -18,11 +18,35 @@ GPU_SBATCH_PREFACE = """#!/bin/bash
 """
 
 
+HPARAM_NORMAL_SBATCH_PREFACE = """#!/bin/bash
+#SBATCH -t 24:00:00             # limit of 1 day runtime
+#SBATCH -c 1
+#SBATCH --mem 10GB
+#SBATCH -p normal
+#SBATCH --exclude=yen15
+#SBATCH --ntasks-per-node=1
+#SBATCH --job-name="{}.sh"
+#SBATCH --error="{}/{}_err.log"
+#SBATCH --output="{}/{}_out.log"\n
+"""
+
 SBATCH_PREFACE = """#!/bin/bash
 #SBATCH -t 6:00:00             # limit of 1 day runtime
 #SBATCH -c 1
 #SBATCH --mem 10GB
 #SBATCH -p normal
+#SBATCH --exclude=yen15
+#SBATCH --ntasks-per-node=1
+#SBATCH --job-name="{}.sh"
+#SBATCH --error="{}/{}_err.log"
+#SBATCH --output="{}/{}_out.log"\n
+"""
+
+CONTRATE_LONG_SBATCH_PREFACE = """#!/bin/bash
+#SBATCH -t 96:00:00             # limit of 1 day runtime
+#SBATCH -c 1
+#SBATCH --mem 30GB
+#SBATCH -p long
 #SBATCH --exclude=yen15
 #SBATCH --ntasks-per-node=1
 #SBATCH --job-name="{}.sh"
@@ -44,7 +68,7 @@ SBATCH_ARRAY_PREFACE = """#!/bin/bash
 """
 
 OUTPUT_PATH = (
-    "/home/users/rsahoo/zfs/projects/faculty/swager-poverty/poverty/dry_run/scripts"
+    "/home/users/rsahoo/zfs/projects/faculty/swager-poverty/poverty/dry_run/scripts8"
 )
 
 
@@ -79,8 +103,10 @@ def generate_rate_vs_gap_comparison():
 
 def generate_learn_run_2017_restricted_features_povertyline():
     countries = [
-        "IDN",
-        "IND",
+        "NAM",
+        "SLE",
+        # "NGA",
+        # "TLS",
         # "TGO",
         # "BEN",
         # "BFA",
@@ -127,7 +153,7 @@ def generate_learn_run_2017_restricted_features_povertyline():
             else:
                 subfolder = "geo_interpolation"
             for config in configs:
-                exp_id = country + "_" + subfolder + "_" + "_2017_" + config
+                exp_id = country + "_" + subfolder + "_" + "_2017_" + config + "_restricted_features"
                 script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
                 with open(script_fn, "w") as f:
                     print(
@@ -184,36 +210,40 @@ def generate_satellite_hparam_run():
 
 def generate_geographic_learn_run():
     countries = [
-        "BDI",
-        "BEN",
-        "BFA",
-        "BGD",
-        "CAF",
-        "CIV",
-        "COD",
-        "COL",
-        "ETH",
-        "GHA",
-        "GNB",
-        "KEN",
-        "LBR",
-        "MDG",
-        "MEX",
-        "MLI",
-        "MWI",
-        "NER",
+        "NAM",
+        "SLE",
         "NGA",
-        "PAK",
-        "RWA",
-        "SDN",
-        "SEN",
-        "TGO",
         "TLS",
-        "TZA",
-        "UGA",
-        "YEM",
-        "ZAF",
-        "ZWE",
+        # "BDI",
+        # "BEN",
+        # "BFA",
+        # "BGD",
+        # "CAF",
+        # "CIV",
+        # "COD",
+        # "COL",
+        # "ETH",
+        # "GHA",
+        # "GNB",
+        # "KEN",
+        # "LBR",
+        # "MDG",
+        # "MEX",
+        # "MLI",
+        # "MWI",
+        # "NER",
+        # "NGA",
+        # "PAK",
+        # "RWA",
+        # "SDN",
+        # "SEN",
+        # "TGO",
+        # "TLS",
+        # "TZA",
+        # "UGA",
+        # "YEM",
+        # "ZAF",
+        # "ZWE",
     ]
     configs = ["output_gt_continuous_gap.yaml"]
 
@@ -228,15 +258,17 @@ def generate_geographic_learn_run():
                     ),
                     file=f,
                 )
-                base_cmd = f"python main_learn.py main --config hparam/results/{country}/geo_extrapolation/{config} --trainpath data/{country}/train.parquet --testpath data/{country}/test.parquet --summarypath data/{country}/summary.parquet --device cpu --povertyline 2.15 --year 2017"
+                base_cmd = f"python main_learn.py main --geo --config hparam/results/{country}/geo_extrapolation/{config} --trainpath data/{country}/train.parquet --testpath data/{country}/test.parquet --summarypath data/{country}/summary.parquet --device cpu --povertyline 2.15 --year 2017"
                 print(base_cmd, file=f)
                 print("sleep 1", file=f)
 
 
 def generate_sample_size_run_2017_povertyline():
     countries = [
-        "IND",
-        "IDN",
+        "NAM",
+        "SLE",
+        # "NGA",
+        # "TLS",
         # "BDI",
         # "BEN",
         # "BFA",
@@ -305,6 +337,10 @@ def generate_sample_size_run_2017_povertyline():
 
 def generate_learn_run_2017_povertyline():
     countries = [
+        "NAM",
+        "SLE",
+        #"NGA",
+        #"TLS",
         #     "BDI",
         #     "BEN",
         #     "BFA",
@@ -316,8 +352,8 @@ def generate_learn_run_2017_povertyline():
         #     "ETH",
         #     "GHA",
         #     "GNB",
-        "IDN",
-        "IND",
+        # "IDN",
+        # "IND",
         #     "KEN",
         #     "LBR",
         #     "MDG",
@@ -340,18 +376,16 @@ def generate_learn_run_2017_povertyline():
     ]
     geo_extrapolation = [True]
     configs = [
-        # "output_gt_continuous_gap.yaml",
-        "output_gt_welfare.yaml",
-        # "output_gt_continuous_gap.yaml",
-        # "output_gt_binary_rate.yaml",
-        # "output_gt_binary_gap.yaml",
-        # "output_gt_continuous_rate.yaml",
-        # "output_gt_pmt.yaml",
+        "output_gt_continuous_gap.yaml",
+        "output_gt_binary_rate.yaml",
+        "output_gt_binary_gap.yaml",
+        "output_gt_continuous_rate.yaml",
+        "output_gt_pmt.yaml",
         "output_gt_modern_pmt.yaml",
-        # "oracle_gap.yaml",
+        "oracle_gap.yaml",
         "output_gt_pmt_gap.yaml",
-        # "ubi.yaml",
-        # "output_gt_welfare.yaml"
+        "ubi.yaml",
+        "output_gt_welfare.yaml"
     ]
 
     for country in countries:
@@ -377,8 +411,12 @@ def generate_learn_run_2017_povertyline():
 
 def generate_learn_run_2021_povertyline():
     countries = [
-        "IND",
-        "IDN",
+        "NAM",
+        "SLE",
+        #"NGA",
+        #"TLS",
+        # "IND",
+        # "IDN",
         # "BDI",
         # "BEN",
         # "BFA",
@@ -416,13 +454,13 @@ def generate_learn_run_2021_povertyline():
     configs = [
         "output_gt_pmt.yaml",
         "output_gt_pmt_gap.yaml",
-        # "output_gt_continuous_rate.yaml",
-        # "output_gt_binary_rate.yaml",
-        # "output_gt_binary_gap.yaml",
-        # "output_gt_continuous_gap.yaml",
-        # "output_gt_modern_pmt.yaml",
-        # "oracle_gap.yaml",
-        # "ubi.yaml",
+        "output_gt_continuous_rate.yaml",
+        "output_gt_binary_rate.yaml",
+        "output_gt_binary_gap.yaml",
+        "output_gt_continuous_gap.yaml",
+        "output_gt_modern_pmt.yaml",
+        "oracle_gap.yaml",
+        "ubi.yaml",
     ]
 
     for country in countries:
@@ -447,50 +485,18 @@ def generate_learn_run_2021_povertyline():
 
 
 def generate_hparam_run():
-    # countries = [
-    #     "BDI",
-    #     "BEN",
-    #     "BFA",
-    #     "BGD",
-    #     "CAF",
-    #     "CIV",
-    #     "COD",
-    #     "COL",
-    #     "ETH",
-    #     "GHA",
-    #     "GNB",
-    #     "KEN",
-    #     "LBR",
-    #     "MDG",
-    #     "MEX",
-    #     "MLI",
-    #     "MWI",
-    #     "NER",
-    #     "NGA",
-    #     "PAK",
-    #     "RWA",
-    #     "SDN",
-    #     "SEN",
-    #     "TGO",
-    #     "TLS",
-    #     "TZA",
-    #     "UGA",
-    #     "YEM",
-    #     "ZAF",
-    #     "ZWE",
-    # ]
-    countries = ["IND", "IDN"]
+    countries = ["NAM", "SLE"]
 
     geo_extrapolation = [True]
     configs = [
-        "gt_pmt_gap.yaml"
-        # "gt_welfare.yaml"
-        # "gt_pmt.yaml",
-        # "gt_modern_pmt.yaml",
-        # "gt_continuous_rate.yaml",
-        # # "gt_binary_rate.yaml",
-        # # "gt_binary_gap.yaml",
-        # "gt_continuous_gap.yaml",
+        "gt_pmt_gap.yaml",
+        "gt_welfare.yaml",
+        "gt_pmt.yaml",
+        "gt_modern_pmt.yaml",
+        "gt_continuous_rate.yaml",
+        "gt_binary_rate.yaml",
+        "gt_binary_gap.yaml",
+        "gt_continuous_gap.yaml",
     ]
 
     for country in countries:
@@ -504,7 +510,7 @@ def generate_hparam_run():
                 script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
                 with open(script_fn, "w") as f:
                     print(
-                        GPU_SBATCH_PREFACE.format(
+                        HPARAM_NORMAL_SBATCH_PREFACE.format(
                             exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
                         ),
                         file=f,
@@ -558,47 +564,22 @@ def generate_hparam_run():
                                 f"mkdir learn/results/{country}/{subfolder}/year={year}_sample_size",
                                 file=f,
                             )
+                            print(
+                                f"mkdir learn/results/{country}/{subfolder}/year={year}_geo_only",
+                                file=f,
+                            )
 
                         print("sleep 1", file=f)
 
 
 def make_learnsavedir():
     countries = [
-        "BDI",
-        "BEN",
-        "BFA",
-        "BGD",
-        "CAF",
-        "CIV",
-        "COD",
-        "COL",
-        "ETH",
-        "GHA",
-        "GNB",
-        "KEN",
-        "LBR",
-        "MDG",
-        "MEX",
-        "MLI",
-        "MWI",
-        "NER",
-        "NGA",
-        "NGA",
-        "PAK",
-        "RWA",
-        "SDN",
-        "SEN",
-        "TGO",
-        "TLS",
-        "TZA",
-        "UGA",
-        "YEM",
-        "ZAF",
-        "ZWE",
+        "NAM",
+        "SLE",
     ]
 
     geo_extrapolation = [True]
-    years = [2017]
+    years = [2017, 2021]
 
     script_fn = os.path.join(OUTPUT_PATH, "make_learnsavedir.sh")
     with open(script_fn, "w") as f:
@@ -652,6 +633,14 @@ def make_learnsavedir():
                             f"mkdir learn/results/{country}/{subfolder}/year={year}_sample_size",
                             file=f,
                         )
+                        print("sleep 1", file=f)
+                    if year == 2017 and not os.path.exists(
+                        f"learn/results/{country}/{subfolder}/year={year}_geo_only"
+                    ):
+                        print(
+                                f"mkdir learn/results/{country}/{subfolder}/year={year}_geo_only",
+                                file=f,
+                            )
                         print("sleep 1", file=f)
 
 
@@ -760,15 +749,16 @@ def generate_gt_run():
 
 # generate_gt_run()
 # generate_rate_vs_gap_comparison()
-generate_hparam_run()
+# generate_hparam_run()
 # generate_learn_run_2017_restricted_features_povertyline()
 # generate_satellite_run()
-# generate_sample_size_run_2017_povertyline()
+#generate_sample_size_run_2017_povertyline()
 # generate_satellite_learn_run().
 # generate_learn_run_2017_povertyline()
-# generate_learn_run_2021_povertyline()
+#generate_learn_run_2021_povertyline()
+generate_geographic_learn_run()
 # generate_learn_run()s
-# make_learnsavedir()
+#make_learnsavedir()
 # generate_learn_run()
 # generate_wgan_run()
 # generate_wgan_hparam_runs()

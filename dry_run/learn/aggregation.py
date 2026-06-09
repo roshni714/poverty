@@ -23,7 +23,7 @@ class AveragedCountryMethodPovertyResults:
     def __init__(self, country, method, metadata, train_frac=None):
         self.country = country
         self.method = method
-        self.geo_extrapolation = metadata.geo_extrapolation
+        self.geo = metadata.geo
         self.restricted_feature_set = metadata.restricted_feature_set
         self.year = metadata.year
         self.povertyline = metadata.povertyline
@@ -195,7 +195,7 @@ class CountryMethodPovertyResults:
     def __init__(self, country, method, metadata, train_frac=None, seed=None):
         self.country = country
         self.method = method
-        self.geo_extrapolation = metadata.geo_extrapolation
+        self.geo = metadata.geo
         self.restricted_feature_set = metadata.restricted_feature_set
         self.year = metadata.year
         self.povertyline = metadata.povertyline
@@ -218,10 +218,7 @@ class CountryMethodPovertyResults:
         :return: A DataFrame containing the data for the specified country and method.
         :rtype: pandas.DataFrame
         """
-        if self.geo_extrapolation:
-            subfolder = "geo_extrapolation"
-        else:
-            subfolder = "geo_interpolation"
+        subfolder = "geo_extrapolation"
 
         if self.train_frac is None:
 
@@ -234,6 +231,12 @@ class CountryMethodPovertyResults:
             elif self.method != "oracle_gap" and self.restricted_feature_set:
                 df = pd.read_csv(
                     "learn/results/{}/{}/year={}_d=20/{}.csv".format(
+                        self.country, subfolder, self.year, METHODS[self.method]["csv"]
+                    )
+                )
+            elif self.method != "oracle_gap" and self.geo:
+                df = pd.read_csv(
+                    "learn/results/{}/{}/year={}_geo_only/{}.csv".format(
                         self.country, subfolder, self.year, METHODS[self.method]["csv"]
                     )
                 )
@@ -426,10 +429,7 @@ class CountryMethodPovertyResults:
         :return: A DataFrame containing the transfer data for the specified country and method.
         :rtype: pandas.DataFrame
         """
-        if self.geo_extrapolation:
-            subfolder = "geo_extrapolation"
-        else:
-            subfolder = "geo_interpolation"
+        subfolder = "geo_extrapolation"
 
         if self.method == "oracle_gap":
             directory_path = "learn/results/{}/{}/year={}".format(
@@ -527,7 +527,7 @@ class AggregatePovertyResults:
     def __init__(self, countries, method, metadata, train_frac=None):
         self.countries = countries
         self.method = method
-        self.geo_extrapolation = metadata.geo_extrapolation
+        self.geo = metadata.geo
         self.year = metadata.year
         self.povertyline = metadata.povertyline
         self.metadata = metadata

@@ -17,6 +17,7 @@ from learn.post_processing_utils import (
 )
 from adjustText import adjust_text
 import bisect
+import copy
 
 
 def make_plot_for_country(
@@ -106,6 +107,20 @@ def make_plot_for_country(
     plt.savefig("{}.pdf".format(save_as), bbox_inches="tight")
     plt.close()
 
+def percent_decrease_sample_size(countries, metadata):
+    train_fracs = [0.9, 1.0]
+
+    results = [AggregatePovertyResults(
+        countries=countries, 
+        method="continuous_gap", 
+        metadata=metadata, 
+        train_frac=train_frac) for train_frac in train_fracs]
+    
+    costs = [res.aggregate_interpolator_rate_to_cost(metadata.nationalPovertyRate) for res in results]
+    cost_diff = (costs[0] - costs[1]) * 100/ costs[0]
+    
+    return cost_diff
+
 
 def aggregate_plot(
     countries,
@@ -194,6 +209,68 @@ def aggregate_plot(
     plt.savefig("{}.pdf".format(save_as), dpi=300, bbox_inches="tight")
     plt.close()
 
+def plot_geographic_results(countries, metadata, save_as):
+    reg_res = AggregatePovertyResults(
+        countries=countries, method="continuous_gap", metadata=metadata,
+    )
+
+    metadata_new = copy.deepcopy(metadata)
+    metadata_new.geo = True
+
+    geo_res = AggregatePovertyResults(
+        countries=countries, method="continuous_gap", metadata=metadata_new,
+    )
+
+    initial_gap_index, initial_rate, _ = reg_res.get_initial()
+    xlims = [initial_rate, initial_gap_index]
+    xlabels = [
+        "Post-Transfer Poverty Rate\n (%)",
+        "Post-Transfer Poverty Gap Index\n (%)",
+    ]
+    fontsize = 30
+
+    fig, ax = plt.subplots(1, 2, figsize=(24, 8))
+    for i in range(2):
+        ax[i].set_ylabel("Policy Cost ($ Billion Per Year)", fontsize=fontsize)
+        ax[i].grid(True)
+        ax[i].tick_params(axis="x", labelsize=fontsize * 0.75)
+        ax[i].tick_params(axis="y", labelsize=fontsize * 0.75)
+        ax[i].set_xlabel(xlabels[i], fontsize=fontsize)
+
+
+    res = [reg_res, geo_res]
+    colors = ["blue", "darkturquoise"]
+    labels = ["", " - Geographic Only"]
+
+    for i, result in enumerate(res):
+        color = colors[i]
+        gap_domain = result.aggregate_interpolator_gap_domain
+        rate_domain = result.aggregate_interpolator_rate_domain
+        rate_interpolator = result.aggregate_interpolator_rate_to_cost
+        gap_interpolator = result.aggregate_interpolator_gap_to_cost
+
+        ax[0].plot(
+                np.linspace(rate_domain[0], rate_domain[1], 200),
+                rate_interpolator(np.linspace(rate_domain[0], rate_domain[1], 200)),
+                label=METHODS[result.method]["name"] + labels[i],
+                color=color,
+                linestyle=METHODS[result.method]["linestyle"],
+                linewidth=3,
+            )
+        ax[1].plot(
+            np.linspace(gap_domain[0], gap_domain[1], 200),
+            gap_interpolator(np.linspace(gap_domain[0], gap_domain[1], 200)),
+            label=METHODS[result.method]["name"] + labels[i],
+            color=color,
+            linestyle=METHODS[result.method]["linestyle"],
+            linewidth=3,
+        )
+
+    ax[1].legend(fontsize=fontsize * 0.75)  # , #bbox_to_anchor=(1.05, 0.5)
+    # fig.tight_layout(rect=[0, 0, 0.85, 1])
+    plt.tight_layout()
+    plt.savefig("{}.pdf".format(save_as), dpi=300, bbox_inches="tight")
+    plt.close()
 
 def get_policy_costs_as_percent_of_gdp(countries, metadata, global_rate=False):
     """
@@ -275,7 +352,7 @@ def plot_bar_chart_policy_amt_as_percent_of_gdp(countries, metadata, save_as):
         axes[i].bar(new_df["country_name"], new_df[ylabels[i]], zorder=3)
         axes[i].set_xlabel("Country", fontsize=fontsize)
         axes[i].set_ylabel(ylabel_names[i], fontsize=fontsize)
-        axes[i].set_xticklabels(new_df["country_name"], rotation=90, fontsize=fontsize)
+        axes[i].set_xticklabels(new_df["country_code"], rotation=90, fontsize=fontsize)
         axes[i].set_yticklabels(
             np.round(axes[0].get_yticks()).astype(int), fontsize=fontsize
         )
@@ -557,8 +634,13 @@ def get_table_survey_info(countries, metadata, save_as, slides=False):
     df = df[df["country_code"].isin(countries)]
 
     survey_names = {
+        "Enquête Integree sur les Conditions de Vie des Menages du Burundi (EICVMB) 2020-2021": "EICVMB",
         "Enquête Harmonisée sur le Conditions de Vie des Ménages (EHCVM) 2018-2019": "EHCVM",
+        "Enquête Harmonisée sur le Conditions de Vie des Ménages (EHCVM) 2021": "EHCVM",
+        "Enquête par Grappes à Indicateurs des ODD (EGI-ODD) 2020": "EGI-ODD",
         "Socioeconomic Panel Survey: 2009-2010": "Socioeconomic Panel Survey",
+        "Encuesta Nacional de Ingresos y Gastos de los Hogares (ENIGH) 2024": "ENIGH",
+        "Permanent Household Survey 2021-22": "Permanent Household Survey",
         "Fifth Integrated Household Survey 2019-2020": "Fifth Integrated Household Survey",
         "Living Standards Survey 2018-19": "Living Standards Survey",
         "Income and Expenditure Survey 2010-2011": "Income and Expenditure Survey",
@@ -573,9 +655,16 @@ def get_table_survey_info(countries, metadata, save_as, slides=False):
         "Ghana Living Standards Survey 7 2016-2017": "Living Standards Survey 7",
         "Integrated Household Living Conditions Survey (EICV7) 2023-2024": "EICV7",
         "Household Income and Expenditure Survey (HIES) 2022": "HIES",
-        "Permanent Household Survey 2021-22": "Permanent Household Survey",
         "Household Budget Survey (HBS) 2014": "Household Budget Survey",
         "National Socio-Economic Survey (SUSENAS) 2018": "SUSENAS",
+        "National Baseline Household Survey 2009": "NBHS",
+        "High Frequency Survey 2016 (Wave 3)": "High Frequency Survey",
+        "Survey of Living Standards 2007 and Extension 2008": "Survey of Living Standards and Extension",
+        "Household Budget Survey (HBS) 2014": "HBS",
+        "Poverty Income Consumption and Expenditure Survey (PICES) 2017": "PICES",
+        "Household Income and Expenditure Survey 2014-2015": "HIES",
+        "Household Income and Expenditure Survey (HIES) 2018": "HIES",
+        "Household Consumption Expenditure Survey": "HCES"
     }
 
     def rename_survey(x):
@@ -584,6 +673,9 @@ def get_table_survey_info(countries, metadata, save_as, slides=False):
         return x
 
     df["survey_name"] = df["survey_name"].apply(rename_survey)
+    df["citation"] = df["country_code"].str.lower() + "_main_survey"
+    df["citation"] = df["citation"].apply(lambda x: "\\cite{" + x + "}")
+    
 
     sample_sizes = []
     covariate_dimensions = []
@@ -602,6 +694,7 @@ def get_table_survey_info(countries, metadata, save_as, slides=False):
         }
     )
 
+
     df = df.merge(new_df, on="country_code", how="left")
 
     df["survey_year"] = df["survey_year"].astype(int)
@@ -615,30 +708,6 @@ def get_table_survey_info(countries, metadata, save_as, slides=False):
         "wb_poverty_rate_povertyline_{}_survey_year".format(metadata.year)
     ] * (1 - df["pip_using"])
     df.sort_values(by=["country_name"], inplace=True)
-    columns = [
-        "country_name",
-        "survey_name",
-        "survey_year",
-        "sample_size",
-        "covariate_dimension",
-        "WB Rate PIP Using",
-        "WB Rate PIP Not Using",
-        "survey_poverty_rate_povertyline_{}".format(metadata.year),
-    ]
-    df = df[columns]
-    df.rename(
-        columns={
-            "country_name": "Country",
-            "sample_size": "$n$",
-            "covariate_dimension": "$d$",
-            "survey_poverty_rate_povertyline_{}".format(
-                metadata.year
-            ): "Survey Poverty Rate",
-            "survey_name": "Survey Name",
-            "survey_year": "Survey Year",
-        },
-        inplace=True,
-    )
     df["WB Rate PIP Using"] = df["WB Rate PIP Using"].apply(
         lambda x: x if x != 0 else np.nan
     )
@@ -646,15 +715,54 @@ def get_table_survey_info(countries, metadata, save_as, slides=False):
         lambda x: x if x != 0 else np.nan
     )
 
+    columns1 = [
+        "country_name",
+        "survey_name",
+        "citation",
+        "survey_year",
+    ]
+    columns2 = [
+        "country_name",
+        "sample_size",
+        "covariate_dimension",
+        "WB Rate PIP Using",
+        "WB Rate PIP Not Using",
+        "survey_poverty_rate_povertyline_{}".format(metadata.year),
+    ]
+    rename_dic = {
+            "country_name": "Country",
+            "citation": "Citation",
+            "sample_size": "$n$",
+            "covariate_dimension": "$d$",
+            "survey_poverty_rate_povertyline_{}".format(
+                metadata.year
+            ): "Survey Poverty Rate",
+            "survey_name": "Survey Name",
+            "survey_year": "Survey Year",
+        }
+    df1 = df[columns1].rename(
+        columns=rename_dic,
+    )
+
+    df2 = df[columns2].rename(
+        columns=rename_dic,
+    )
+
     if save_as:
-        df.to_latex(
-            save_as + ".tex",
+        df1.to_latex(
+            save_as + "_citation" + ".tex",
+            index=False,
+            float_format="%.1f",
+            escape=False,
+        )
+        df2.to_latex(
+            save_as + "_data" + ".tex",
             index=False,
             float_format="%.1f",
             escape=False,
         )
     if slides:
-        df.drop(
+        df2.drop(
             columns=[
                 "WB Rate PIP Using",
                 "WB Rate PIP Not Using",
@@ -662,7 +770,7 @@ def get_table_survey_info(countries, metadata, save_as, slides=False):
             ],
             inplace=True,
         )
-        df.to_latex(
+        df2.to_latex(
             save_as + "_slides.tex",
             index=False,
             float_format="%.1f",
@@ -737,7 +845,7 @@ def plot_bar_chart_ubi_ratio(countries, metadata, save_as):
         )
 
     df = pd.DataFrame(res)
-    fig, ax = plt.subplots(figsize=(12, 8))
+    fig, ax = plt.subplots(figsize=(16, 8))
     fontsize = 30
     pointsize = 70
     ax.scatter(
@@ -759,6 +867,8 @@ def plot_bar_chart_ubi_ratio(countries, metadata, save_as):
     ax.set_ylabel("Cost Ratio: Targeting/USI (%)", fontsize=fontsize)
     ax.tick_params(axis="x", labelsize=fontsize * 0.75)
     ax.tick_params(axis="y", labelsize=fontsize * 0.75)
+    ax.set_xlim(0, 100)
+    ax.set_ylim(0, 100)
     (xlow, xhigh) = ax.get_xlim()
     ax.set_xlim(0, xhigh)
     ax.grid(True)
@@ -1152,7 +1262,7 @@ def plot_country_welfare(country, metadata, save_as):
         country=country, method="welfare", metadata=metadata
     )
 
-    fig, ax = plt.subplots(1, 2, figsize=(30, 8))
+    fig, ax = plt.subplots(1, 2, figsize=(24, 8))
     fontsize = 30
     cont_gap_df = cont_gap._load_data()
     welfare_df = welfare._load_data()
@@ -1179,92 +1289,53 @@ def plot_country_welfare(country, metadata, save_as):
     ax[0].tick_params(axis="y", labelsize=fontsize * 0.75)
     ax[0].legend(fontsize=fontsize * 0.75)
 
-    budgets, welfare_transfers = welfare._load_transfer_data()
-    budgets, gap_transfers = cont_gap._load_transfer_data()
+    _, welfare_t = get_transfer_data("TGO", "welfare", metadata)
+    budget, gap_t = get_transfer_data("TGO", "continuous_gap", metadata)
 
-    budget_idx = len(budgets) // 2  # use last budget level
-    welfare_t = welfare_transfers[budget_idx]
-    gap_t = gap_transfers[budget_idx]
+    transfers = [gap_t, welfare_t]
+    methods = ["continuous_gap", "welfare"]
 
-    for i, (method, transfers_df) in enumerate(
-        [("continuous_gap", gap_t), ("welfare", welfare_t)]
-    ):
+    all_vals = np.concatenate([t["ev_transfer"] for t in transfers])
+    _, bin_edges = np.histogram(all_vals, bins=30)
+    bin_width = bin_edges[1] - bin_edges[0]
+    centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+    bar_width = bin_width / len(methods)
+    offsets = np.linspace(
+        -bin_width / 2 + bar_width / 2, bin_width / 2 - bar_width / 2, len(methods)
+    )
 
-        ax[1].hist(
-            transfers_df["ev_transfer"],
-            weights=transfers_df["headcount_adjusted_hh_wgt"]
-            / transfers_df["headcount_adjusted_hh_wgt"].sum(),
-            bins=50,
+    for i, method in enumerate(methods):
+        vals = transfers[i]["ev_transfer"]
+        weights = transfers[i]["headcount_adjusted_hh_wgt"]
+        total_weight = weights.sum()
+        pct, _ = np.histogram(
+            vals, bins=bin_edges, weights=weights / total_weight * 100
+        )
+        if method == "binary_gap":
+            factor = 2
+        else:
+            factor = 1
+        ax[1].bar(
+            centers + offsets[i],
+            pct,
+            width=bar_width,
             color=METHODS[method]["color"],
-            alpha=0.6,
+            alpha=0.6 / factor,
             edgecolor=METHODS[method]["color"],
             linewidth=0.8,
             label=METHODS[method]["name"],
-            density=True,
         )
 
     ax[1].set_xlabel("Transfer Amount (Dollars/Day)", fontsize=fontsize)
-    ax[1].set_ylabel("Density", fontsize=fontsize)
+    ax[1].set_ylabel("Share of Population (%)", fontsize=fontsize)
     ax[1].tick_params(axis="x", labelsize=fontsize * 0.75)
     ax[1].tick_params(axis="y", labelsize=fontsize * 0.75)
     ax[1].legend(fontsize=fontsize * 0.75)
     ax[1].grid(True)
-    ax[1].set_title(
-        f"Policy Cost: {budgets[budget_idx] * cont_gap.conversion_factor:.2f}B",
-        fontsize=fontsize * 0.75,
-    )
 
     plt.tight_layout()
     plt.savefig("{}.pdf".format(save_as), dpi=300, bbox_inches="tight")
     plt.close()
-
-
-def plot_aggregate_welfare(countries, metadata, save_as):
-    fig, ax = plt.subplots(1, 2, figsize=(24, 8))
-    fontsize = 30
-
-    results = []
-    method_list = ["continuous_gap", "welfare"]
-
-    for method in method_list:
-        results.append(
-            AggregatePovertyResults(
-                countries=countries,
-                method=method,
-                metadata=metadata,
-            )
-        )
-
-    xlabels = ["Post-Transfer Welfare", "Transfer Amounts"]
-
-    ax[0].set_ylabel("Policy Cost ($ Billion Per Year)", fontsize=fontsize)
-
-    for i in range(2):
-        ax[i].grid(True)
-        ax[i].tick_params(axis="x", labelsize=fontsize * 0.75)
-        ax[i].tick_params(axis="y", labelsize=fontsize * 0.75)
-        ax[i].set_xlabel(xlabels[i], fontsize=fontsize)
-
-    for i, method in enumerate(method_list):
-        color = METHODS[method]["color"]
-        welfare_domain = results[i].aggregate_interpolator_welfare_domain
-        welfare_interpolator = results[i].aggregate_interpolator_welfare_to_cost
-        ax[0].plot(
-            welfare_interpolator(
-                np.linspace(welfare_domain[0], welfare_domain[1], 200)
-            ),
-            np.linspace(welfare_domain[0], welfare_domain[1], 200),
-            label=METHODS[method]["name"],
-            color=color,
-            linestyle=METHODS[method]["linestyle"],
-            linewidth=3,
-        )
-
-    ax[0].legend(fontsize=fontsize * 0.75)
-    plt.tight_layout()
-    plt.savefig("{}.pdf".format(save_as), dpi=300, bbox_inches="tight")
-    plt.close()
-
 
 def get_extrapolation_comparison(countries, metadata):
     extrapolation_wpc = ExtrapolationResults(
@@ -1439,6 +1510,7 @@ def plot_scatter_poverty_countries(countries, metadata, save_as):
 
     extrapolation = ExtrapolationResults(
         countries,
+        forecast_year=2023,
         insample_data_source="wb",
         outofsample_data_source="wb",
         metadata=metadata,
@@ -1479,7 +1551,7 @@ def get_number_of_people_targeted(countries, metadata, save_as):
     return df
 
 
-def make_sample_size_aggregate_plot_alternative(countries, metadata, save_as):
+def make_sample_size_aggregate_plot(countries, metadata, save_as):
     fontsize = 30
     gap_res = []
 
@@ -1566,7 +1638,7 @@ def make_sample_size_aggregate_plot_alternative(countries, metadata, save_as):
                 percent_inc,
                 marker="o",
                 color="gray",
-                alpha=0.1,
+                alpha=0.3,
                 linestyle=dic["linestyle"],
                 linewidth=3,
             )
@@ -1670,89 +1742,6 @@ def plot_satellite_image(metadata, save_as):
     plt.savefig("{}.pdf".format(save_as), bbox_inches="tight")
     plt.close()
 
-
-def make_sample_size_aggregate_plot(countries, metadata, save_as):
-    fontsize = 30
-    gap_res = []
-
-    train_fracs = [0.05, 0.1, 0.2, 0.5, 0.7, 0.9, 1.0]
-    for train_frac in train_fracs:
-        gap_results = AggregatePovertyResults(
-            countries=countries,
-            method="continuous_gap",
-            metadata=metadata,
-            train_frac=train_frac,
-        )
-        gap_res.append(gap_results)
-
-    fig, ax = plt.subplots(1, 1, figsize=(12, 8))  # sharex=True, height_ratios=[1, 3])
-    ax.tick_params(axis="x", labelsize=fontsize * 0.75)
-    ax.tick_params(axis="y", labelsize=fontsize * 0.75)
-    ax.grid(True)
-
-    fig.supylabel("% Increase in Policy Cost", fontsize=fontsize)
-    ax.set_xlabel("% " + " of Training Set", fontsize=fontsize)
-
-    dic = METHODS["continuous_gap"]
-    costs = [
-        r.aggregate_interpolator_rate_to_cost(metadata.nationalPovertyRate).item()
-        for r in gap_res
-    ]
-
-    costs = [gap_res[-1].get_aggregate_ubi_cost()] + costs
-    train_fracs = [0.0] + train_fracs
-    percent_inc_agg = ((np.array(costs) - min(costs)) / min(costs)) * 100
-
-    country_max = 0
-    for country in countries:
-        gap_res = []
-        for train_frac in [0.05, 0.1, 0.2, 0.5, 0.7, 0.9, None]:
-            gap_results = AveragedCountryMethodPovertyResults(
-                country,
-                method="continuous_gap",
-                metadata=metadata,
-                train_frac=train_frac,
-            )
-
-            if train_frac is None:
-                train_frac = 1.0
-
-            gap_res.append(gap_results)
-        policy_costs = [gap_results.get_ubi_cost()] + [
-            r.rate_to_cost_interpolator(metadata.nationalPovertyRate) for r in gap_res
-        ]
-        percent_inc = (
-            (np.array(policy_costs) - min(policy_costs)) / min(policy_costs)
-        ) * 100
-        country_max = max(country_max, max(percent_inc))
-
-        ax.plot(
-            (np.array(train_fracs) * 100),
-            percent_inc,
-            marker="o",
-            color="gray",
-            alpha=0.2,
-            linestyle=dic["linestyle"],
-            linewidth=3,
-        )
-
-    ax.legend(fontsize=fontsize * 0.75)
-
-    ax.plot(
-        (np.array(train_fracs) * 100),
-        (percent_inc_agg),
-        marker="o",
-        label="Aggregate",
-        color=dic["color"],
-        linestyle=dic["linestyle"],
-        linewidth=3,
-    )
-    ax.set_ylim(-0.01 * max(percent_inc_agg), 100)
-    plt.tight_layout()
-    plt.savefig("{}.pdf".format(save_as), bbox_inches="tight")
-    plt.close()
-
-
 def plot_targeting_efficiency(country, metadata, save_as):
     res = CountryMethodPovertyResults(
         country=country, method="continuous_gap", metadata=metadata
@@ -1820,34 +1809,33 @@ def plot_targeting_efficiency(country, metadata, save_as):
     plt.savefig("{}.pdf".format(save_as), dpi=300, bbox_inches="tight")
     plt.close()
 
+def get_transfer_data(country, method, metadata):
+    results = CountryMethodPovertyResults(
+        country=country, method=method, metadata=metadata
+    )
+    budgets, transfers = results._load_transfer_data()
+    cost = (
+        results.rate_to_cost_interpolator(metadata.nationalPovertyRate)
+        / results.conversion_factor
+    )
+
+    idx = bisect.bisect_left(budgets, cost)
+    if method == "oracle_gap":
+        return budgets[-1], transfers[-1]
+    else:
+        if np.abs(budgets[idx] - cost) > np.abs(budgets[idx - 1] - cost):
+            return budgets[idx], transfers[idx - 1]
+        else:
+            return budgets[idx], transfers[idx]
 
 def make_transfer_plot(country, metadata, save_as):
 
     fig, ax = plt.subplots(1, 2, figsize=(24, 8))
     fontsize = 30
 
-    def get_transfer_data(country, method, metadata):
-        results = CountryMethodPovertyResults(
-            country=country, method=method, metadata=metadata
-        )
-        budgets, transfers = results._load_transfer_data()
-        cost = (
-            results.rate_to_cost_interpolator(metadata.nationalPovertyRate)
-            / results.conversion_factor
-        )
-
-        idx = bisect.bisect_left(budgets, cost)
-        if method == "oracle_gap":
-            return transfers[-1]
-        else:
-            if np.abs(budgets[idx] - cost) > np.abs(budgets[idx - 1] - cost):
-                return transfers[idx - 1]
-            else:
-                return transfers[idx]
-
-    gap_transfers = get_transfer_data(country, "continuous_gap", metadata)
-    binary_gap_transfers = get_transfer_data(country, "binary_gap", metadata)
-    oracle_transfers = get_transfer_data(country, "oracle_gap", metadata)
+    _, gap_transfers = get_transfer_data(country, "continuous_gap", metadata)
+    _, binary_gap_transfers = get_transfer_data(country, "binary_gap", metadata)
+    _, oracle_transfers = get_transfer_data(country, "oracle_gap", metadata)
 
     usi_res = CountryMethodPovertyResults(
         country=country, method="ubi", metadata=metadata
@@ -1903,7 +1891,7 @@ def make_transfer_plot(country, metadata, save_as):
         linestyle=METHODS["ubi"]["linestyle"],
     )
 
-    ax[0].legend(fontsize=fontsize * 0.5, loc="upper left", bbox_to_anchor=(0.08, 1))
+    ax[0].legend(fontsize=fontsize * 0.75, loc="upper left", bbox_to_anchor=(0.08, 1))
     ax[0].set_xlabel("Transfer Amount (Dollars/Day)", fontsize=fontsize)
     ax[0].set_ylabel("Share of Population (%)", fontsize=fontsize)
     ax[0].tick_params(axis="x", labelsize=fontsize * 0.75)
@@ -1936,7 +1924,7 @@ def make_transfer_plot(country, metadata, save_as):
     ax[1].legend(
         handles=handles + [vline],
         labels=labels + ["Poverty line ($2.15)"],
-        fontsize=fontsize * 0.5,
+        fontsize=fontsize * 0.75,
     )
 
     ax[1].set_xlabel("Consumption (Dollars/Day)", fontsize=fontsize)
@@ -2021,6 +2009,74 @@ def make_sample_size_plot(country, metadata, save_as):
     plt.savefig("{}.pdf".format(save_as), bbox_inches="tight")
     plt.close()
 
+def percent_decrease_welfare_gains(countries, metadata):
+    initial_welfare = 0.
+    res = AggregatePovertyResults(countries, method="continuous_gap", metadata=metadata)
+    weights = res.country_weights["weight"]
+    welfare_post_gap= 0
+    welfare_post_welfare = 0
+    for country in countries:
+        cont_gap = CountryMethodPovertyResults(
+            country=country, method="continuous_gap", metadata=metadata
+        )
+        welfare_max = CountryMethodPovertyResults(
+            country=country, method="welfare", metadata=metadata
+        )
+
+        initial_welfare += weights[country] * cont_gap.initial_welfare
+
+        gap_policy_cost = cont_gap.rate_to_cost_interpolator(metadata.nationalPovertyRate)
+        welfare_post_gap += (
+            cont_gap.cost_to_welfare_interpolator(gap_policy_cost) * weights[country]
+        )
+        welfare_post_welfare += (
+            welfare_max.cost_to_welfare_interpolator(gap_policy_cost) * weights[country]
+        )
+
+    percent_increase_gap = ((initial_welfare - welfare_post_gap) / initial_welfare) * 100
+    percent_increase_welfare = ((initial_welfare - welfare_post_welfare) / initial_welfare) * 100
+
+    res = (1 - percent_increase_gap / percent_increase_welfare) * 100
+    return res
+
+def percent_increase_geo_to_survey(countries, metadata):
+    survey_results = AggregatePovertyResults(
+        countries=countries, method="continuous_gap", metadata=metadata
+    )
+    geo_metadata = copy.deepcopy(metadata)
+    geo_metadata.geo = True
+    geo_results = AggregatePovertyResults(
+        countries=countries, method="continuous_gap", metadata=geo_metadata,
+    )
+
+    survey_res = survey_results.aggregate_interpolator_rate_to_cost(metadata.nationalPovertyRate).item()
+    geo_res = geo_results.aggregate_interpolator_rate_to_cost(metadata.nationalPovertyRate).item()
+
+    percent_increase = ((geo_res - survey_res) / survey_res) * 100
+
+    return percent_increase
+
+def percent_satellite(metadata):
+    survey_results = CountryMethodPovertyResults(
+        country="TGO", method="continuous_gap", metadata=metadata
+    )
+
+    satellite_results = CountryMethodPovertyResults(
+        country="TGO_alpha_earth", method="continuous_gap", metadata=metadata
+    )
+
+    ubi_results = CountryMethodPovertyResults(
+        country="TGO", method="ubi", metadata=metadata
+    )
+
+    survey_res = survey_results.rate_to_cost_interpolator(metadata.nationalPovertyRate).item()
+    satellite_res = satellite_results.rate_to_cost_interpolator(metadata.nationalPovertyRate).item()
+    ubi_res = ubi_results.rate_to_cost_interpolator(metadata.nationalPovertyRate).item()
+
+    percent_increase_survey = ((satellite_res - survey_res) / survey_res) * 100
+    percent_decrease_ubi = ((ubi_res - satellite_res) / ubi_res) * 100
+    return percent_increase_survey, percent_decrease_ubi
+
 
 def make_macro_file(countries, metadata, save_as):
     countries = sorted(countries)
@@ -2096,6 +2152,12 @@ def make_macro_file(countries, metadata, save_as):
     data_dimension = [get_data_dimension(country)[1] for country in countries]
     min_d = min(data_dimension)
     max_d = max(data_dimension)
+    percent_sample_size = percent_decrease_sample_size(countries, metadata)
+    
+    percent_increase_survey_satellite, percent_decrease_ubi_satellite = percent_satellite(metadata)
+
+    percent_decrease_future_cost = 100 *(extrapolation_results["wpc_2023"]["extrapolated_cost"] - extrapolation_results["wpc_2030"]["extrapolated_cost"]) / extrapolation_results["wpc_2023"]["extrapolated_cost"]
+
 
     with open(save_as + ".tex", "w") as f:
         f.write("\\newcommand{\\sampleNumCountries}" + f"{{{len(countries)}}}\n")
@@ -2276,6 +2338,18 @@ def make_macro_file(countries, metadata, save_as):
             )
         )
         f.write(
+            "\\newcommand{\\extrapolationFutureCostPercentDecrease}"
+            + "{{{}}}\n".format(
+                round(percent_decrease_future_cost)
+            )
+        )
+        f.write("\\newcommand{\\extrapolationWPCFutureCostPercentGDP}" + "{{{}}}\n".format(
+            round(relative_cost_results["wpc_2030"]["percentage_feasible_global_gdp"], 2)
+        ))
+        f.write("\\newcommand{\\extrapolationWPCFutureCostPercentOECDGDP}" + "{{{}}}\n".format(
+            round(relative_cost_results["wpc_2030"]["percentage_oecd_gdp"], 2)
+        ))
+        f.write(
             "\\newcommand{\\extrapolationWBRSquared}"
             + "{{{}}}\n".format(
                 round(extrapolation_results["wb_2023"]["regression_r2"], 2)
@@ -2448,3 +2522,10 @@ def make_macro_file(countries, metadata, save_as):
             "\\newcommand{\\refugeeDroppedCountries}"
             + "{{{}}}\n".format(refugee_dropped_countries_string)
         )
+        f.write("\\newcommand{\\percentDecreaseSampleSize}" + "{{{}}}\n".format(round(percent_sample_size)))
+        f.write("\\newcommand{\\percentDecreaseGaptoWelfare}" + "{{{}}}\n".format(round(percent_decrease_welfare_gains(countries, metadata))))
+        f.write("\\newcommand{\\percentIncreaseGeotoSurvey}" + "{{{}}}\n".format(round(percent_increase_geo_to_survey(countries, metadata))))
+        f.write("\\newcommand{\\percentIncreaseSatelliteSurvey}" + "{{{}}}\n".format(round(percent_increase_survey_satellite)))
+        f.write("\\newcommand{\\percentDecreaseSatelliteUBI}" + "{{{}}}\n".format(round(percent_decrease_ubi_satellite)))
+
+

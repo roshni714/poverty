@@ -13,7 +13,6 @@ from learn import (
     get_table_survey_info,
     make_macro_file,
     make_sample_size_aggregate_plot,
-    make_sample_size_aggregate_plot_alternative,
     plot_scatter_poverty_countries,
     get_rate_vs_gap_restricted_feature_set,
     get_number_of_people_targeted,
@@ -24,6 +23,7 @@ from learn import (
     Metadata,
     plot_satellite_image,
     get_welfare_comparison,
+    plot_geographic_results
 )
 import argh
 
@@ -31,8 +31,8 @@ METHODS_ALL = [
     # "welfare",
     "ubi",
     # "modern_pmt",
-    "pmt_gap",
     "pmt",
+    "pmt_gap",
     "binary_gap",
     "continuous_gap",
     "binary_rate",
@@ -72,16 +72,21 @@ COUNTRIES = [
     "MLI",
     "MEX",
     "MWI",
+    "NAM",
     "NGA",
     "NER",
     "PAK",
     "RWA",
     "SDN",
     "SEN",
+    "SLE",
     "TGO",
     "TLS",
     "TZA",
     "UGA",
+    "YEM",
+    "ZAF",
+    "ZWE",
 ]
 
 
@@ -110,18 +115,18 @@ def get_togo(metadata):
         ubi_on=False,
     )
 
+    plot_country_welfare(
+    "TGO",
+    metadata,
+    save_as="exhibits/year={}/figs/paper-figure-15-figure-welfare-{}".format(
+        metadata.year, "TGO"
+    ))
+
     for country in COUNTRIES:
-        # make_sample_size_plot(
-        #     country,
-        #     metadata,
-        #     save_as="exhibits/year={}/figs/appendix-figure-sample_size-{}".format(
-        #         metadata.year, country
-        #     ),
-        # )
-        plot_country_welfare(
+        make_sample_size_plot(
             country,
             metadata,
-            save_as="exhibits/year={}/figs/appendix-figure-welfare-{}".format(
+            save_as="exhibits/year={}/figs/appendix-figure-sample_size-{}".format(
                 metadata.year, country
             ),
         )
@@ -185,22 +190,14 @@ def get_scatter_figure_11(metadata):
     )
 
 
-# def get_sample_size_figure_12(metadata):
-#     make_sample_size_aggregate_plot(
-#         COUNTRIES,
-#         metadata,
-#         save_as="exhibits/year={}/figs/paper-figure-12a-sample_size".format(
-#             metadata.year
-#         ),
-#     )
-
-#     make_sample_size_aggregate_plot_alternative(
-#         COUNTRIES,
-#         metadata,
-#         save_as="exhibits/year={}/figs/paper-figure-12b-sample_size".format(
-#             metadata.year
-#         ),
-#     )
+def get_sample_size_figure_12(metadata):
+    make_sample_size_aggregate_plot(
+        COUNTRIES,
+        metadata,
+        save_as="exhibits/year={}/figs/paper-figure-12-sample_size".format(
+            metadata.year
+        ),
+    )
 
 
 def get_appendix_table_survey(metadata):
@@ -260,6 +257,14 @@ def get_appendix_table_policy_cost_insample(metadata):
 #         ),
 #     )
 
+def get_geographic_plot_figure_16(metadata):
+    plot_geographic_results(
+        COUNTRIES,
+        metadata=metadata,
+        save_as="exhibits/year={}/figs/paper-figure-16-geographic".format(
+            metadata.year
+        ),
+    )
 
 def get_country_level_analysis(metadata):
     for country in COUNTRIES:
@@ -309,7 +314,7 @@ def get_welfare_figure(metadata):
     get_welfare_comparison(
         COUNTRIES,
         metadata=metadata,
-        save_as="exhibits/year={}/figs/paper-figure-10-welfare_comparison".format(
+        save_as="exhibits/year={}/figs/paper-figure-14-welfare_comparison".format(
             metadata.year
         ),
     )
@@ -341,7 +346,6 @@ def get_pop_targeted_aux_data(metadata):
         metadata=metadata,
         save_as="exhibits/year={}/tables/pop_targeted".format(metadata.year),
     )
-
 
 def make_presentation_figures(metadata):
     make_plot_for_country_presentation(
@@ -571,13 +575,13 @@ def make_presentation_figures(metadata):
     "--auxpath",
     help="Path to auxiliary data",
     type=str,
-    default="data/auxiliary_data/auxiliary_data_20260409.csv",
+    default="data/auxiliary_data/auxiliary_data_20260511.csv",
 )
 @argh.arg(
     "--secondaryauxpath",
     help="Path to secondary auxiliary data",
     type=str,
-    default="data/auxiliary_data/secondary_auxiliary_data_20260409.csv",
+    default="data/auxiliary_data/secondary_auxiliary_data_20260511.csv",
 )
 @argh.arg(
     "--wpcpath",
@@ -621,29 +625,28 @@ def main(
         refugeepath=refugeepath,
     )
 
-    # get_extrapolation_comparison(COUNTRIES, metadata)
 
-    # get_pop_targeted_aux_data(metadata)
-    # get_welfare_figure(metadata)
-    # plot_satellite_image(
-    #     metadata,
-    #     save_as="exhibits/year={}/figs/paper-figure-9_satellite".format(metadata.year),
-    # )
+    get_welfare_figure(metadata)
+    plot_satellite_image(
+        metadata,
+        save_as="exhibits/year={}/figs/paper-figure-9_satellite".format(metadata.year),
+    )
 
-    # get_togo(metadata)
+    get_togo(metadata)
     get_headline_figure_4(metadata)
-    # get_rate_vs_gap_headline_figure_5(metadata)
-    # get_oracle_ratio_figure_6(metadata)
-    # get_ubi_ratio_figure_7(metadata)
-    # get_gdp_plot_figure_10(metadata)
-    # get_headline_3_dollar_figure_8(metadata)
-    # get_scatter_figure_11(metadata)
-    # get_sample_size_figure_12(metadata)
-    # get_rate_vs_gap_dimension_figure_13(metadata)
-    # get_appendix_table_survey(metadata)
-    # get_appendix_table_share_world_poor(metadata)
-    # get_appendix_table_policy_cost_insample(metadata)
-    # get_country_level_analysis(metadata)
+    get_rate_vs_gap_headline_figure_5(metadata)
+    get_oracle_ratio_figure_6(metadata)
+    get_ubi_ratio_figure_7(metadata)
+    get_gdp_plot_figure_10(metadata)
+    get_headline_3_dollar_figure_8(metadata)
+    get_scatter_figure_11(metadata)
+    get_sample_size_figure_12(metadata)
+    get_rate_vs_gap_dimension_figure_13(metadata)
+    get_geographic_plot_figure_16(metadata)
+    get_appendix_table_survey(metadata)
+    get_appendix_table_share_world_poor(metadata)
+    get_appendix_table_policy_cost_insample(metadata)
+    get_country_level_analysis(metadata)
     make_macro_file(
         COUNTRIES,
         metadata=metadata,

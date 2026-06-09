@@ -16,11 +16,11 @@ from learn.plotting import (
     get_extrapolation_comparison,
     make_sample_size_plot,
     make_sample_size_aggregate_plot,
-    make_sample_size_aggregate_plot_alternative,
     plot_country_welfare,
     plot_targeting_efficiency,
     plot_satellite_image,
     get_welfare_comparison,
+    plot_geographic_results,
 )
 from learn.presentation_figures import (
     make_plot_for_country_presentation,
