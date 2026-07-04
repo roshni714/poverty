@@ -103,7 +103,6 @@ class ExtrapolationResults:
         in_sample_country_ratios = []
         in_sample_costs = []
         oracle_costs_full_poverty_elimination = []
-        oracle_costs = []
 
         for i, _ in enumerate(self.in_sample_countries):
             oracle_cost = cont_gap_results[i].get_poverty_gap()
@@ -111,27 +110,15 @@ class ExtrapolationResults:
                 self.nationalPovertyRate
             )
 
-            # Determine the post-transfer poverty gap that is achieved by a feasible policy that
-            # attains a 1% poverty rate.
-            needed_gap = cont_gap_results[i].rate_to_gap_interpolator(
-                self.nationalPovertyRate
-            )
-
-            # Determine the cost of the oracle policy that attains this same poverty gap.
-            oracle_cost_to_achieve_gap = oracle_results[i].gap_to_cost_interpolator(
-                needed_gap
-            )
-
             in_sample_costs.append(in_sample_cost)
-            oracle_costs.append(oracle_cost_to_achieve_gap)
             oracle_costs_full_poverty_elimination.append(oracle_cost)
 
-            in_sample_country_ratios.append(in_sample_cost / oracle_cost_to_achieve_gap)
+            in_sample_country_ratios.append(in_sample_cost / oracle_cost)
         survey_df = pd.DataFrame(
             {
                 "Country": self.in_sample_countries,
                 "Policy Cost": np.array(in_sample_costs),
-                "Oracle Cost ({}%)".format(self.nationalPovertyRate): np.array(
+                "Oracle Cost".format(self.nationalPovertyRate): np.array(
                     oracle_cost
                 ),
                 "Oracle Cost": np.array(oracle_costs_full_poverty_elimination),

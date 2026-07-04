@@ -1,6 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.lines import Line2D
 from scipy.interpolate import interp1d
 from learn.aggregation import (
     AggregatePovertyResults,
@@ -62,11 +63,17 @@ def make_plot_for_country(
                 np.linspace(0.0, xlims[i]),
                 np.ones(50) * results[0].get_ubi_cost(),
                 linestyle="--",
-                color=METHODS["ubi_standard"]["color"],
-                label=METHODS["ubi_standard"]["name"]
-                + " (${})".format(metadata.povertyline),
+                color="gray",
+                label="_nolegend_",
                 linewidth=3,
             )
+            ax[i].scatter(
+                [0.0],
+                [results[0].get_ubi_cost()],
+                color=METHODS["ubi_standard"]["color"],
+                zorder=10,
+            )   
+
 
     for i, method in enumerate(method_list):
         dic = methods[method]
@@ -101,7 +108,25 @@ def make_plot_for_country(
             linewidth=3,
         )
 
-    ax[1].legend(fontsize=fontsize * 0.75)  # , #bbox_to_anchor=(1.05, 0.5)
+    handles, labels = ax[1].get_legend_handles_labels()
+    if ubi_on:
+        ubi_label = METHODS["ubi_standard"]["name"] + " (${})".format(
+            metadata.povertyline
+        )
+        ubi_handle = Line2D(
+            [0],
+            [0],
+            color="gray",
+            linestyle="--",
+            linewidth=3,
+            marker="o",
+            markerfacecolor=METHODS["ubi_standard"]["color"],
+            markeredgecolor=METHODS["ubi_standard"]["color"],
+            markersize=8,
+        )
+        handles = [ubi_handle] + handles
+        labels = [ubi_label] + labels
+    ax[1].legend(handles, labels, fontsize=fontsize * 0.75)  # , #bbox_to_anchor=(1.05, 0.5)
     # fig.tight_layout(rect=[0, 0, 0.85, 1])
     plt.tight_layout()
     plt.savefig("{}.pdf".format(save_as), bbox_inches="tight")
@@ -172,10 +197,15 @@ def aggregate_plot(
                 np.linspace(0.0, xlims[i]),
                 np.ones(50) * ubi_cost,
                 linestyle="--",
-                color=METHODS["ubi_standard"]["color"],
-                label=METHODS["ubi_standard"]["name"]
-                + " (${})".format(metadata.povertyline),
+                color="gray",
+                label="_nolegend_",
                 linewidth=3,
+            )
+            ax[i].scatter(
+                [0.0],
+                [ubi_cost],
+                color=METHODS["ubi_standard"]["color"],
+                zorder=10,
             )
 
     for i, method in enumerate(method_list):
@@ -203,7 +233,25 @@ def aggregate_plot(
             linewidth=3,
         )
 
-    ax[1].legend(fontsize=fontsize * 0.75)  # , #bbox_to_anchor=(1.05, 0.5)
+    handles, labels = ax[1].get_legend_handles_labels()
+    if ubi_on:
+        ubi_label = METHODS["ubi_standard"]["name"] + " (${})".format(
+            metadata.povertyline
+        )
+        ubi_handle = Line2D(
+            [0],
+            [0],
+            color="gray",
+            linestyle="--",
+            linewidth=3,
+            marker="o",
+            markerfacecolor=METHODS["ubi_standard"]["color"],
+            markeredgecolor=METHODS["ubi_standard"]["color"],
+            markersize=8,
+        )
+        handles = [ubi_handle] + handles
+        labels = [ubi_label] + labels
+    ax[1].legend(handles, labels, fontsize=fontsize * 0.75)  # , #bbox_to_anchor=(1.05, 0.5)
     # fig.tight_layout(rect=[0, 0, 0.85, 1])
     plt.tight_layout()
     plt.savefig("{}.pdf".format(save_as), dpi=300, bbox_inches="tight")

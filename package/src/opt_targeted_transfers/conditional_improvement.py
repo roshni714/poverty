@@ -126,6 +126,9 @@ def get_conditional_improvement_regressor(
     assert np.min(benefits_train) >= 0
     assert np.min(benefits_val) >= 0
 
+    benefits_train, benefits_mean, benefits_std = standardize(benefits_train)
+    benefits_val = (benefits_val - benefits_mean) / benefits_std
+
     if X_train.shape[1] == 0:
         # TODO fill in
         pass
@@ -190,7 +193,7 @@ def get_conditional_improvement_regressor(
                 .detach()
                 .numpy()
                 .flatten()
-            )
+            ) * benefits_std + benefits_mean
 
         return np.maximum(predicted_benefits, 0)
 
