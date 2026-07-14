@@ -23,7 +23,7 @@ from learn import (
     Metadata,
     plot_satellite_image,
     get_welfare_comparison,
-    plot_geographic_results
+    plot_geographic_results,
 )
 import argh
 
@@ -116,11 +116,12 @@ def get_togo(metadata):
     )
 
     plot_country_welfare(
-    "TGO",
-    metadata,
-    save_as="exhibits/year={}/figs/paper-figure-15-figure-welfare-{}".format(
-        metadata.year, "TGO"
-    ))
+        "TGO",
+        metadata,
+        save_as="exhibits/year={}/figs/paper-figure-15-figure-welfare-{}".format(
+            metadata.year, "TGO"
+        ),
+    )
 
     for country in COUNTRIES:
         make_sample_size_plot(
@@ -257,6 +258,7 @@ def get_appendix_table_policy_cost_insample(metadata):
 #         ),
 #     )
 
+
 def get_geographic_plot_figure_16(metadata):
     plot_geographic_results(
         COUNTRIES,
@@ -265,6 +267,7 @@ def get_geographic_plot_figure_16(metadata):
             metadata.year
         ),
     )
+
 
 def get_country_level_analysis(metadata):
     for country in COUNTRIES:
@@ -346,6 +349,7 @@ def get_pop_targeted_aux_data(metadata):
         metadata=metadata,
         save_as="exhibits/year={}/tables/pop_targeted".format(metadata.year),
     )
+
 
 def make_presentation_figures(metadata):
     make_plot_for_country_presentation(
@@ -624,7 +628,6 @@ def main(
         restricted_feature_set=False,
         refugeepath=refugeepath,
     )
-
 
     get_welfare_figure(metadata)
     plot_satellite_image(

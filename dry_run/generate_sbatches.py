@@ -1,6 +1,7 @@
 import itertools
 import glob
 import os
+import argparse
 
 
 GPU_SBATCH_PREFACE = """#!/bin/bash
@@ -67,98 +68,71 @@ SBATCH_ARRAY_PREFACE = """#!/bin/bash
 #SBATCH --array=0-14\n
 """
 
-OUTPUT_PATH = (
-    "/home/users/rsahoo/zfs/projects/faculty/swager-poverty/poverty/dry_run/scripts8"
-)
+
+COUNTRIES = [
+    "BDI",
+    "BEN",
+    "BFA",
+    "BGD",
+    "CAF",
+    "CIV",
+    "COD",
+    "COL",
+    "ETH",
+    "GHA",
+    "GNB",
+    "IDN",
+    "IND",
+    "KEN",
+    "LBR",
+    "MDG",
+    "MEX",
+    "MLI",
+    "MWI",
+    "NAM",
+    "NER",
+    "NGA",
+    "PAK",
+    "RWA",
+    "SDN",
+    "SLE",
+    "SEN",
+    "TGO",
+    "TLS",
+    "TZA",
+    "UGA",
+    "YEM",
+    "ZAF",
+    "ZWE",
+]
 
 
-def generate_rate_vs_gap_comparison():
-    countries = ["malawi", "tanzania"]
-    geo_extrapolation = [True]
-    configs = [
-        "output_gt_continuous_rate.yaml",
-        "output_gt_continuous_gap.yaml",
-    ]
-
-    for country in countries:
-        for geo in geo_extrapolation:
-            if geo:
-                subfolder = "geo_extrapolation"
-            else:
-                subfolder = "geo_interpolation"
-            for config in configs:
-                exp_id = country + "_" + subfolder + "_" + config
-                script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
-                with open(script_fn, "w") as f:
-                    print(
-                        SBATCH_PREFACE.format(
-                            exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
-                        ),
-                        file=f,
-                    )
-                    base_cmd = f"python main_rate_vs_gap.py main --config hparam/results/{country}/{subfolder}/{config} --trainpath data/{country}/train.parquet --testpath data/{country}/test.parquet --summarypath data/{country}/summary.parquet --device cpu --povertyline 2.15 --year 2017"
-                    print(base_cmd, file=f)
-                    print("sleep 1", file=f)
-
-
-def generate_learn_run_2017_restricted_features_povertyline():
-    countries = [
-        "NAM",
-        "SLE",
-        # "NGA",
-        # "TLS",
-        # "TGO",
-        # "BEN",
-        # "BFA",
-        # "CIV",
-        # "COL",
-        # "ETH",
-        # "GNB",
-        # "KEN",
-        # "MLI",
-        # "MWI",
-        # "NER",
-        # "NGA",
-        # "SEN",
-        # "TGO",
-        # "TZA",
-        # "UGA",
-        # "YEM",
-        # "ZAF",
-        # "IDN",
-        # "IND",
-        # "BDI",
-        # "BGD",
-        # "CAF",
-        # "COD",
-        # "GHA",
-        # "IDN",
-        # "IND",
-        # "LBR",
-        # "MDG",
-        # "MEX",
-        # "PAK",
-        # "RWA",
-        # "SDN",
-        # "TLS",
-        # "ZWE",
-    ]
+def generate_learn_run_2017_restricted_features_povertyline(output_path):
     geo_extrapolation = [True]
     configs = ["output_gt_continuous_gap.yaml"]
 
-    for country in countries:
+    for country in COUNTRIES:
         for geo in geo_extrapolation:
             if geo:
                 subfolder = "geo_extrapolation"
             else:
                 subfolder = "geo_interpolation"
             for config in configs:
-                exp_id = country + "_" + subfolder + "_" + "_2017_" + config + "_restricted_features"
-                script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
+                exp_id = (
+                    country
+                    + "_learn"
+                    + "_"
+                    + subfolder
+                    + "_"
+                    + "_2017_"
+                    + config
+                    + "_restricted_features"
+                )
+                script_fn = os.path.join(output_path, "{}.sh".format(exp_id))
                 with open(script_fn, "w") as f:
                     print(
                         SBATCH_PREFACE.format(
-                            exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
+                            exp_id, output_path, exp_id, output_path, exp_id
                         ),
                         file=f,
                     )
@@ -167,19 +141,26 @@ def generate_learn_run_2017_restricted_features_povertyline():
                     print("sleep 1", file=f)
 
 
-def generate_satellite_learn_run():
+def generate_satellite_learn_run(output_path):
 
     countries = ["TGO_alpha_earth", "TGO_alpha_earth_and_survey"]
     configs = ["output_gt_continuous_gap.yaml"]
 
     for country in countries:
         for config in configs:
-            exp_id = country + "_geo_extrapolation" + "_" + "_2017_" + config
-            script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
+            exp_id = (
+                country
+                + "_learn_satellite"
+                + "_geo_extrapolation"
+                + "_"
+                + "_2017_"
+                + config
+            )
+            script_fn = os.path.join(output_path, "{}.sh".format(exp_id))
             with open(script_fn, "w") as f:
                 print(
                     SBATCH_PREFACE.format(
-                        exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
+                        exp_id, output_path, exp_id, output_path, exp_id
                     ),
                     file=f,
                 )
@@ -188,18 +169,20 @@ def generate_satellite_learn_run():
                 print("sleep 1", file=f)
 
 
-def generate_satellite_hparam_run():
-    countries = ["TGO_alpha_earth_and_survey"]
+def generate_satellite_hparam_run(output_path):
+    countries = ["TGO_alpha_earth_and_survey", "TGO_alpha_earth"]
     configs = ["gt_continuous_gap.yaml"]
 
     for country in countries:
         for config in configs:
-            exp_id = country + "_geo_extrapolation" + "_" + "_2017_" + config
-            script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
+            exp_id = (
+                country + "_hparam" + "_geo_extrapolation" + "_" + "_2017_" + config
+            )
+            script_fn = os.path.join(output_path, "{}.sh".format(exp_id))
             with open(script_fn, "w") as f:
                 print(
                     SBATCH_PREFACE.format(
-                        exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
+                        exp_id, output_path, exp_id, output_path, exp_id
                     ),
                     file=f,
                 )
@@ -208,53 +191,17 @@ def generate_satellite_hparam_run():
                 print("sleep 1", file=f)
 
 
-def generate_geographic_learn_run():
-    countries = [
-        "NAM",
-        "SLE",
-        "NGA",
-        "TLS",
-        # "BDI",
-        # "BEN",
-        # "BFA",
-        # "BGD",
-        # "CAF",
-        # "CIV",
-        # "COD",
-        # "COL",
-        # "ETH",
-        # "GHA",
-        # "GNB",
-        # "KEN",
-        # "LBR",
-        # "MDG",
-        # "MEX",
-        # "MLI",
-        # "MWI",
-        # "NER",
-        # "NGA",
-        # "PAK",
-        # "RWA",
-        # "SDN",
-        # "SEN",
-        # "TGO",
-        # "TLS",
-        # "TZA",
-        # "UGA",
-        # "YEM",
-        # "ZAF",
-        # "ZWE",
-    ]
+def generate_geographic_learn_run(output_path):
     configs = ["output_gt_continuous_gap.yaml"]
 
-    for country in countries:
+    for country in COUNTRIES:
         for config in configs:
-            exp_id = country + "_geo_extrapolation" + "_" + "_2017_" + config
-            script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
+            exp_id = country + "_learn_geo" + "_" + "_2017_" + config
+            script_fn = os.path.join(output_path, "{}.sh".format(exp_id))
             with open(script_fn, "w") as f:
                 print(
                     SBATCH_PREFACE.format(
-                        exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
+                        exp_id, output_path, exp_id, output_path, exp_id
                     ),
                     file=f,
                 )
@@ -263,47 +210,11 @@ def generate_geographic_learn_run():
                 print("sleep 1", file=f)
 
 
-def generate_sample_size_run_2017_povertyline():
-    countries = [
-        "NAM",
-        "SLE",
-        # "NGA",
-        # "TLS",
-        # "BDI",
-        # "BEN",
-        # "BFA",
-        # "BGD",
-        # "CAF",
-        # "CIV",
-        # "COD",
-        # "COL",
-        #  "ETH",
-        # "GHA",
-        # "GNB",
-        # "KEN",
-        # "LBR",
-        # "MDG",
-        # "MEX",
-        # "MLI",
-        # "MWI",
-        # "NER",
-        # "NGA",
-        # "PAK",
-        # "RWA",
-        # "SDN",
-        # "SEN",
-        # "TGO",
-        # "TLS",
-        # "TZA",
-        # "UGA",
-        # "YEM",
-        # "ZAF",
-        # "ZWE",
-    ]
+def generate_sample_size_run_2017_povertyline(output_path):
     geo_extrapolation = [True]
     train_fractions = [0.05, 0.1, 0.2, 0.5, 0.7, 0.9, 1.0]
 
-    for country in countries:
+    for country in COUNTRIES:
         for geo in geo_extrapolation:
             if geo:
                 subfolder = "geo_extrapolation"
@@ -313,7 +224,7 @@ def generate_sample_size_run_2017_povertyline():
             for frac in train_fractions:
                 exp_id = (
                     country
-                    + "_"
+                    + "_learn_"
                     + "sample_size_"
                     + str(frac)
                     + "_"
@@ -322,11 +233,11 @@ def generate_sample_size_run_2017_povertyline():
                     + "_2017_"
                     + config
                 )
-                script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
+                script_fn = os.path.join(output_path, "{}.sh".format(exp_id))
                 with open(script_fn, "w") as f:
                     print(
                         SBATCH_ARRAY_PREFACE.format(
-                            exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
+                            exp_id, output_path, exp_id, output_path, exp_id
                         ),
                         file=f,
                     )
@@ -335,45 +246,7 @@ def generate_sample_size_run_2017_povertyline():
                     print("sleep 1", file=f)
 
 
-def generate_learn_run_2017_povertyline():
-    countries = [
-        "NAM",
-        "SLE",
-        #"NGA",
-        #"TLS",
-        #     "BDI",
-        #     "BEN",
-        #     "BFA",
-        #     "BGD",
-        #     "CAF",
-        #     "CIV",
-        #     "COD",
-        #     "COL",
-        #     "ETH",
-        #     "GHA",
-        #     "GNB",
-        # "IDN",
-        # "IND",
-        #     "KEN",
-        #     "LBR",
-        #     "MDG",
-        #     "MEX",
-        #     "MLI",
-        #     "MWI",
-        #     "NER",
-        #     "NGA",
-        #     "PAK",
-        #     "RWA",
-        #     "SDN",
-        #     "SEN",
-        #     "TGO",
-        #     "TLS",
-        #     "TZA",
-        #     "UGA",
-        #     "YEM",
-        #     "ZAF",
-        #     "ZWE",
-    ]
+def generate_learn_run_2017_povertyline(output_path):
     geo_extrapolation = [True]
     configs = [
         "output_gt_continuous_gap.yaml",
@@ -385,22 +258,22 @@ def generate_learn_run_2017_povertyline():
         "oracle_gap.yaml",
         "output_gt_pmt_gap.yaml",
         "ubi.yaml",
-        "output_gt_welfare.yaml"
+        "output_gt_welfare.yaml",
     ]
 
-    for country in countries:
+    for country in COUNTRIES:
         for geo in geo_extrapolation:
             if geo:
                 subfolder = "geo_extrapolation"
             else:
                 subfolder = "geo_interpolation"
             for config in configs:
-                exp_id = country + "_" + subfolder + "_" + "_2017_" + config
-                script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
+                exp_id = country + "_learn_" + subfolder + "_" + "_2017_" + config
+                script_fn = os.path.join(output_path, "{}.sh".format(exp_id))
                 with open(script_fn, "w") as f:
                     print(
                         SBATCH_PREFACE.format(
-                            exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
+                            exp_id, output_path, exp_id, output_path, exp_id
                         ),
                         file=f,
                     )
@@ -409,47 +282,7 @@ def generate_learn_run_2017_povertyline():
                     print("sleep 1", file=f)
 
 
-def generate_learn_run_2021_povertyline():
-    countries = [
-        "NAM",
-        "SLE",
-        #"NGA",
-        #"TLS",
-        # "IND",
-        # "IDN",
-        # "BDI",
-        # "BEN",
-        # "BFA",
-        # "BGD",
-        # "CAF",
-        # "CIV",
-        # "COD",
-        # "COL",
-        # "ETH",
-        # "GHA",
-        # "GNB",
-        # "KEN",
-        # "LBR",
-        # "MDG",
-        # "MEX",
-        # "MLI",
-        # "MWI",
-        # "NER",
-        # "NGA",
-        # "NGA",
-        # "PAK",
-        # "RWA",
-        # "SDN",
-        # "SEN",
-        # "TGO",
-        # "TLS",
-        # "TZA",
-        # "UGA",
-        # "YEM",
-        # "ZAF",
-        # "ZWE",
-    ]
-
+def generate_learn_run_2021_povertyline(output_path):
     geo_extrapolation = [True]
     configs = [
         "output_gt_pmt.yaml",
@@ -463,19 +296,19 @@ def generate_learn_run_2021_povertyline():
         "ubi.yaml",
     ]
 
-    for country in countries:
+    for country in COUNTRIES:
         for geo in geo_extrapolation:
             if geo:
                 subfolder = "geo_extrapolation"
             else:
                 subfolder = "geo_interpolation"
             for config in configs:
-                exp_id = country + "_" + subfolder + "_" + "_2021_" + config
-                script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
+                exp_id = country + "_learn_" + subfolder + "_" + "_2021_" + config
+                script_fn = os.path.join(output_path, "{}.sh".format(exp_id))
                 with open(script_fn, "w") as f:
                     print(
                         SBATCH_PREFACE.format(
-                            exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
+                            exp_id, output_path, exp_id, output_path, exp_id
                         ),
                         file=f,
                     )
@@ -484,9 +317,7 @@ def generate_learn_run_2021_povertyline():
                     print("sleep 1", file=f)
 
 
-def generate_hparam_run():
-    countries = ["NAM", "SLE"]
-
+def generate_hparam_run(output_path):
     geo_extrapolation = [True]
     configs = [
         "gt_pmt_gap.yaml",
@@ -499,19 +330,19 @@ def generate_hparam_run():
         "gt_continuous_gap.yaml",
     ]
 
-    for country in countries:
+    for country in COUNTRIES:
         for geo in geo_extrapolation:
             if geo:
                 subfolder = "geo_extrapolation"
             else:
                 subfolder = "geo_interpolation"
             for config in configs:
-                exp_id = "{}_{}_{}".format(country, subfolder, config)
-                script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
+                exp_id = "{}_hparam_{}_{}".format(country, subfolder, config)
+                script_fn = os.path.join(output_path, "{}.sh".format(exp_id))
                 with open(script_fn, "w") as f:
                     print(
                         HPARAM_NORMAL_SBATCH_PREFACE.format(
-                            exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
+                            exp_id, output_path, exp_id, output_path, exp_id
                         ),
                         file=f,
                     )
@@ -519,22 +350,22 @@ def generate_hparam_run():
                     print(base_cmd, file=f)
                     print("sleep 1", file=f)
 
-    script_fn = os.path.join(OUTPUT_PATH, "make_learnsavedir.sh")
+    script_fn = os.path.join(output_path, "make_learnsavedir.sh")
     with open(script_fn, "w") as f:
         print(
             SBATCH_PREFACE.format(
                 "make_learnsavedir",
-                OUTPUT_PATH,
+                output_path,
                 "make_learnsavedir",
-                OUTPUT_PATH,
+                output_path,
                 "make_learnsavedir",
             ),
             file=f,
         )
         if not os.path.exists(f"learn/results"):
             print(f"mkdir learn/results", file=f)
-        for country in countries:
-            if not os.path.exists(f"learn/results/{country}"):
+        for country in COUNTRIES:
+            if not os.path.exists(f"{output_path}/learn/results/{country}"):
                 print(f"mkdir learn/results/{country}", file=f)
                 print("sleep 1", file=f)
             for geo in geo_extrapolation:
@@ -572,30 +403,25 @@ def generate_hparam_run():
                         print("sleep 1", file=f)
 
 
-def make_learnsavedir():
-    countries = [
-        "NAM",
-        "SLE",
-    ]
-
+def make_learnsavedir(output_path):
     geo_extrapolation = [True]
     years = [2017, 2021]
 
-    script_fn = os.path.join(OUTPUT_PATH, "make_learnsavedir.sh")
+    script_fn = os.path.join(output_path, "make_learnsavedir.sh")
     with open(script_fn, "w") as f:
         print(
             SBATCH_PREFACE.format(
                 "make_learnsavedir",
-                OUTPUT_PATH,
+                output_path,
                 "make_learnsavedir",
-                OUTPUT_PATH,
+                output_path,
                 "make_learnsavedir",
             ),
             file=f,
         )
         if not os.path.exists(f"learn/results"):
             print(f"mkdir learn/results", file=f)
-        for country in countries:
+        for country in COUNTRIES:
             if not os.path.exists(f"learn/results/{country}"):
                 print(f"mkdir learn/results/{country}", file=f)
                 print("sleep 1", file=f)
@@ -638,127 +464,35 @@ def make_learnsavedir():
                         f"learn/results/{country}/{subfolder}/year={year}_geo_only"
                     ):
                         print(
-                                f"mkdir learn/results/{country}/{subfolder}/year={year}_geo_only",
-                                file=f,
-                            )
+                            f"mkdir learn/results/{country}/{subfolder}/year={year}_geo_only",
+                            file=f,
+                        )
                         print("sleep 1", file=f)
 
 
-def generate_wgan_run():
-    maxepochs = 3000
-    lr = 1e-3
-    batchsize = 256
-    dropout = 0.1
-
-    exp_id = (
-        f"wgan_maxepochs={maxepochs}_lr={lr}_batchsize={batchsize}_dropout={dropout}"
+def main():
+    parser = argparse.ArgumentParser(description="Generate SBATCH scripts.")
+    parser.add_argument(
+        "--output-path",
+        help="Directory where generated SBATCH scripts will be written.",
     )
+    args = parser.parse_args()
+    output_path = args.output_path
+    hparam_output_path = os.path.join(output_path, "hparam")
+    learn_output_path = os.path.join(output_path, "learn")
 
-    script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
-    with open(script_fn, "w") as f:
-        print(
-            GPU_SBATCH_PREFACE.format(exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id),
-            file=f,
-        )
-        base_cmd = "python main_gan.py train --device cpu --savedir gan/pickled --trainpath data/preprocessed_2025_02_11/train.parquet --summarypath data/preprocessed_2025_02_11/summary_2019.parquet --maxepochs {} --lr {} --batchsize {} --dropout {}".format(
-            maxepochs, lr, batchsize, dropout
-        )
-        print(base_cmd, file=f)
+    os.makedirs(hparam_output_path, exist_ok=True)
+    os.makedirs(learn_output_path, exist_ok=True)
+    # generate_hparam_run(hparam_output_path)
+    generate_satellite_hparam_run(hparam_output_path)
 
-        base_cmd = "python main_gan.py generate --objectspath gan/pickled/objects-maxepochs={maxepochs}_lr={lr}_batchsize={batchsize}_dropout={dropout}_trial=0.pickle --nsamples 20000 --savedir data".format(
-            maxepochs=maxepochs,
-            lr=lr,
-            batchsize=batchsize,
-            dropout=dropout,
-        )
-        print(base_cmd, file=f)
-        print("sleep 1", file=f)
+    # generate_learn_run_2017_povertyline(learn_output_path)
+    # generate_learn_run_2021_povertyline(learn_output_path)
+    # generate_learn_run_2017_restricted_features_povertyline(learn_output_path)
+    generate_satellite_learn_run(learn_output_path)
+    # generate_sample_size_run_2017_povertyline(learn_output_path)
+    # generate_geographic_learn_run(learn_output_path)
 
 
-def generate_wgan_hparam_runs():
-    batchsize_range = [128, 256, 512]
-    maxepochs_range = [2500, 5000, 7500]
-    lr_range = [1e-3]
-    dropout_range = [0.0]
-    n_trials = 5
-
-    for batchsize in batchsize_range:
-        for maxepochs in maxepochs_range:
-            for lr in lr_range:
-                for dropout in dropout_range:
-                    exp_id = "wgan_maxepochs={}_lr={}_batchsize={}_dropout={}".format(
-                        maxepochs, lr, batchsize, dropout
-                    )
-                    script_fn = os.path.join(OUTPUT_PATH, "{}.sh".format(exp_id))
-                    with open(script_fn, "w") as f:
-                        print(
-                            GPU_SBATCH_PREFACE.format(
-                                exp_id, OUTPUT_PATH, exp_id, OUTPUT_PATH, exp_id
-                            ),
-                            file=f,
-                        )
-                        for trial in range(n_trials):
-                            base_cmd = "python main.py train --device cuda --savedir pickled --trainpath data/preprocessed_2025_02_11/train.parquet --summarypath data/preprocessed_2025_02_11/summary_2019.parquet --maxepochs {} --lr {} --batchsize {} --dropout {} --trial {}".format(
-                                maxepochs, lr, batchsize, dropout, trial
-                            )
-                            print(base_cmd, file=f)
-
-                            base_cmd = "python main.py generate --objectspath pickled/objects-maxepochs={maxepochs}_lr={lr}_batchsize={batchsize}_dropout={dropout}_trial={trial}.pickle --nsamples 20000 --savedir data".format(
-                                maxepochs=maxepochs,
-                                lr=lr,
-                                batchsize=batchsize,
-                                dropout=dropout,
-                                trial=trial,
-                            )
-                            print(base_cmd, file=f)
-
-                            print("sleep 1", file=f)
-
-
-def generate_gt_run():
-    hparam_configs = [
-        "gt_continuous_rate.yaml",
-        "gt_binary_rate.yaml",
-        "gt_binary_gap.yaml",
-        "gt_continuous_gap.yaml",
-    ]
-
-    learn_configs = [
-        "output_gt_continuous_rate.yaml",
-        "output_gt_binary_rate.yaml",
-        "output_gt_binary_gap.yaml",
-        "output_gt_continuous_gap.yaml",
-    ]
-
-    script_fn = os.path.join("gt_script.sh")
-    with open(script_fn, "w") as f:
-        print("#!/bin/bash", file=f)
-        print("# Hyperparameter search", file=f)
-        for config in hparam_configs:
-            base_cmd = f"python main_hparam.py main --config hparam/configs/{config}"
-            print(base_cmd, file=f)
-            print("sleep 1", file=f)
-
-        print("# Learning", file=f)
-        print("mkdir learn/results", file=f)
-        for config in learn_configs:
-            base_cmd = f"python main_learn.py main --config hparam/results/{config} --trainpath data/preprocessed_2025_02_11/train.parquet --testpath data/preprocessed_2025_02_11/test.parquet --device cuda"
-            print(base_cmd, file=f)
-            print("sleep 1", file=f)
-
-
-# generate_gt_run()
-# generate_rate_vs_gap_comparison()
-# generate_hparam_run()
-# generate_learn_run_2017_restricted_features_povertyline()
-# generate_satellite_run()
-#generate_sample_size_run_2017_povertyline()
-# generate_satellite_learn_run().
-# generate_learn_run_2017_povertyline()
-#generate_learn_run_2021_povertyline()
-generate_geographic_learn_run()
-# generate_learn_run()s
-#make_learnsavedir()
-# generate_learn_run()
-# generate_wgan_run()
-# generate_wgan_hparam_runs()
+if __name__ == "__main__":
+    main()

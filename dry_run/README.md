@@ -1,8 +1,8 @@
-# Malawi Dry Run
-This module implements the country-level analysis from the paper.
+# Replication
+This module implements the analysis from our paper "What Would it Cost to End Extreme Poverty?"
 
 # Datasets
-The datasets for reproducing the results from the paper are available in the Google Drive folder [here](https://drive.google.com/drive/folders/1t0s0ef7UZGCAzgWFKzBWEZ032BuP5LWP?usp=sharing).
+TBA
 
 # Installation
 Here are the installation instructions for the dry-run.
@@ -14,9 +14,36 @@ pip install git+https://github.com/gsbDBI/ds-wgan
 cd poverty/package
 pip install -e .
 cd poverty/dry_run
-python automate_config_generation.py
 ```
-Before running the final command, there are a few extra packages that need to be installed; they are listed [here](https://github.com/roshni714/poverty/blob/master/dry_run/requirements.txt). At a later point, we'll need to make a single installation script.
+# Generate Configs
+Generate the config files for running the experiments. Specify "cpu" or CUDA device. Before running the final command, there are a few extra packages that need to be installed; they are listed [here](https://github.com/roshni714/poverty/blob/master/dry_run/requirements.txt). At a later point, we'll need to make a single installation script.
+```
+python automate_config_generation.py --device cpu
+```
+
+# Run experiments
+To run all experiments to reproduce the results from our paper, use the following command. Fill in `SCRIPT_DIRECTORY_PATH` with the directory name where the scripts for each experiment will belong. By default, experiments will run on the local machine.
+
+To run locally, use the following.
+```
+chmod +x run_hparam_scripts.sh
+chmod +x run_learn_scripts.sh
+./run_hparam_scripts.sh SCRIPT_DIRECTORY_PATH
+./run_learn_scripts.sh SCRIPT_DIRECTORY_PATH
+```
+
+To run experiments on a SLURM cluster, edit the global SBATCH variables in the `generate_sbatches.py` script with corresponding information about the SLURM cluster and pass the `USE_SLURM` flag to the script.
+```
+chmod +x run_hparam_scripts.sh
+./run_scripts.sh SCRIPT_DIRECTORY_PATH USE_SBATCH
+./run_learn_scripts.sh SCRIPT_DIRECTORY_PATH USE_SBATCH
+```
+
+# Visualize Results
+To generate all of the figures and raw tables from our paper, run the following command after all experiments have completed.
+```
+python main_figure.py main --year 2017
+```
 
 <!-- # GAN Training
 Running the following command will train a WGAN on 50% of the data stored in `trainpath` and save pickled outputs (generator, data wrapper, categorical variable mapping from codes to strings) to the folder `savedir`. These objects are saved so that we can generate synthetic data without retraining.
@@ -34,7 +61,7 @@ Nit: This step is not required for running the later hyperparameter search.
 ```
 python main_gan.py generate --objectspath gan/pickled/objects-maxepochs=3000_lr=0.001_batchsize=256_dropout=0.1.pickle --nsamples 20000 --savedir data
 ``` -->
-
+<!-- 
 # Hyperparameter Search
 Running the following command will run a hyperparameter search for all procedures and hyperparameters specified in the `config` YAML file. The `configs` directory has example config files. In the config file, specify what data will be used for the hyperparameter search; `gt` refers to re-using the ground truth training dataset. In addition, the config file should specify the hyperparameter ranges for a given learning approach (e.g. rate targeting, binary gap targeting, or continuous gap targeting). If a certain hyperparameter is not specified in the config file, the script uses a default value; see default hyperparameter values [here](https://github.com/roshni714/poverty/blob/master/dry_run/configs/default_config.yml). This script will produce a YAML file with the optimal hyperparameter values. The config file will be saved to `savedir` which is also specified by the config files. The command line parameter `learnsavedir` refers to the directory where the results from the learning step should be saved.
 ```
@@ -48,5 +75,5 @@ Running the following command will fit the targeted transfer methods with hyperp
 ```
 mkdir learn/results/malawi
 python main_learn.py main --config hparam/results/malawi/output_gan_continuous_gap.yaml --trainpath data/malawi/train.parquet --testpath data/malawi/test.parquet --summarypath data/malawi/summary.parquet --device cuda
-```
+``` -->
 

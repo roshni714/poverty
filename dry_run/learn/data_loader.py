@@ -68,10 +68,12 @@ def load_datasets(
         conversion_factor = 1.0
     else:
         df = pd.read_csv(auxpath)
-        country = trainpath.split("/")[-2][:3]
-        conversion_factor = df[df.country_code == country][
+        country_code = trainpath.split("/")[-2][:3]
+        conversion_factor = df[df.country_code == country_code][
             "overall_conversion_factor_ratio_from_2021_to_{}".format(year)
         ].values[0]
+
+    # import pdb; pdb.set_trace()
 
     data1 = _load_data(trainpath)
     data2 = _load_data(testpath)
@@ -85,7 +87,9 @@ def load_datasets(
 
     train_data = _load_data(trainpath)
     test_data = _load_data(testpath)
-    train_data = get_data_for_geo(train_data, summary, outcome, weight, geo_only=geo_only)
+    train_data = get_data_for_geo(
+        train_data, summary, outcome, weight, geo_only=geo_only
+    )
     test_data = get_data_for_geo(test_data, summary, outcome, weight, geo_only=geo_only)
     covs = list(train_data.columns)
     covs.remove(outcome)

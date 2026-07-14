@@ -330,7 +330,7 @@ def learn_welfare(
 @argh.arg("--config", default="hparam_results/output_gan_continuous_rate.yaml")
 @argh.arg("--povertyline", default=3.0)
 @argh.arg("--year", default=2021)
-@argh.arg("--geo", action='store_true', help="Whether to use geo only features")
+@argh.arg("--geo", action="store_true", help="Whether to use geo only features")
 @argh.arg("--nfeatures", default=None, type=int)
 @argh.arg("--trainpath", default=None)
 @argh.arg("--testpath", default=None)

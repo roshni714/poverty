@@ -118,9 +118,7 @@ class ExtrapolationResults:
             {
                 "Country": self.in_sample_countries,
                 "Policy Cost": np.array(in_sample_costs),
-                "Oracle Cost".format(self.nationalPovertyRate): np.array(
-                    oracle_cost
-                ),
+                "Oracle Cost".format(self.nationalPovertyRate): np.array(oracle_cost),
                 "Oracle Cost": np.array(oracle_costs_full_poverty_elimination),
             }
         )

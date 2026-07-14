@@ -4,6 +4,9 @@ from scipy.interpolate import interp1d
 from learn.formatting import METHODS
 import os
 
+from opt_targeted_transfers import Dataset, post_transfer_metrics
+from learn.data_loader import load_datasets
+
 
 class AveragedCountryMethodPovertyResults:
     """
@@ -466,7 +469,7 @@ class CountryMethodPovertyResults:
                     "data/{}/test.parquet".format(self.country)
                 ).reset_index(drop=True)
                 transfer_df = transfer_df.merge(
-                    test_data["headcount_adjusted_hh_wgt"],
+                    test_data,
                     left_index=True,
                     right_index=True,
                 )
@@ -747,3 +750,331 @@ class AggregatePovertyResults:
 
         self.aggregate_interpolator_rate_domain = (min(actual_rates), max(actual_rates))
         self.aggregate_interpolator_gap_domain = (min(actual_gaps), max(actual_gaps))
+
+
+class CountryBootstrapReplicateResults:
+    """
+    Class to report poverty results for a specific country and method for a specific bootstrap replicate.
+
+    :param country: The name of the country.
+    :type country: str
+    :param method: The method to report results for.
+    :type method: str
+    :param geo_extrapolation: Whether to use geo-extrapolation or geo-interpolation.
+    :type geo_extrapolation: bool
+    :param povertyline: The international poverty line in PPP (e.g. 2.15, 3.0)
+    :type povertyline: float
+    :param year: The year of the international poverty line (2017 or 2021).
+    """
+
+    def __init__(self, country, method, metadata, bootstrap_seed):
+        self.country = country
+        self.method = method
+        self.geo = metadata.geo
+        self.restricted_feature_set = metadata.restricted_feature_set
+        self.year = metadata.year
+        self.povertyline = metadata.povertyline
+        self.metadata = metadata
+        self.auxpath = metadata.auxpath
+        budgets, transfer_dfs = self._load_transfer_data()
+        self.budgets = budgets
+        self.transfer_dfs = transfer_dfs
+        self.bootstrap_seed = bootstrap_seed
+        self.conversion_factor = self._get_conversion_factor()
+        self._get_result_interpolators()
+
+    def _load_data(self):
+        """
+        Load the data for a specific country and method.
+
+        :param bootstrap_seed: The seed for the bootstrap resampling.
+        :type bootstrap_seed: int or None
+        :return: A DataFrame containing the data for the specified country and method.
+        :rtype: pandas.DataFrame
+        """
+        n = len(self.transfer_dfs[0])
+        weights = (
+            self.transfer_dfs[0]["headcount_adjusted_hh_wgt"].to_numpy().astype(float)
+        )
+        weights /= weights.sum()
+        rng = np.random.RandomState(seed=self.bootstrap_seed)
+        bootstrap_sample = rng.choice(n, size=n, replace=True, p=weights)
+
+        base_consumption = self.transfer_dfs[0]["consumption"].to_numpy()
+        base_weights = self.transfer_dfs[0]["headcount_adjusted_hh_wgt"].to_numpy()
+        bootstrap_test_dataset_df = pd.DataFrame(
+            {
+                "consumption_per_capita_per_day": base_consumption[bootstrap_sample],
+                "headcount_adjusted_hh_wgt": np.ones(n),
+                "X": np.ones(n),
+            }
+        )
+
+        bootstrap_test_dataset = Dataset(
+            df=bootstrap_test_dataset_df,
+            outcome="consumption_per_capita_per_day",
+            covs=["X"],
+            weight="headcount_adjusted_hh_wgt",
+        )
+
+        def transfer_values_to_dic(ev_transfer_values):
+            return {i: [(value, 1.0)] for i, value in enumerate(ev_transfer_values)}
+
+        metrics = []
+        for transfer_df in self.transfer_dfs:
+            sampled_transfers = transfer_df["ev_transfer"].to_numpy()[bootstrap_sample]
+            assignment_policy = transfer_values_to_dic(sampled_transfers)
+            metrics.append(
+                post_transfer_metrics(
+                    bootstrap_test_dataset, assignment_policy, self.povertyline
+                )
+            )
+        metrics_df = pd.DataFrame(metrics)
+        return metrics_df
+
+    def _get_conversion_factor(self):
+        """
+        Conversion factor from per capita per day in PPP in year corresponding to self.year to total annual cost in billion USD (nominal 2023).
+
+        :return: Conversion factor.
+        :rtype: float
+        """
+        df = self.metadata.preprocess_country_aux_data()
+
+        # nominal conversion factor from year (of international poverty line) to 2023
+        secondary_df = self.metadata.preprocess_secondary_aux_data()
+        inflation_adjustment = (
+            1
+            / secondary_df[
+                secondary_df["indicator"]
+                == "conversion_factor_nominal_USD_2023_to_{}".format(self.year)
+            ]["value"]
+            .values[0]
+            .item()
+        )
+
+        country_code = self.country[:3]
+
+        country_df = df[df["country_code"] == country_code]
+        if country_df.shape[0] == 0:
+            raise ValueError(
+                "Country {} not found in auxiliary data.".format(country_code)
+            )
+
+        factor = (
+            country_df["total_population_survey_year"].values[0]  # population
+            * 365  # days per year
+            * inflation_adjustment  # from year to 2023 nominal
+            * (
+                country_df["PPP_conversion_factor_{}".format(self.year)].values[0]
+                / country_df["market_exchange_rate_{}".format(self.year)].values[0]
+            )  # from PPP to nominal USD in year
+        ) / 1000000000  # to billion USD
+
+        nominal_conversion_factor = inflation_adjustment * (
+            country_df["PPP_conversion_factor_{}".format(self.year)].values[0]
+            / country_df["market_exchange_rate_{}".format(self.year)].values[0]
+        )
+        self.nominal_conversion_factor = nominal_conversion_factor
+        return factor
+
+    def _get_initial(self, df):
+        """
+        Set initial poverty gap index and rate.
+        """
+        self.initial_gap_index = (
+            df["initial_poverty_gap"].values[0] / self.povertyline
+        ) * 100
+        self.initial_rate = df["initial_poverty_rate"].values[0] * 100
+
+        if "initial_welfare" not in df.columns:
+            if self.method in ["continuous_gap", "welfare"]:
+                print(
+                    "WARNING: initial welfare not found in data for country {}, method {}. Setting initial welfare to 0.".format(
+                        self.country, self.method
+                    )
+                )
+
+            self.initial_welfare = 0.0 + np.log(self.nominal_conversion_factor)
+        else:
+            self.initial_welfare = df["initial_welfare"].values[0] + np.log(
+                self.nominal_conversion_factor
+            )
+
+    def get_poverty_gap(self):
+        """
+        Get the total poverty gap in billion USD (nominal 2023).
+        :return: Total poverty gap.
+        :rtype: float
+        """
+        return (
+            self.conversion_factor * (self.initial_gap_index / 100) * self.povertyline
+        )
+
+    def get_ubi_cost(self):
+        """
+        Get the cost of a universal basic income at the poverty line in billion USD (nominal 2023).
+        :return: UBI cost.
+        :rtype: float
+        """
+        return self.conversion_factor * self.povertyline
+
+    def _get_min_poverty_gap_index_and_rate(self, df):
+        """
+        Get minimum poverty gap index and rate achieved by method.
+        Note this method is used so that we do not extrapolate beyond bounds of the results.
+        """
+        self.min_gap_index = (
+            df["post_transfer_poverty_gap"].min() / self.povertyline
+        ) * 100
+        self.min_rate = df["post_transfer_poverty_rate"].min() * 100
+
+    def _get_result_interpolators(self):
+        """
+        Set results interpolators for poverty gap index to cost, poverty rate to cost, and poverty rate to poverty gap index.
+        """
+        df = self._load_data()
+        self._get_min_poverty_gap_index_and_rate(df)
+        self._get_initial(df)
+        country_conversion_factor = self.conversion_factor
+
+        # Build interpolator from poverty gap index to cost
+        gaps = list(df["post_transfer_poverty_gap"] * 100 / self.povertyline)
+        costs = list(df["policy_cost_per_capita"] * country_conversion_factor)
+        gaps.append(self.initial_gap_index)
+        costs.append(0.0)
+        country_gap_to_cost_interpolator = interp1d(gaps, costs, kind="linear")
+        self.gap_to_cost_interpolator = country_gap_to_cost_interpolator
+        self.gap_to_cost_interpolator_domain = (
+            min(gaps),
+            max(gaps),
+        )
+
+        # Build interpolator from poverty gap index to poverty rate
+        rates = list(df["post_transfer_poverty_rate"] * 100)
+        rates.append(self.initial_rate)
+        # rates1 = rates.copy()
+        # rates1.append(0.0)
+        # gaps1 = gaps.copy()
+        # gaps1.append(0.0)
+        country_gap_to_rate_interpolator = interp1d(
+            rates,
+            gaps,
+            kind="linear",
+        )
+        self.rate_to_gap_interpolator = country_gap_to_rate_interpolator
+
+        self.rate_to_gap_interpolator_domain = (
+            min(rates),
+            max(rates),
+        )
+
+        # Build interpolator from poverty rate to cost
+        rate_to_cost_interpolator = interp1d(
+            rates,
+            costs,
+            kind="linear",
+        )
+        self.rate_to_cost_interpolator = rate_to_cost_interpolator
+        self.rate_to_cost_interpolator_domain = (
+            min(rates),
+            max(rates),
+        )
+
+        # Build interpolator from cost to welfare
+        if "post_transfer_welfare" not in df.columns:
+            df["post_transfer_welfare"] = 0.0
+
+        welfares = list(
+            df["post_transfer_welfare"].values + np.log(self.nominal_conversion_factor)
+        )  # Replace "welfare_metric" with the actual column name
+        welfares.append(self.initial_welfare)
+        welfares = np.array(welfares)
+        cost_to_welfare_interpolator = interp1d(costs, welfares, kind="linear")
+        self.cost_to_welfare_interpolator_domain = (min(costs), max(costs))
+        self.cost_to_welfare_interpolator = cost_to_welfare_interpolator
+
+    def _load_transfer_data(self):
+        """
+        Load the transfer data for a specific country and method.
+        :return: A DataFrame containing the transfer data for the specified country and method.
+        :rtype: pandas.DataFrame
+        """
+        subfolder = "geo_extrapolation"
+
+        if self.method == "oracle_gap":
+            directory_path = "learn/results/{}/{}/year={}".format(
+                self.country, subfolder, self.year
+            )
+            prefix = "oracle_gap_budget="
+        elif self.method != "oracle_gap" and self.restricted_feature_set:
+            directory_path = "learn/results/{}/{}/year={}_d=20".format(
+                self.country, subfolder, self.year
+            )
+            prefix = "output_gt_{}_budget=".format(self.method)
+        else:
+            directory_path = "learn/results/{}/{}/year={}".format(
+                self.country, subfolder, self.year
+            )
+            prefix = "output_gt_{}_budget=".format(self.method)
+
+        files_with_prefix = []
+        for filename in os.listdir(directory_path):
+            if filename.startswith(prefix) and os.path.isfile(
+                os.path.join(directory_path, filename)
+            ):
+                files_with_prefix.append(filename)
+
+        transfer_dfs = []
+        budgets = []
+        test_data = pd.read_parquet(
+            "data/{}/test.parquet".format(self.country)
+        ).reset_index(drop=True)
+
+        for filename in files_with_prefix:
+            if filename.startswith(prefix):
+                transfer_df = pd.read_csv(os.path.join(directory_path, filename))
+                budget = filename.split("_budget=")[1].split(".csv")[0]
+                budgets.append(float(budget))
+                transfer_df = transfer_df.merge(
+                    test_data,
+                    left_index=True,
+                    right_index=True,
+                )
+                transfer_dfs.append(transfer_df)
+
+        return budgets, transfer_dfs
+
+    def get_number_of_people_targeted(self):
+        """
+        Get the number of people targeted by the method.
+        :return: Number of people targeted.
+        :rtype: float
+        """
+        transfer_dfs = self._load_transfer_data()
+
+        pov_rates = []
+        num_targeted = []
+        df = self.metadata.preprocess_country_aux_data()
+        total_pop = df[df["country_code"] == self.country][
+            "total_population_survey_year"
+        ].values[0]
+        for transfer_df in transfer_dfs:
+            transfer_df["headcount_adjusted_hh_wgt"] /= transfer_df[
+                "headcount_adjusted_hh_wgt"
+            ].sum()
+            sum_weights_positive_transfer = transfer_df[transfer_df["ev_transfer"] > 0][
+                "headcount_adjusted_hh_wgt"
+            ].sum()
+            post_transfer_pov_rate = np.sum(
+                (
+                    transfer_df["consumption"] + transfer_df["ev_transfer"]
+                    < self.povertyline
+                )
+                * transfer_df["headcount_adjusted_hh_wgt"]
+            )
+            pov_rates.append(post_transfer_pov_rate)
+            num_targeted.append(sum_weights_positive_transfer * total_pop)
+
+        interpolator = interp1d(np.array(pov_rates) * 100, num_targeted, kind="linear")
+        return interpolator

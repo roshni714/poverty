@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import yaml
 import numpy as np
+import argparse
 from copy import deepcopy
 from learn.data_loader import load_datasets
 
@@ -63,7 +64,7 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
         base_config["data"]["gt"]["trainpath"],
         base_config["data"]["gt"]["summarypath"],
         base_config["data"]["gt"]["auxpath"],
-        geo_only=True,
+        geo_only=False,
         outcome=base_config["data"]["outcome"],
         weight=base_config["data"]["weight"],
         year=base_config["data"]["year"],
@@ -178,16 +179,30 @@ countries = [
     "ZWE",
     "YEM",
     "ZAF",
-    "TGO_alpha_earth",
-    "TGO_alpha_earth_and_survey",
-    "IND", 
+    "IND",
     "IDN",
     "NAM",
-    "SLE"
+    "SLE",
+    "TGO_alpha_earth",
+    "TGO_alpha_earth_and_survey",
 ]
-new_countries = ["NAM", "SLE", "NGA", "TLS"]
-geo_extrapolation = [True]
-for country in new_countries:
-    for geo in geo_extrapolation:
-        generate_gt_hparam_config(country, geo, "cpu")
-    # generate_default_hparam_config(country)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Generate hparam config files.")
+    parser.add_argument(
+        "--device",
+        choices=["cpu", "cuda:0"],
+        default="cpu",
+        help="Compute device to write into generated configs.",
+    )
+    args = parser.parse_args()
+
+    geo_extrapolation = [True]
+    for country in countries:
+        for geo in geo_extrapolation:
+            generate_gt_hparam_config(country, geo, args.device)
+
+
+if __name__ == "__main__":
+    main()
