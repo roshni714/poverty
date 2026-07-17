@@ -35,6 +35,7 @@ chmod +x run_learn_scripts.sh
 To run experiments on a SLURM cluster, edit the global SBATCH variables in the `generate_sbatches.py` script with corresponding information about the SLURM cluster and pass the `USE_SLURM` flag to the script.
 ```
 chmod +x run_hparam_scripts.sh
+chmod +x run_learn_scripts.sh
 ./run_scripts.sh SCRIPT_DIRECTORY_PATH USE_SBATCH
 ./run_learn_scripts.sh SCRIPT_DIRECTORY_PATH USE_SBATCH
 ```
