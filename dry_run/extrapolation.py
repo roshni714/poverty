@@ -96,7 +96,7 @@ class ExtrapolationResults:
         ]
 
         oracle_results = [
-            CountryMethodPovertyResults(country, "oracle_gap", metadata=self.metadata)
+            CountryMethodPovertyResults(country, "oracle_rate", metadata=self.metadata)
             for country in self.in_sample_countries
         ]
 
@@ -208,10 +208,10 @@ class ExtrapolationResults:
             alpha=0.5,
         )
         ax[1].set_xlabel(
-            "WB ({} ) Poverty Rate (%)".format(self.forecast_year), fontsize=fontsize
+            "WB ({}) Poverty Rate (%)".format(self.forecast_year), fontsize=fontsize
         )
         ax[1].set_ylabel(
-            "WB ({} ) Poverty Gap Index (%)".format(self.forecast_year),
+            "WB ({}) Poverty Gap Index (%)".format(self.forecast_year),
             fontsize=fontsize,
         )
         for i in range(2):

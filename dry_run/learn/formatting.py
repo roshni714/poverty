@@ -1,7 +1,7 @@
 METHODS = {
-    "oracle_gap": {
-        "csv": "oracle_gap",
-        "name": "Oracle Gap Minimization",
+    "oracle_rate": {
+        "csv": "oracle_rate",
+        "name": "Oracle (Weakly Equitable)",
         "color": "green",
         "linestyle": "-",
     },

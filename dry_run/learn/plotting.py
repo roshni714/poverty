@@ -88,8 +88,7 @@ def make_plot_for_country(
             df["policy_cost_per_capita"] * results[0].conversion_factor
         )
 
-        if method != "oracle_gap":
-            ax[0].plot(
+        ax[0].plot(
                 rates,
                 costs,
                 marker="o",
@@ -109,7 +108,7 @@ def make_plot_for_country(
             linewidth=3,
         )
 
-    handles, labels = ax[1].get_legend_handles_labels()
+    handles, labels = ax[0].get_legend_handles_labels()
     if ubi_on:
         ubi_label = METHODS["ubi_standard"]["name"] + " (${})".format(
             metadata.povertyline
@@ -189,7 +188,7 @@ def aggregate_plot(
             )
         )
 
-    oracle_results = AggregatePovertyResults(countries, "oracle_gap", metadata=metadata)
+    oracle_results = AggregatePovertyResults(countries, "oracle_rate", metadata=metadata)
     initial_gap_index, initial_rate, _ = oracle_results.get_initial()
     xlims = [initial_rate, initial_gap_index]
     xlabels = [
@@ -226,8 +225,7 @@ def aggregate_plot(
         rate_interpolator = results[i].aggregate_interpolator_rate_to_cost
         gap_interpolator = results[i].aggregate_interpolator_gap_to_cost
 
-        if method != "oracle_gap":
-            ax[0].plot(
+        ax[0].plot(
                 np.linspace(rate_domain[0], rate_domain[1], 200),
                 rate_interpolator(np.linspace(rate_domain[0], rate_domain[1], 200)),
                 label=METHODS[method]["name"],
@@ -244,7 +242,7 @@ def aggregate_plot(
             linewidth=3,
         )
 
-    handles, labels = ax[1].get_legend_handles_labels()
+    handles, labels = ax[0].get_legend_handles_labels()
     if ubi_on:
         ubi_label = METHODS["ubi_standard"]["name"] + " (${})".format(
             metadata.povertyline
@@ -420,12 +418,12 @@ def plot_bar_chart_policy_amt_as_percent_of_gdp(countries, metadata, save_as):
     ylabel_names = ["% of GDP", "% of Gov't Revenue"]
     for i in range(2):
         new_df.sort_values(by=[ylabels[i]], inplace=True, ascending=False)
-        axes[i].bar(new_df["country_name"], new_df[ylabels[i]], zorder=3)
+        axes[i].bar(new_df["country_code"], new_df[ylabels[i]], zorder=3)
         axes[i].set_xlabel("Country", fontsize=fontsize)
         axes[i].set_ylabel(ylabel_names[i], fontsize=fontsize)
         axes[i].set_xticklabels(new_df["country_code"], rotation=90, fontsize=fontsize)
         axes[i].set_yticklabels(
-            np.round(axes[0].get_yticks()).astype(int), fontsize=fontsize
+            np.round(axes[i].get_yticks()).astype(int), fontsize=fontsize
         )
         axes[i].grid(axis="y", zorder=0)
 
@@ -1122,7 +1120,7 @@ def get_headline_numbers(countries, metadata, global_rate=False):
     else:
         national_poverty_rate = metadata.nationalPovertyRate
     agg_results = []
-    methods = ["continuous_gap", "binary_gap", "oracle_gap", "ubi"]
+    methods = ["continuous_gap", "binary_gap", "oracle_rate", "ubi"]
     for method in methods:
         agg_results.append(
             AggregatePovertyResults(
@@ -1137,16 +1135,6 @@ def get_headline_numbers(countries, metadata, global_rate=False):
                 agg_results[i]
                 .aggregate_interpolator_rate_to_cost(national_poverty_rate)
                 .item()
-            )
-        elif method == "oracle_gap":
-            gap_induced = (
-                agg_results[0]
-                .aggregate_interpolator_rate_to_gap(national_poverty_rate)
-                .item()
-            )  # want oracle to correpond to global poverty gap
-
-            cost[method] = (
-                agg_results[i].aggregate_interpolator_gap_to_cost(gap_induced).item()
             )
         else:
             cost[method] = (
@@ -1757,7 +1745,7 @@ def plot_satellite_image(metadata, save_as):
             "TGO_alpha_earth_and_survey", "continuous_gap", metadata
         )
     )
-    colors = ["purple", "blue", "cyan", "cornflowerblue"]
+    colors = ["purple", "blue", "#66A61E", "magenta"]
     labels = [" (Survey)", " (Survey)", " (Satellite)", " (Survey + Satellite)"]
 
     fontsize = 30
@@ -1779,10 +1767,15 @@ def plot_satellite_image(metadata, save_as):
             np.linspace(0.0, xlims[i]),
             np.ones(50) * results[0].get_ubi_cost(),
             linestyle="--",
-            color=METHODS["ubi_standard"]["color"],
-            label=METHODS["ubi_standard"]["name"]
-            + " (${})".format(metadata.povertyline),
+            color="gray",
+            label="_nolegend_",
             linewidth=3,
+        )
+        ax[i].scatter(
+            [0.0],
+            [results[0].get_ubi_cost()],
+            color=METHODS["ubi_standard"]["color"],
+            zorder=10,
         )
 
     for i in range(len(results)):
@@ -1799,8 +1792,7 @@ def plot_satellite_image(metadata, save_as):
             df["policy_cost_per_capita"] * results[0].conversion_factor
         )
 
-        if method != "oracle_gap":
-            ax[0].plot(
+        ax[0].plot(
                 rates,
                 costs,
                 marker="o",
@@ -1820,7 +1812,24 @@ def plot_satellite_image(metadata, save_as):
             linewidth=3,
         )
 
-    ax[1].legend(fontsize=fontsize * 0.75)
+    handles, legend_labels = ax[1].get_legend_handles_labels()
+    ubi_label = METHODS["ubi_standard"]["name"] + " (${})".format(
+        metadata.povertyline
+    )
+    ubi_handle = Line2D(
+        [0],
+        [0],
+        color="gray",
+        linestyle="--",
+        linewidth=3,
+        marker="o",
+        markerfacecolor=METHODS["ubi_standard"]["color"],
+        markeredgecolor=METHODS["ubi_standard"]["color"],
+        markersize=8,
+    )
+    handles = [ubi_handle] + handles
+    legend_labels = [ubi_label] + legend_labels
+    ax[1].legend(handles, legend_labels, fontsize=fontsize * 0.75)
     plt.tight_layout()
     plt.savefig("{}.pdf".format(save_as), bbox_inches="tight")
     plt.close()
@@ -1880,7 +1889,7 @@ def plot_targeting_efficiency(country, metadata, save_as):
         zorder=5,
     )
     ax.set_xlabel(
-        "Share Still Poor \n (% of Pre-Transfer Poverty Poor)", fontsize=fontsize
+        "Share Still Poor \n (% of Pre-Transfer Poverty Rate)", fontsize=fontsize
     )
     ax.set_ylabel("Share Excess Transfer\n (% of Total Transfer)", fontsize=fontsize)
 
@@ -1905,11 +1914,11 @@ def get_transfer_data(country, method, metadata):
     )
 
     idx = bisect.bisect_left(budgets, cost)
-    if method == "oracle_gap":
+    if method == "oracle_rate":
         return budgets[-1], transfers[-1]
     else:
         if np.abs(budgets[idx] - cost) > np.abs(budgets[idx - 1] - cost):
-            return budgets[idx], transfers[idx - 1]
+            return budgets[idx - 1], transfers[idx - 1]
         else:
             return budgets[idx], transfers[idx]
 
@@ -1921,7 +1930,7 @@ def make_transfer_plot(country, metadata, save_as):
 
     _, gap_transfers = get_transfer_data(country, "continuous_gap", metadata)
     _, binary_gap_transfers = get_transfer_data(country, "binary_gap", metadata)
-    _, oracle_transfers = get_transfer_data(country, "oracle_gap", metadata)
+    _, oracle_transfers = get_transfer_data(country, "oracle_rate", metadata)
 
     usi_res = CountryMethodPovertyResults(
         country=country, method="ubi", metadata=metadata
@@ -1932,7 +1941,7 @@ def make_transfer_plot(country, metadata, save_as):
         / usi_res.conversion_factor
     )
 
-    methods = ["binary_gap", "continuous_gap", "oracle_gap"]
+    methods = ["binary_gap", "continuous_gap", "oracle_rate"]
     transfers = [
         binary_gap_transfers,
         gap_transfers,
@@ -2320,7 +2329,7 @@ def make_macro_file(countries, metadata, save_as):
         )
         f.write(
             "\\newcommand{\\headlineOracleNationalTarget}"
-            + "{{{}}}\n".format(round(national_cost["oracle_gap"]))
+            + "{{{}}}\n".format(round(national_cost["oracle_rate"]))
         )
         f.write(
             "\\newcommand{\\headlineBinaryGapNationalTarget}"
@@ -2350,7 +2359,7 @@ def make_macro_file(countries, metadata, save_as):
             "\\newcommand{\\headlineGapOracleRatioNationalTarget}"
             + "{{{}}}\n".format(
                 round(
-                    (national_cost["continuous_gap"] / national_cost["oracle_gap"]), 1
+                    (national_cost["continuous_gap"] / national_cost["oracle_rate"]), 1
                 )
             )
         )
@@ -2378,7 +2387,7 @@ def make_macro_file(countries, metadata, save_as):
         )
         f.write(
             "\\newcommand{\\headlineOracleGlobalTarget}"
-            + "{{{}}}\n".format(round(global_cost["oracle_gap"]))
+            + "{{{}}}\n".format(round(global_cost["oracle_rate"]))
         )
         f.write(
             "\\newcommand{\\headlineBinaryGapGlobalTarget}"
@@ -2406,7 +2415,7 @@ def make_macro_file(countries, metadata, save_as):
         f.write(
             "\\newcommand{\\headlineGapOracleRatioGlobalTarget}"
             + "{{{}}}\n".format(
-                round((global_cost["continuous_gap"] / global_cost["oracle_gap"]))
+                round((global_cost["continuous_gap"] / global_cost["oracle_rate"]))
             )
         )
         f.write(
@@ -2582,7 +2591,7 @@ def make_macro_file(countries, metadata, save_as):
         f.write(
             "\\newcommand{\\togoGapOracleRatio}"
             + "{{{}}}\n".format(
-                round(togo_cost["continuous_gap"] / togo_cost["oracle_gap"])
+                round(togo_cost["continuous_gap"] / togo_cost["oracle_rate"])
             )
         )
         f.write(

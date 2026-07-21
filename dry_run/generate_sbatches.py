@@ -249,16 +249,16 @@ def generate_sample_size_run_2017_povertyline(output_path):
 def generate_learn_run_2017_povertyline(output_path):
     geo_extrapolation = [True]
     configs = [
-        "output_gt_continuous_gap.yaml",
-        "output_gt_binary_rate.yaml",
-        "output_gt_binary_gap.yaml",
-        "output_gt_continuous_rate.yaml",
-        "output_gt_pmt.yaml",
-        "output_gt_modern_pmt.yaml",
-        "oracle_gap.yaml",
-        "output_gt_pmt_gap.yaml",
-        "ubi.yaml",
-        "output_gt_welfare.yaml",
+        #"output_gt_continuous_gap.yaml",
+        #"output_gt_binary_rate.yaml",
+        #"output_gt_binary_gap.yaml",
+        #"output_gt_continuous_rate.yaml",
+        #"output_gt_pmt.yaml",
+        #"output_gt_modern_pmt.yaml",
+        "oracle_rate.yaml",
+        #"output_gt_pmt_gap.yaml",
+        #"ubi.yaml",
+        #"output_gt_welfare.yaml",
     ]
 
     for country in COUNTRIES:
@@ -285,15 +285,15 @@ def generate_learn_run_2017_povertyline(output_path):
 def generate_learn_run_2021_povertyline(output_path):
     geo_extrapolation = [True]
     configs = [
-        "output_gt_pmt.yaml",
-        "output_gt_pmt_gap.yaml",
-        "output_gt_continuous_rate.yaml",
-        "output_gt_binary_rate.yaml",
-        "output_gt_binary_gap.yaml",
-        "output_gt_continuous_gap.yaml",
-        "output_gt_modern_pmt.yaml",
-        "oracle_gap.yaml",
-        "ubi.yaml",
+        # "output_gt_pmt.yaml",
+        # "output_gt_pmt_gap.yaml",
+        # "output_gt_continuous_rate.yaml",
+        # "output_gt_binary_rate.yaml",
+        # "output_gt_binary_gap.yaml",
+        # "output_gt_continuous_gap.yaml",
+        # "output_gt_modern_pmt.yaml",
+        # "ubi.yaml",
+        "oracle_rate.yaml",
     ]
 
     for country in COUNTRIES:
@@ -484,12 +484,12 @@ def main():
     os.makedirs(hparam_output_path, exist_ok=True)
     os.makedirs(learn_output_path, exist_ok=True)
     # generate_hparam_run(hparam_output_path)
-    generate_satellite_hparam_run(hparam_output_path)
+    #generate_satellite_hparam_run(hparam_output_path)
 
-    # generate_learn_run_2017_povertyline(learn_output_path)
-    # generate_learn_run_2021_povertyline(learn_output_path)
+    generate_learn_run_2017_povertyline(learn_output_path)
+    generate_learn_run_2021_povertyline(learn_output_path)
     # generate_learn_run_2017_restricted_features_povertyline(learn_output_path)
-    generate_satellite_learn_run(learn_output_path)
+    #generate_satellite_learn_run(learn_output_path)
     # generate_sample_size_run_2017_povertyline(learn_output_path)
     # generate_geographic_learn_run(learn_output_path)
 

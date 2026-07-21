@@ -9,6 +9,7 @@ from opt_targeted_transfers import (
     BinaryGapTargetedTransfers,
     UBITargetedTransfers,
     OracleGapTargetedTransfers,
+    OracleRateTargetedTransfers,
     PMTTargetedTransfers,
     ModernPMTTargetedTransfers,
     WelfareTargetedTransfers,
@@ -301,6 +302,20 @@ def learn_oracle_gap(
     tt = OracleGapTargetedTransfers(c_bar=povertyline, scheme="consumption_floor")
     run_evaluation(tt, test_covariate_dataset, test_dataset, budgets, savepath)
 
+def learn_oracle_rate(
+    test_covariate_dataset,
+    test_dataset,
+    povertyline,
+    budgets,
+    savepath,
+):
+    """
+    Learn the weakly equitable oracle rate targeted transfers
+    """
+    print("Learning weakly equitable oracle rate targeted transfers...")
+    tt = OracleRateTargetedTransfers(c_bar=povertyline, scheme="rate_weakly_equitable")
+    run_evaluation(tt, test_covariate_dataset, test_dataset, budgets, savepath)
+
 
 def learn_welfare(
     train_dataset,
@@ -376,6 +391,7 @@ def main(
                 "pmt_gap",
                 "ubi",
                 "modern_pmt",
+                "oracle_rate",
             ]
             for key in config_keys
         ]
@@ -430,7 +446,7 @@ def main(
         "pmt_gap": learn_pmt_gap,
     }
 
-    NONLEARNING_METHODS = {"oracle_gap": learn_oracle_gap, "ubi": learn_ubi}
+    NONLEARNING_METHODS = {"oracle_gap": learn_oracle_gap, "ubi": learn_ubi, "oracle_rate": learn_oracle_rate}
 
     _, y_test, r_test = test_dataset.get_data()
     pov_gap = np.sum(np.maximum(povertyline - y_test, 0) * r_test)

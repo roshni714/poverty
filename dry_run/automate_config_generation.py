@@ -85,8 +85,18 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
     pmt_gap_config = deepcopy(pmt_config)
     pmt_gap_config["pmt_gap"] = pmt_gap_config.pop("pmt")
 
-    oracle_config = {
+    oracle_gap_config = {
         "oracle_gap": {},
+        "data": {
+            "outcome": "consumption_per_capita_per_day",
+            "weight": "headcount_adjusted_hh_wgt",
+            "geo_extrapolation": geo_extrapolation,
+        },
+        "savedir": f"learn/results/{country}/{subfolder}",
+    }
+
+    oracle_rate_config = {
+        "oracle_rate": {},
         "data": {
             "outcome": "consumption_per_capita_per_day",
             "weight": "headcount_adjusted_hh_wgt",
@@ -138,7 +148,10 @@ def generate_gt_hparam_config(country, geo_extrapolation, device):
             yaml.dump(config, file, default_flow_style=False)
 
     with open(f"hparam/results/{country}/{subfolder}/oracle_gap.yaml", "w") as file:
-        yaml.dump(oracle_config, file, default_flow_style=False)
+        yaml.dump(oracle_gap_config, file, default_flow_style=False)
+
+    with open(f"hparam/results/{country}/{subfolder}/oracle_rate.yaml", "w") as file:
+        yaml.dump(oracle_rate_config, file, default_flow_style=False)
 
     with open(f"hparam/results/{country}/{subfolder}/ubi.yaml", "w") as file:
         yaml.dump(ubi_config, file, default_flow_style=False)

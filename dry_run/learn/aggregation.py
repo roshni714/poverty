@@ -225,19 +225,19 @@ class CountryMethodPovertyResults:
 
         if self.train_frac is None:
 
-            if self.method == "oracle_gap":
+            if self.method == "oracle_rate":
                 df = pd.read_csv(
                     "learn/results/{}/{}/year={}/{}.csv".format(
                         self.country, subfolder, self.year, METHODS[self.method]["csv"]
                     )
                 )
-            elif self.method != "oracle_gap" and self.restricted_feature_set:
+            elif self.method != "oracle_rate" and self.restricted_feature_set:
                 df = pd.read_csv(
                     "learn/results/{}/{}/year={}_d=20/{}.csv".format(
                         self.country, subfolder, self.year, METHODS[self.method]["csv"]
                     )
                 )
-            elif self.method != "oracle_gap" and self.geo:
+            elif self.method != "oracle_rate" and self.geo:
                 df = pd.read_csv(
                     "learn/results/{}/{}/year={}_geo_only/{}.csv".format(
                         self.country, subfolder, self.year, METHODS[self.method]["csv"]
@@ -434,11 +434,11 @@ class CountryMethodPovertyResults:
         """
         subfolder = "geo_extrapolation"
 
-        if self.method == "oracle_gap":
+        if self.method == "oracle_rate":
             directory_path = "learn/results/{}/{}/year={}".format(
                 self.country, subfolder, self.year
             )
-            prefix = "oracle_gap_budget="
+            prefix = "oracle_rate_budget="
         elif self.method != "oracle_gap" and self.restricted_feature_set:
             directory_path = "learn/results/{}/{}/year={}_d=20".format(
                 self.country, subfolder, self.year
@@ -1002,12 +1002,12 @@ class CountryBootstrapReplicateResults:
         """
         subfolder = "geo_extrapolation"
 
-        if self.method == "oracle_gap":
+        if self.method == "oracle_rate":
             directory_path = "learn/results/{}/{}/year={}".format(
                 self.country, subfolder, self.year
             )
-            prefix = "oracle_gap_budget="
-        elif self.method != "oracle_gap" and self.restricted_feature_set:
+            prefix = "oracle_rate_budget="
+        elif self.method != "oracle_rate" and self.restricted_feature_set:
             directory_path = "learn/results/{}/{}/year={}_d=20".format(
                 self.country, subfolder, self.year
             )

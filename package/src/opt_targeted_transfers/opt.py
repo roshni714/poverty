@@ -2,6 +2,7 @@ from opt_targeted_transfers.dataset_utils import Dataset
 from opt_targeted_transfers.density_estimation import get_cond_density_estimator
 from opt_targeted_transfers.knapsack import compute_alpha_opt_policies
 from opt_targeted_transfers.oracle import (
+    run_oracle_poverty_rate_weakly_equitable,
     run_oracle_poverty_rate,
     run_oracle_poverty_gap_floor_scheme,
     run_oracle_poverty_gap_lift_to_line_scheme,
@@ -720,18 +721,28 @@ class OracleGapTargetedTransfers(TargetedTransfers):
 
 
 class OracleRateTargetedTransfers(TargetedTransfers):
-    def __init__(self, c_bar=3.0, budget=None):
+    def __init__(self, c_bar=3.0, budget=None, scheme="rate_weakly_equitable"):
+
+        assert scheme in ("rate", "rate_weakly_equitable")
 
         super().__init__(c_bar=c_bar, budget=budget)
         self.name = "oracle_rate"
+        self.scheme = scheme
 
     def run_opt(self, test_dataset):
 
-        assignments = run_oracle_poverty_rate(
-            test_dataset,
-            c_bar=self.c_bar,
-            budget=self.budget,
-        )
+        if self.scheme == "rate_weakly_equitable":
+            assignments = run_oracle_poverty_rate_weakly_equitable(
+                test_dataset,
+                c_bar=self.c_bar,
+                budget=self.budget,
+            )
+        elif self.scheme == "rate":
+            assignments = run_oracle_poverty_rate(
+                test_dataset,
+                c_bar=self.c_bar,
+                budget=self.budget,
+            )
         self.assignments = assignments
         return assignments
 

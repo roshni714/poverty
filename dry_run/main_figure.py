@@ -37,7 +37,7 @@ METHODS_ALL = [
     "continuous_gap",
     "binary_rate",
     "continuous_rate",
-    "oracle_gap",
+    "oracle_rate",
 ]
 METHODS_HEADLINE = [
     "ubi",
@@ -46,7 +46,7 @@ METHODS_HEADLINE = [
     "pmt_gap",
     "binary_gap",
     "continuous_gap",
-    "oracle_gap",
+    "oracle_rate",
 ]
 
 METHODS_RATE_VS_GAP = ["binary_gap", "continuous_gap", "binary_rate", "continuous_rate"]
@@ -655,7 +655,7 @@ def main(
         metadata=metadata,
         save_as="exhibits/empirical_macros",
     )
-    # make_presentation_figures(metadata)
+    make_presentation_figures(metadata)
 
 
 if __name__ == "__main__":
